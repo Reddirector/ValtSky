@@ -1,0 +1,33 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.ValtSky" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/dark_primary_accent</item>
+        <item name="colorPrimaryVariant">@color/dark_secondary_accent</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/dark_secondary_accent</item>
+        <item name="colorSecondaryVariant">@color/dark_primary_accent</item>
+        <item name="colorOnSecondary">@color/white</item>
+
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">?attr/valtskyBackground</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Custom Attributes -->
+        <item name="valtskyBackground">@color/dark_background</item>
+        <item name="valtskySurface">@color/dark_surface</item>
+        <item name="valtskyBorder">@color/dark_border</item>
+        <item name="valtskyPrimaryAccent">@color/dark_primary_accent</item>
+        <item name="valtskySecondaryAccent">@color/dark_secondary_accent</item>
+        <item name="valtskyTextPrimary">@color/dark_text_primary</item>
+        <item name="valtskyTextSecondary">@color/dark_text_secondary</item>
+        <item name="valtskySuccess">@color/dark_success</item>
+        <item name="valtskyError">@color/dark_error</item>
+        <item name="valtskyWarning">@color/dark_warning</item>
+        <item name="valtskyElevatedSurface">@color/dark_elevated_surface</item>
+
+        <!-- Typography -->
+        <item name="android:fontFamily">sans-serif</item>
+    </style>
+</resources>

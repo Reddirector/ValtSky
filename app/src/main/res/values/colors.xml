@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light Mode (Warm Ivory & Caramel) -->
+    <color name="light_background">#F7F3ED</color>
+    <color name="light_surface">#EFE7DC</color>
+    <color name="light_border">#E0D6CB</color>
+    <color name="light_primary_accent">#B8794E</color>
+    <color name="light_secondary_accent">#966240</color>
+    <color name="light_text_primary">#3C3730</color>
+    <color name="light_text_secondary">#7A746E</color>
+    <color name="light_success">#7EA682</color>
+    <color name="light_error">#D96659</color>
+    <color name="light_warning">#E6A04D</color>
+
+    <!-- Dark Mode (Deep Navy & Cyan Glow) -->
+    <color name="dark_background">#060B16</color>
+    <color name="dark_surface">#0E1628</color>
+    <color name="dark_elevated_surface">#151E36</color>
+    <color name="dark_border">#1A253D</color>
+    <color name="dark_primary_accent">#4CC9F0</color>
+    <color name="dark_secondary_accent">#4361EE</color>
+    <color name="dark_text_primary">#E1E5F2</color>
+    <color name="dark_text_secondary">#8B95A5</color>
+    <color name="dark_success">#4895EF</color>
+    <color name="dark_error">#F72585</color>
+    <color name="dark_warning">#B5179E</color>
+
+    <!-- Shared / Material Defaults -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="transparent">#00000000</color>
+
+    <!-- Shadow colors -->
+    <color name="light_shadow">#1A000000</color>
+    <color name="dark_shadow">#40000000</color>
+</resources>

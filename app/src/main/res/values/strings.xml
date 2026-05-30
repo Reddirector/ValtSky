@@ -1,0 +1,134 @@
+<resources>
+    <string name="app_name">ValtSky</string>
+    <string name="channel_hint">\@my_backup_channel</string>
+    <string name="status_live">Live</string>
+    <string name="label_total">TOTAL</string>
+    <string name="label_synced">SYNCED</string>
+    <string name="label_queued">QUEUED</string>
+    <string name="label_failed">FAILED</string>
+    <string name="battery_warning_title">Background Optimization Active</string>
+    <string name="battery_warning_desc">App may be killed by system. Disable optimization for reliable backup.</string>
+    <string name="btn_ignore_optimization">Ignore Optimization</string>
+    <string name="progress_title">Backup Progress</string>
+    <string name="progress_idle">Everything is up to date</string>
+    <string name="btn_retry_failed">Retry Failed</string>
+    <string name="failed_uploads_title">FAILED UPLOADS</string>
+    <string name="btn_clear_all">CLEAR ALL</string>
+    <string name="config_title">Configuration</string>
+    <string name="bot_token_label">Telegram Bot Token</string>
+    <string name="bot_token_hint">123456:ABC-DEF&#8230;</string>
+    <string name="channel_id_label">Target Channel ID</string>
+    <string name="network_label">Sync Network</string>
+    <string name="rb_wifi">Wi-Fi</string>
+    <string name="rb_mobile">Mobile</string>
+    <string name="rb_both">Both</string>
+    <string name="quality_label">Original Quality</string>
+    <string name="quality_desc">Send as documents to avoid compression</string>
+    <string name="btn_lock">Lock Settings</string>
+    <string name="btn_unlock">Unlock to Edit</string>
+    <string name="btn_start">Start Monitoring</string>
+    <string name="btn_stop">Stop Monitoring</string>
+    <string name="btn_pause_upload">STOP UPLOADING</string>
+    <string name="btn_resume_upload">CONTINUE UPLOADING</string>
+    <string name="btn_reset">RESET</string>
+    <string name="failed_more">More (+%d)</string>
+    <string name="failed_less">Show Less</string>
+    <string name="reset_dialog_title">Reset Sync?</string>
+    <string name="reset_dialog_msg">This will re-upload all photos and videos from the very beginning of your gallery to the current channel. This may take a long time. Are you sure?</string>
+    <string name="btn_yes_reset">Yes, Reset</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="not_connected">Not connected</string>
+    <string name="btn_show">SHOW</string>
+    <string name="btn_hide">HIDE</string>
+    <string name="btn_validate">VALIDATE</string>
+    <string name="label_last_synced">Last synced at: %s</string>
+    <string name="never_synced">Never synced</string>
+    <string name="resuming_from">Resuming from %s&#8230;</string>
+    <string name="btn_upload_manually">Upload Manually</string>
+    <string name="manual_share_limit">System limit: Sharing the first 50 failed files.</string>
+    <string name="manual_share_preparing">Preparing %d file(s) for manual upload&#8230;</string>
+
+    <!-- Large File Handling -->
+    <string name="large_file_label">Large File Handling</string>
+    <string name="large_file_compress">Compress</string>
+    <string name="large_file_compress_desc">Reduces file size before uploading. May lower video quality slightly. Best for saving Telegram storage.</string>
+    <string name="large_file_split">Split</string>
+    <string name="large_file_split_desc">Splits large files into parts and uploads each separately. No quality loss. Parts appear as multiple messages in your channel.</string>
+
+    <!-- Guide Tabs -->
+    <string name="tab_setup">Set Up</string>
+    <string name="tab_permissions">Permissions</string>
+    <string name="tab_precautions">Precautions</string>
+
+    <!-- Setup Tab -->
+    <string name="guide_setup_bot_title">1. Create Your Telegram Bot</string>
+    <string name="guide_setup_bot_step1_title">Step 1 — Open BotFather</string>
+    <string name="guide_setup_bot_step1_desc">• Search for @BotFather on Telegram\n• Tap the official one with blue check ✅\n• Send /start</string>
+    <string name="guide_setup_bot_step2_title">Step 2 — Create a New Bot</string>
+    <string name="guide_setup_bot_step2_desc">• Send command /newbot\n• Enter a display name (e.g. ValtSky Uploader)\n• Enter a username ending in \'bot\'</string>
+    <string name="guide_setup_bot_step3_title">Step 3 — Save Your Bot Token</string>
+    <string name="guide_setup_bot_step3_desc">• Copy the token BotFather sends you\n• Paste it into ValtSky settings later\n• Never share this token</string>
+
+    <string name="guide_setup_channel_title">2. Create Your Telegram Channel</string>
+    <string name="guide_setup_channel_step1_title">Step 1 — Create the Channel</string>
+    <string name="guide_setup_channel_step1_desc">• Open Telegram → New Channel\n• Enter a name → Tap Next</string>
+    <string name="guide_setup_channel_step2_title">Step 2 — Set It as Private</string>
+    <string name="guide_setup_channel_step2_desc">• Select Private Channel → Next\n• Skip adding members</string>
+
+    <string name="guide_setup_admin_title">3. Add Bot as Admin</string>
+    <string name="guide_setup_admin_desc">• Channel Info → Administrators\n• Add Admin → Search for your bot\n• Enable: Post, Edit, Delete Messages\n• Tap Save</string>
+
+    <string name="guide_setup_id_title">4. Get Your Channel ID</string>
+    <string name="guide_setup_id_method_a">Method A — @userinfobot</string>
+    <string name="guide_setup_id_method_a_desc">• Send a message to your channel\n• Forward it to @userinfobot\n• Copy the ID (e.g. -1001234567890)</string>
+    <string name="guide_setup_id_method_b">Method B — Web Browser</string>
+    <string name="guide_setup_id_method_b_desc">• Open api.telegram.org/botTOKEN/getUpdates\n• Look for \'id\' under \'chat\'</string>
+
+    <string name="guide_setup_enter_title">5. Enter Details in ValtSky</string>
+    <string name="guide_setup_enter_desc">• Paste Token and Channel ID in Settings\n• Tap VALIDATE to check connection\n• Tap Start Monitoring to begin</string>
+
+    <string name="guide_setup_troubleshoot_title">Troubleshooting</string>
+    <string name="guide_setup_troubleshoot_desc">• \'Channel not found\': Missing -100 prefix\n• \'Unauthorized\': Bot token is wrong\n• \'Not Admin\': Bot missing Post permission\n• Empty updates: Forward channel message first</string>
+
+    <!-- Permissions Tab -->
+    <string name="guide_perm_android_title">Android Permissions</string>
+    <string name="guide_perm_media_title">Media Library</string>
+    <string name="guide_perm_media_desc">Allow access to All Media when requested. Limited access will skip files.</string>
+    <string name="guide_perm_battery_title">Battery Optimization</string>
+    <string name="guide_perm_battery_desc">Disable battery optimization for ValtSky to ensure background uploads remain active.</string>
+    <string name="guide_perm_notif_title">Notifications</string>
+    <string name="guide_perm_notif_desc">Enable notifications to stay updated on backup progress and failures.</string>
+
+    <string name="guide_perm_bot_title">BotFather Bot Permissions</string>
+    <string name="guide_perm_privacy_title">Disable Privacy Mode</string>
+    <string name="guide_perm_privacy_desc">• Open @BotFather → /mybots\n• Settings → Group Privacy → Turn Off\n• Should say \'Privacy mode is disabled\'</string>
+    <string name="guide_perm_groups_title">Allow Groups &amp; Channels</string>
+    <string name="guide_perm_groups_desc">• In Bot Settings → Allow Groups → Enabled</string>
+    <string name="guide_perm_inline_title">Enable Inline Mode (Recommended)</string>
+    <string name="guide_perm_inline_desc">• In Bot Settings → Inline Mode → Turn On</string>
+
+    <string name="guide_perm_admin_title">Channel Admin Rights</string>
+    <string name="guide_perm_admin_desc">✅ Post Messages (Critical)\n✅ Edit/Delete Messages\n❌ Add New Admins / Remain Anonymous</string>
+
+    <string name="guide_perm_checklist_title">Final Checklist</string>
+    <string name="guide_perm_checklist_desc">[ ] Media permission granted\n[ ] Battery optimization off\n[ ] Bot Privacy disabled\n[ ] Bot is Admin with Post rights\n[ ] ID copied with -100 prefix\n[ ] Start Monitoring tapped</string>
+
+    <!-- Precautions Tab -->
+    <string name="guide_pre_token_title">🔐 Bot Token Safety</string>
+    <string name="guide_pre_token_desc">Treat your token like a password. If leaked, regenerate it via @BotFather immediately.</string>
+    <string name="guide_pre_net_title">📶 Internet &amp; Battery</string>
+    <string name="guide_pre_net_desc">Use Wi-Fi for large backups. Keep phone plugged in. iOS/Android kill background tasks when battery is low.</string>
+    <string name="guide_pre_never_title">⛔ Things to Never Do</string>
+    <string name="guide_pre_never_desc">• Force close app during sync\n• Delete photos during sync\n• Run ValtSky on two devices with same bot simultaneously</string>
+    <string name="guide_pre_limits_title">⏱ Telegram Limits</string>
+    <string name="guide_pre_limits_desc">Telegram allows bots to send ~30 messages per second. Large files have a 50MB limit.</string>
+    <string name="guide_pre_video_title">🎬 Videos &amp; Large Files</string>
+    <string name="guide_pre_video_desc">Videos are much larger (GBs). Sync on Wi-Fi while plugged in. Telegram limits: Photos 10MB, Videos 50MB.</string>
+    <string name="guide_pre_maint_title">📅 Monthly Maintenance</string>
+    <string name="guide_pre_maint_desc">• Check bot admin rights\n• Confirm Background Refresh is ON\n• Verify Telegram recent uploads</string>
+    <string name="guide_pre_reset_title">🔄 RESET Button Warning</string>
+    <string name="guide_pre_reset_desc">RESET wipes history and re-uploads your ENTIRE gallery. Only use when absolutely sure.</string>
+
+    <string name="guide_pre_golden_title">🏆 Golden Rules</string>
+    <string name="guide_pre_golden_desc">1. Never share your token\n2. Stop monitoring before editing\n3. Use Wi-Fi for bulk syncs\n4. Never force close during active sync</string>
+</resources>
