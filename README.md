@@ -4,7 +4,7 @@
 
 <div align="center">
 
-[![Download Release APK](https://img.shields.io/badge/Download-Release_APK-4169E1?style=for-the-badge&logo=android)](https://github.com/Reddirector/ValtSky/raw/main/app/build/outputs/apk/release/app-release-unsigned.apk)
+[![Download Release APK](https://img.shields.io/badge/Download-Release_APK-4169E1?style=for-the-badge&logo=android)](https://github.com/Reddirector/ValtSky/releases/tag/v1.0)
 
 ### Turn your Telegram channel into unlimited, free, private cloud storage for your photos & videos.
 
