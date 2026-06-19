@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ValtSky — Unlimited Photo Backup</title>
+    <style>
+        :root {
+            --primary: #4169E1;
+            --bg: #F7F3ED;
+            --text: #3C3730;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            padding: 40px;
+        }
+        .logo {
+            width: 120px;
+            height: 120px;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            color: var(--primary);
+        }
+        p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 32px;
+            opacity: 0.8;
+        }
+        .download-btn {
+            background-color: var(--primary);
+            color: white;
+            padding: 18px 36px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.2rem;
+            box-shadow: 0 10px 20px rgba(65, 105, 225, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: inline-block;
+        }
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(65, 105, 225, 0.4);
+        }
+        .footer {
+            margin-top: 60px;
+            font-size: 0.9rem;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="app/src/main/res/drawable/ic_logo.xml" alt="ValtSky Logo" class="logo" onerror="this.src='https://img.icons8.com/fluency/144/cloud-sync.png'">
+        <h1>ValtSky</h1>
+        <p>Turn your Telegram channel into unlimited, free, private cloud storage for your photos & videos. Securely backed up, forever free.</p>
+
+        <!-- Replace YOUR_REPO_NAME and tag/branch accordingly -->
+        <a href="https://github.com/Reddirector/ValtSky/raw/main/app/build/outputs/apk/debug/app-debug.apk" class="download-btn">
+            Download Latest APK
+        </a>
+
+        <div class="footer">
+            Requires Android 7.0+ • Open Source on GitHub
+        </div>
+    </div>
+</body>
+</html>

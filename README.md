@@ -2,6 +2,10 @@
 
 # ☁️ Valtsky
 
+<div align="center">
+
+[![Download APK](https://img.shields.io/badge/Download-Latest_APK-4169E1?style=for-the-badge&logo=android)](https://github.com/Reddirector/ValtSky/raw/main/app/build/outputs/apk/debug/app-debug.apk)
+
 ### Turn your Telegram channel into unlimited, free, private cloud storage for your photos & videos.
 
 ![Android](https://img.shields.io/badge/Android-7.0%2B-brightgreen?logo=android)
