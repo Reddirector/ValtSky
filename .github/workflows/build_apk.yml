@@ -24,10 +24,16 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew assembleDebug
+      run: ./gradlew assembleDebug assembleRelease
 
-    - name: Upload APK
+    - name: Upload Debug APK
       uses: actions/upload-artifact@v3
       with:
         name: valtsky-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
+
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: valtsky-release-unsigned-apk
+        path: app/build/outputs/apk/release/app-release-unsigned.apk
