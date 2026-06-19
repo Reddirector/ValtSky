@@ -36,7 +36,8 @@ import kotlinx.coroutines.withContext
 import com.adidev.valtsky.util.ThemeHelper
 import java.text.SimpleDateFormat
 import java.util.*
-import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
+import androidx.viewpager2.widget.ViewPager2
 
 class MainActivity : AppCompatActivity() {
 
@@ -52,34 +53,20 @@ class MainActivity : AppCompatActivity() {
     private var currentFailedList: List<MediaItem> = emptyList()
 
     private fun setupGuideTabs() {
+        val viewPager = binding.guideView.guideViewPager
         val tabs = binding.guideView.guideTabs
-        val scrollSetUp = binding.guideView.scrollSetUp
-        val scrollPermissions = binding.guideView.scrollPermissions
-        val scrollPrecautions = binding.guideView.scrollPrecautions
 
-        tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) {
-                when (tab?.position) {
-                    0 -> {
-                        scrollSetUp.visibility = View.VISIBLE
-                        scrollPermissions.visibility = View.GONE
-                        scrollPrecautions.visibility = View.GONE
-                    }
-                    1 -> {
-                        scrollSetUp.visibility = View.GONE
-                        scrollPermissions.visibility = View.VISIBLE
-                        scrollPrecautions.visibility = View.GONE
-                    }
-                    2 -> {
-                        scrollSetUp.visibility = View.GONE
-                        scrollPermissions.visibility = View.GONE
-                        scrollPrecautions.visibility = View.VISIBLE
-                    }
-                }
+        viewPager.adapter = GuidePagerAdapter()
+        viewPager.setPageTransformer(CrossFadePageTransformer())
+
+        TabLayoutMediator(tabs, viewPager) { tab, position ->
+            tab.text = when (position) {
+                0 -> getString(R.string.tab_setup)
+                1 -> getString(R.string.tab_permissions)
+                2 -> getString(R.string.tab_precautions)
+                else -> null
             }
-            override fun onTabUnselected(tab: TabLayout.Tab?) {}
-            override fun onTabReselected(tab: TabLayout.Tab?) {}
-        })
+        }.attach()
     }
 
     private fun setupDrawer() {
@@ -755,11 +742,7 @@ class MainActivity : AppCompatActivity() {
             binding.btnPauseUpload.visibility = View.GONE
         }
 
-        val statusColorAttr = if (running) R.attr.valtskyPrimaryAccent else R.attr.valtskySuccess
-        val statusColor = getColorFromAttr(statusColorAttr)
-        binding.tvSyncStatus.setTextColor(statusColor)
-        binding.dotSyncing.backgroundTintList = ColorStateList.valueOf(statusColor)
-
+        // UI status indicators removed
         if (locked) {
             binding.btnLock.text = getString(R.string.btn_unlock)
             binding.settingsLockOverlay.visibility = View.VISIBLE
@@ -790,12 +773,6 @@ class MainActivity : AppCompatActivity() {
         binding.tvChannelName.text = if (this.channelName.isNotBlank()) this.channelName else getString(R.string.not_connected)
     }
 
-    private fun getColorFromAttr(attr: Int): Int {
-        val typedValue = android.util.TypedValue()
-        theme.resolveAttribute(attr, typedValue, true)
-        return typedValue.data
-    }
-
     private fun saveFields() {
         this.botToken    = binding.etBotToken.text.toString()
         this.channelId   = binding.etChannelId.text.toString()
@@ -819,13 +796,7 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
     private fun startBreathingAnimation() {
-        breathingAnimator?.cancel()
-        breathingAnimator = ObjectAnimator.ofFloat(binding.dotSyncing, "alpha", 1f, 0.25f, 1f).apply {
-            duration = 1800
-            repeatCount = ValueAnimator.INFINITE
-            interpolator = AccelerateDecelerateInterpolator()
-            start()
-        }
+        // Dot removed from UI
     }
 
     private fun animateButtonPress(view: View) {

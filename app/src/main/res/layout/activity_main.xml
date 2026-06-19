@@ -34,49 +34,33 @@
                         android:src="@drawable/ic_menu"
                         android:contentDescription="@string/app_name"
                         app:tint="?attr/valtskyTextPrimary" />
-                    <TextView
-                        android:id="@+id/tvAppName"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_toEndOf="@id/btnMenu"
-                        android:layout_marginStart="12dp"
-                        android:layout_centerVertical="true"
-                        android:text="@string/app_name"
-                        android:fontFamily="serif"
-                        android:textStyle="bold"
-                        android:textSize="22sp"
-                        android:textColor="?attr/valtskyTextPrimary" />
-
                     <LinearLayout
-                        android:id="@+id/badgeSyncing"
+                        android:id="@+id/layoutLogo"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_toEndOf="@id/tvAppName"
-                        android:layout_toStartOf="@id/btnRefresh"
-                        android:layout_marginStart="16dp"
-                        android:layout_centerVertical="true"
-                        android:orientation="horizontal"
+                        android:layout_centerInParent="true"
                         android:gravity="center_vertical"
-                        android:background="@drawable/icon_container_bg"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="4dp">
-                        <View
-                            android:id="@+id/dotSyncing"
-                            android:layout_width="8dp"
-                            android:layout_height="8dp"
-                            android:background="@drawable/ic_check"
-                            android:backgroundTint="?attr/valtskySuccess"
-                            android:layout_marginEnd="6dp" />
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="22dp"
+                            android:layout_height="22dp"
+                            android:src="@drawable/ic_logo"
+                            android:scaleType="fitCenter"
+                            android:layout_marginEnd="8dp"
+                            android:contentDescription="@string/app_name" />
+
                         <TextView
-                            android:id="@+id/tvSyncStatus"
+                            android:id="@+id/tvAppName"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/status_live"
-                            android:textSize="11sp"
+                            android:text="@string/app_name"
+                            android:fontFamily="serif"
                             android:textStyle="bold"
-                            android:textAllCaps="true"
-                            android:textColor="?attr/valtskySuccess" />
+                            android:textSize="20sp"
+                            android:textColor="?attr/valtskyTextPrimary" />
                     </LinearLayout>
+
                     <ImageView
                         android:id="@+id/btnRefresh"
                         android:layout_width="32dp"

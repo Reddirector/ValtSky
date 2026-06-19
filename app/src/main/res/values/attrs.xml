@@ -11,4 +11,5 @@
     <attr name="valtskyError" format="color" />
     <attr name="valtskyWarning" format="color" />
     <attr name="valtskyElevatedSurface" format="color" />
+    <attr name="valtskyGlassBackground" format="reference" />
 </resources>

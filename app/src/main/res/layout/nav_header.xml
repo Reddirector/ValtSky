@@ -9,11 +9,10 @@
     android:theme="@style/Theme.ValtSky">
 
     <ImageView
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:src="@drawable/ic_cloud_upload"
-        android:background="@drawable/icon_container_bg"
-        android:padding="12dp"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:src="@drawable/ic_logo"
+        android:padding="8dp"
         android:layout_marginBottom="12dp"/>
 
     <TextView

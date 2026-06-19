@@ -26,6 +26,7 @@
         <item name="valtskyError">@color/dark_error</item>
         <item name="valtskyWarning">@color/dark_warning</item>
         <item name="valtskyElevatedSurface">@color/dark_elevated_surface</item>
+        <item name="valtskyGlassBackground">@drawable/tab_glass_bg</item>
 
         <!-- Typography -->
         <item name="android:fontFamily">sans-serif</item>
