@@ -6,6 +6,7 @@ import '../../data/db/database_helper.dart';
 import '../../data/models/media_item.dart';
 import '../../data/prefs.dart';
 import '../../util/theme.dart';
+import '../../util/telegram_launcher.dart';
 import 'passive_elements.dart';
 import 'animated_stagger.dart';
 
@@ -573,13 +574,7 @@ class _ManualUploadAssistantSheetState extends State<ManualUploadAssistantSheet>
                     child: TactilePress(
                       onTap: () {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            backgroundColor: ValtSkyTheme.success,
-                            content: Text('Opening $channelName in Telegram...'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+                        TelegramLauncher.openChannel(context);
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),

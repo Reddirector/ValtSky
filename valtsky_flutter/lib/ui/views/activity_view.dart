@@ -6,6 +6,7 @@ import '../../util/theme.dart';
 import '../widgets/media_item_card.dart';
 import '../widgets/animated_stagger.dart';
 import '../widgets/manual_upload_assistant_sheet.dart';
+import '../../util/telegram_launcher.dart';
 
 class ActivityView extends StatefulWidget {
   final VoidCallback onDataChanged;
@@ -311,27 +312,96 @@ class ActivityViewState extends State<ActivityView> {
                   ),
                   if (_items.isNotEmpty) ...[
                     const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TactilePress(
+                            onTap: () => _openManualUploadAssistant(_items),
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.white : Colors.black,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.bolt_rounded, size: 20, color: isDark ? Colors.black : Colors.white),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'UPLOAD ALL OVERSIZED',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.5,
+                                      color: isDark ? Colors.black : Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: TactilePress(
+                            onTap: () => TelegramLauncher.openChannel(context),
+                            child: Container(
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.open_in_new_rounded, size: 16, color: isDark ? Colors.white : Colors.black),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Open Channel',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark ? Colors.white : Colors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    const SizedBox(height: 14),
                     TactilePress(
-                      onTap: () => _openManualUploadAssistant(_items),
+                      onTap: () => TelegramLauncher.openChannel(context),
                       child: Container(
                         width: double.infinity,
-                        height: 48,
+                        height: 44,
                         decoration: BoxDecoration(
-                          color: isDark ? Colors.white : Colors.black,
-                          borderRadius: BorderRadius.circular(14),
+                          color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
+                          ),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.bolt_rounded, size: 20, color: isDark ? Colors.black : Colors.white),
+                            Icon(Icons.open_in_new_rounded, size: 16, color: isDark ? Colors.white : Colors.black),
                             const SizedBox(width: 8),
                             Text(
-                              'UPLOAD ALL OVERSIZED',
+                              'Open Channel in Telegram',
                               style: TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                                color: isDark ? Colors.black : Colors.white,
+                                fontWeight: FontWeight.w700,
+                                color: isDark ? Colors.white : Colors.black,
                               ),
                             ),
                           ],
@@ -454,6 +524,7 @@ class ActivityViewState extends State<ActivityView> {
   }
 
   Widget _buildEmptyState(bool isDark) {
+    final isOversized = _selectedFilter == 'OVERSIZED';
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -465,33 +536,50 @@ class ActivityViewState extends State<ActivityView> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.perm_media_outlined,
+              isOversized ? Icons.cloud_done_rounded : Icons.perm_media_outlined,
               size: 48,
               color: isDark ? Colors.grey[600] : Colors.grey[400],
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            _selectedFilter == 'ALL' ? 'No media tracked yet' : 'No $_selectedFilter items found',
+            isOversized
+                ? 'Oversized Vault Clear'
+                : (_selectedFilter == 'ALL' ? 'No media tracked yet' : 'No $_selectedFilter items found'),
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
-            'New photos and videos taken will show up here',
+            isOversized
+                ? 'All files are within standard bot upload limits (< 2 GB)'
+                : 'New photos and videos taken will show up here',
             style: TextStyle(
               fontSize: 12,
               color: isDark ? Colors.grey[400] : Colors.grey[600],
             ),
           ),
           const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: _simulateNewPhoto,
-            icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
-            label: const Text('Add Test Photo'),
-            style: OutlinedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          if (isOversized)
+            ElevatedButton.icon(
+              onPressed: () => TelegramLauncher.openChannel(context),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: const Text('Open Channel in Telegram'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isDark ? Colors.white : Colors.black,
+                foregroundColor: isDark ? Colors.black : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: _simulateNewPhoto,
+              icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
+              label: const Text('Add Test Photo'),
+              style: OutlinedButton.styleFrom(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
             ),
-          ),
         ],
       ),
     );

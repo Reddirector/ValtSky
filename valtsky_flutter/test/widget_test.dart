@@ -5,6 +5,7 @@ import 'package:valtsky_flutter/data/db/database_helper.dart';
 import 'package:valtsky_flutter/data/models/media_item.dart';
 import 'package:valtsky_flutter/data/prefs.dart';
 import 'package:valtsky_flutter/main.dart';
+import 'package:valtsky_flutter/util/telegram_launcher.dart';
 
 void main() {
   setUp(() async {
@@ -84,9 +85,10 @@ void main() {
     await tester.tap(find.text('> 2 GB'));
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify Oversized Vault header and items appear
+    // Verify Oversized Vault header, items, and Open Channel action button appear
     expect(find.text('OVERSIZED VAULT (> 2 GB)'), findsOneWidget);
     expect(find.text('VID_20261101_4K60_CINEMATIC.mov'), findsOneWidget);
+    expect(find.text('Open Channel'), findsOneWidget);
 
     // CLICK 2: Tap 'UPLOAD ALL OVERSIZED'
     expect(find.text('UPLOAD ALL OVERSIZED'), findsOneWidget);
@@ -117,5 +119,29 @@ void main() {
     expect(find.text('Open Telegram Channel'), findsOneWidget);
     await tester.tap(find.text('Open Telegram Channel'));
     await tester.pumpAndSettle();
+  });
+
+  test('TelegramLauncher URL Resolution & Fallback Test', () {
+    // 1. Public handle with @
+    Prefs.channelId = '@valtsky_backup';
+    expect(TelegramLauncher.getChannelUrl(), 'https://t.me/valtsky_backup');
+
+    // 2. Public handle without @
+    Prefs.channelId = 'my_cloud_vault';
+    expect(TelegramLauncher.getChannelUrl(), 'https://t.me/my_cloud_vault');
+
+    // 3. Private supergroup/channel starting with -100
+    Prefs.channelId = '-1001928374650';
+    expect(TelegramLauncher.getChannelUrl(), 'https://t.me/c/1928374650');
+
+    // 4. Fallback to bot username
+    Prefs.channelId = '';
+    Prefs.channelName = '';
+    Prefs.botName = 'ValtSkyBackupBot';
+    expect(TelegramLauncher.getChannelUrl(), 'https://t.me/ValtSkyBackupBot');
+
+    // 5. Default web telegram
+    Prefs.botName = '';
+    expect(TelegramLauncher.getChannelUrl(), 'https://web.telegram.org');
   });
 }
