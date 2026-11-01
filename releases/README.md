@@ -1,74 +1,121 @@
 # 📦 ValtSky Multi-Platform Release Distribution Hub
 
-This directory contains release manifests, verification hashes, and cross-platform installation instructions for **ValtSky v2.0**.
+This directory contains release manifests, verification hashes, detailed changelog notes, and cross-platform installation instructions for **ValtSky v2.0**.
 
 ---
 
-## 🚀 Official Binaries & Checksums
+## 🚀 Official Production Binaries & Checksums
 
-| Package Name | Target Platform | Architecture | SHA-256 Checksum | Download Location |
+### Android Production APKs (v2.0)
+
+| Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **`valtsky-v2.0-release.apk`** | Android 7.0+ | Universal (ARM64, ARMv7, x86_64) | `ce7e19ae17b2ba76a2a20e7d002e095693b9a97543b4c39772eb3efa1cdbd65d` | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
-| **`valtsky-v2.0-arm64-v8a.apk`** | Android 7.0+ | Modern 64-bit ARM (Smallest & Fastest) | `460a2f06a043fbec621ed306864853f99741d173eb4d66b8cf89305283c9caf8` | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
-| **`valtsky-v2.0-armeabi-v7a.apk`** | Android 7.0+ | 32-bit ARM (Legacy Devices) | `b0117901309743b949efbbaf494179c5e1bb5684cd89ebdd84462fb8645abb24` | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
-| **`valtsky-v2.0-x86_64.apk`** | Android 7.0+ | 64-bit Intel / Emulators | `138ac05c5dabc268e9d276f655c2b612d135f4416900b9c3ee367d191dff765f` | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
-| **`valtsky-android.aab`** | Google Play | Universal Play Bundle | Generated via GitHub Actions | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
-| **`valtsky-ios-runner.zip`** | Apple iOS 13+ | iPhone / iPad (ARM64) | Generated via GitHub Actions | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
-| **`valtsky-windows-x64.zip`** | Windows 10/11 | x86_64 | Generated via GitHub Actions | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
-| **`valtsky-macos.zip`** | macOS 11+ | Universal (Apple Silicon & Intel) | Generated via GitHub Actions | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
-| **`valtsky-linux-x64.tar.gz`** | Linux Desktop | x86_64 (GTK3) | Generated via GitHub Actions | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
+| **[`valtsky-v2.0-arm64-v8a.apk`](valtsky-v2.0-arm64-v8a.apk)** | `arm64-v8a` | **19.1 MB** | **Modern Android (Pixel, Galaxy, Xiaomi, OnePlus, 95%+ devices)** | `460a2f06a043fbec621ed306864853f99741d173eb4d66b8cf89305283c9caf8` |
+| **[`valtsky-v2.0-release.apk`](valtsky-v2.0-release.apk)** | Universal (Fat APK) | **52.6 MB** | All Android devices (contains all native ABIs) | `ce7e19ae17b2ba76a2a20e7d002e095693b9a97543b4c39772eb3efa1cdbd65d` |
+| **[`valtsky-v2.0-armeabi-v7a.apk`](valtsky-v2.0-armeabi-v7a.apk)** | `armeabi-v7a` | **16.6 MB** | Older 32-bit Android phones and tablets | `b0117901309743b949efbbaf494179c5e1bb5684cd89ebdd84462fb8645abb24` |
+| **[`valtsky-v2.0-x86_64.apk`](valtsky-v2.0-x86_64.apk)** | `x86_64` | **20.5 MB** | Android emulators, ChromeOS, and Intel x86 devices | `138ac05c5dabc268e9d276f655c2b612d135f4416900b9c3ee367d191dff765f` |
+
+### Multi-Platform Production Packages (GitHub Releases)
+
+| Package Name | Target OS | Architecture | Format | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **`valtsky-android.aab`** | Android 7.0+ | Universal | Google Play App Bundle | Automated CI Build |
+| **`valtsky-ios-runner.zip`** | Apple iOS 13.0+ | ARM64 | AltStore / Sideload Runner | Automated CI Build |
+| **`valtsky-windows-x64.zip`** | Windows 10 & 11 | x86_64 | Standalone Portable Archive | Automated CI Build |
+| **`valtsky-macos.zip`** | macOS 11.0+ | Universal | Apple Silicon & Intel `.app` | Automated CI Build |
+| **`valtsky-linux-x64.tar.gz`** | Linux (Ubuntu/Debian/Fedora) | x86_64 | GTK3 Standalone Bundle | Automated CI Build |
+| **`valtsky-web.zip`** | Modern Web Browsers | Any | Progressive Web Application (PWA) | Automated CI Build |
+
+---
+
+## 📝 ValtSky v2.0 Release Notes & Changelog
+
+### 💎 Core Architecture & Cloud Storage
+- **100% Bit-for-Bit Lossless EXIF Preservation**: Uploads media strictly as uncompressed documents (`sendDocument`), preserving raw camera sensor noise, color matrices, GPS geotags, ISO, and shutter speed.
+- **Monotonic Chronological Feed (`dateTaken ASC`)**: Files upload oldest-to-newest so historical memories upload first and newest captures naturally reside at the bottom of the Telegram channel feed.
+- **Oversized Media Vault (> 2 GB)**: Telegram Bot API enforces a 2 GB per-request ceiling. ValtSky safely isolates $\ge 2\text{ GB}$ 4K/RAW footage in a dedicated vault without stalling background sync, providing an integrated 4-click manual upload pathway.
+- **Self-Healing Diagnostics**: Proactive network monitor diagnoses token validity, channel admin privileges, battery optimization exemptions, and disk permissions with 1-click automatic resolution.
+
+### 🎨 Design & User Experience (Senior UI/UX Overhaul)
+- **Strict Monochrome Noir Design**: Deep obsidian charcoal canvas (`#09090B`), subtle zinc borders (`#27272A`), and crisp typography (`#FFFFFF`).
+- **Semantic Functional Color Alerts**: Colors are reserved strictly for high-priority status signals (Crimson for errors, Amber for oversized files, Emerald for verified sync).
+- **Direct Metric Tile Deep-Linking**: Dashboard statistics cards (`TOTAL MEDIA`, `SYNCED`, `IN QUEUE`, `FAILED`) act as interactive buttons that deep-link directly into Activity View with matching filters pre-applied.
+- **Telegram Channel Deep-Linking (`TelegramLauncher`)**: "Open Channel" buttons instantly launch native Telegram app (`tg://resolve?domain=...`) with automatic fallback to Telegram Web (`https://t.me/...`).
+- **Smart Channel ID Auto-Formatting**: Settings view automatically sanitizes and prepends `-100` prefix to raw 9-13 digit channel IDs.
+- **Micro-Interactions & Passive Elements**: Tactile press physics, auto-cycling slideshow reel preview, and real-time sine-wave socket activity waves.
+- **Official Royal Blue Cloud & Paper Airplane Branding**: Unified high-resolution app icon and vector assets across Android mipmaps, iOS AppIcon, desktop executables, and web favicons.
+
+### 🛡️ Security, Hardening & Quality Assurance
+- **Strict Anti-Malware File Header Authentication**: Magic bytes sniffing validates JPEG (`FF D8 FF`), PNG (`89 50 4E`), and MP4 (`ftyp`) containers.
+- **EICAR Standard Quarantine**: Automatically flags and halts transmission of suspicious test virus files.
+- **MarkdownV2 Injection Defense**: All file names, captions, and user strings are sanitized against Telegram markdown parsing errors.
+- **SSRF & Loopback Restriction**: Telegram endpoint URLs enforce strict HTTPS and localhost containment.
+- **16/16 Automated Tests Passing**: 100% pass rate covering unit tests, widget navigation, 4-click oversized flow, and hostile security injection suites with 0 analyzer issues.
 
 ---
 
 ## 📲 Platform Installation Guides
 
 ### 🤖 1. Android Installation
-1. Download **`valtsky-v2.0-release.apk`** on your Android device.
+1. Download **`valtsky-v2.0-arm64-v8a.apk`** (recommended for all modern phones, 19 MB) or **`valtsky-v2.0-release.apk`** (Universal, 52 MB).
 2. If prompted by your browser, enable **"Allow from this source"** for unknown apps in Android Settings.
 3. Tap **Install** and open ValtSky.
-4. Or install via USB using ADB:
+4. Alternatively, install via ADB over USB:
    ```bash
-   adb install -r valtsky-v2.0-release.apk
+   adb install -r valtsky-v2.0-arm64-v8a.apk
    ```
 
-### 🍎 2. Apple iOS Installation & Development
-Because iOS restricts direct sideloading of unsigned IPAs outside the App Store, you have three options to run ValtSky on iPhone/iPad:
+### 🍎 2. Apple iOS Installation & Sideloading
+Because iOS restricts unsigned IPAs outside the App Store, you have two simple options to run ValtSky:
 
-#### Option A: Sideload via AltStore / Sideloadly (No Paid Developer Account Needed)
+#### Option A: AltStore / Sideloadly (Free, No Paid Developer Account)
 1. Download **`valtsky-ios-runner.zip`** from [GitHub Releases](https://github.com/Reddirector/ValtSky/releases).
-2. Extract the runner archive or package into an `.ipa`.
-3. Open [AltStore](https://altstore.io/) or [Sideloadly](https://sideloadly.io/) on your Mac or PC.
-4. Drag and drop the app file onto your connected iPhone and enter your Apple ID to sign it for free 7-day sideloading.
+2. Open [AltStore](https://altstore.io/) or [Sideloadly](https://sideloadly.io/) on your Mac or PC.
+3. Connect your iPhone via USB, select the runner package, and sign in with your Apple ID for 7-day sideloading.
 
-#### Option B: Open with Xcode (Developers)
-1. Open the project on a Mac:
+#### Option B: Xcode Direct Build (Developers)
+1. Clone the repository and navigate to the iOS folder:
    ```bash
    cd valtsky_flutter/ios
+   pod install
    open Runner.xcworkspace
    ```
-2. Select your development team under **Signing & Capabilities**.
-3. Connect your iPhone and press **Run (Cmd+R)** to install the app directly to your device with background fetch and photo library permissions enabled.
-
----
+2. Select your Personal Team under **Signing & Capabilities**.
+3. Press **Run (Cmd+R)** to install directly to your device with background fetch and photo library permissions enabled.
 
 ### 🪟 3. Windows Desktop
-1. Download **`valtsky-windows-x64.zip`**.
-2. Extract the archive into a folder of your choice (e.g. `C:\Program Files\ValtSky`).
-3. Double click **`ValtSky.exe`** to launch.
-
----
+1. Download **`valtsky-windows-x64.zip`** from GitHub Releases.
+2. Extract the archive to `C:\Program Files\ValtSky` or your preferred directory.
+3. Double-click **`ValtSky.exe`** to launch.
 
 ### 🍏 4. macOS Desktop
-1. Download **`valtsky-macos.zip`**.
-2. Double-click to unzip, then drag **`ValtSky.app`** into your `/Applications` folder.
-3. If macOS Gatekeeper alerts you because the binary is open-source, right-click `ValtSky.app` $\rightarrow$ click **Open** $\rightarrow$ click **Open Anyway**.
-
----
+1. Download **`valtsky-macos.zip`** from GitHub Releases.
+2. Double-click to extract, then move **`ValtSky.app`** to `/Applications`.
+3. If macOS Gatekeeper alerts you on first launch, right-click `ValtSky.app` $\rightarrow$ click **Open** $\rightarrow$ select **Open Anyway**.
 
 ### 🐧 5. Linux Desktop
-1. Download **`valtsky-linux-x64.tar.gz`**.
-2. Extract and run:
+1. Download **`valtsky-linux-x64.tar.gz`** from GitHub Releases.
+2. Extract and launch:
    ```bash
    tar -xvf valtsky-linux-x64.tar.gz
    ./valtsky_flutter
    ```
+
+---
+
+## 🔒 Verification & Integrity
+
+To verify the integrity of downloaded APK binaries on Linux/macOS:
+```bash
+sha256sum valtsky-v2.0-arm64-v8a.apk
+# Expected: 460a2f06a043fbec621ed306864853f99741d173eb4d66b8cf89305283c9caf8
+
+sha256sum valtsky-v2.0-release.apk
+# Expected: ce7e19ae17b2ba76a2a20e7d002e095693b9a97543b4c39772eb3efa1cdbd65d
+```
+
+On Windows PowerShell:
+```powershell
+Get-FileHash -Algorithm SHA256 .\valtsky-v2.0-arm64-v8a.apk
+Get-FileHash -Algorithm SHA256 .\valtsky-v2.0-release.apk
+```

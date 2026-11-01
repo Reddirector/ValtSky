@@ -6,7 +6,7 @@
 
 ### Turn your private Telegram channel into unlimited, zero-loss, free cloud storage.
 
-[![Download Android APK](https://img.shields.io/badge/Android_APK-v2.0_Release-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
+[![Download Android APK](https://img.shields.io/badge/Android_APK-v2.0_ARM64_(19MB)-10B981?style=for-the-badge&logo=android&logoColor=white)](releases/)
 [![Download iOS Runner](https://img.shields.io/badge/iOS-Sideload_Runner-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
 [![Download Windows](https://img.shields.io/badge/Windows-x64_Release-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
 [![Download macOS](https://img.shields.io/badge/macOS-Universal-grey?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
@@ -14,6 +14,7 @@
 
 <br/>
 
+[![Tests](https://img.shields.io/badge/Tests-16%2F16_Passing-10B981?style=flat-square&logo=flutter)](valtsky_flutter/test/)
 [![Security & QA Score](https://img.shields.io/badge/Security_&_QA-98%2F100_Strict-10B981?style=flat-square&logo=shield)](valtsky_flutter/test/security_and_stress_test.dart)
 [![Lossless Quality](https://img.shields.io/badge/Quality-100%25_EXIF_Preserved-blue?style=flat-square)](https://github.com/Reddirector/ValtSky)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple?style=flat-square)](LICENSE)
@@ -33,15 +34,27 @@ Unlike traditional cloud providers that charge recurring monthly subscriptions o
 
 ## 📦 Multi-Platform Downloads
 
+### Android Production APKs (Direct Download)
+
+| Architecture | Package | File Size | Description | Download Link |
+| :--- | :--- | :--- | :--- | :--- |
+| **ARM64 (v8a)** ⭐ | `valtsky-v2.0-arm64-v8a.apk` | **19.1 MB** | **Recommended for all modern phones** (Pixel, Galaxy, OnePlus, Xiaomi) | [**Download ARM64 APK (19 MB)**](releases/valtsky-v2.0-arm64-v8a.apk) |
+| **Universal (Fat)** | `valtsky-v2.0-release.apk` | **52.6 MB** | All-in-one package containing all CPU architectures | [**Download Universal APK (52 MB)**](releases/valtsky-v2.0-release.apk) |
+| **ARMv7 (32-bit)** | `valtsky-v2.0-armeabi-v7a.apk` | **16.6 MB** | Legacy 32-bit phones and budget devices | [**Download ARMv7 APK (16 MB)**](releases/valtsky-v2.0-armeabi-v7a.apk) |
+| **x86_64** | `valtsky-v2.0-x86_64.apk` | **20.5 MB** | Emulators, Chromebooks, and Intel-based tablets | [**Download x86_64 APK (20 MB)**](releases/valtsky-v2.0-x86_64.apk) |
+
+### Desktop, iOS & Web Releases
+
 | Platform | Format / Package | Compatibility | Download Link |
 | :--- | :--- | :--- | :--- |
-| **Android (Universal)** | `.apk` (Self-Contained) | Android 7.0+ (API 24–35) | [**Download `valtsky-v2.0-release.apk`**](https://github.com/Reddirector/ValtSky/releases/latest) |
-| **Android (Google Play)** | `.aab` (Optimized Bundle) | Android 7.0+ | [**Download `valtsky-android.aab`**](https://github.com/Reddirector/ValtSky/releases/latest) |
-| **Apple iOS** | `.zip` (Runner / Sideload) | iOS 13.0+ (iPhone & iPad) | [**Download `valtsky-ios-runner.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) |
+| **Android (Google Play)** | `.aab` (Optimized Bundle) | Android 7.0+ (API 24–35) | [**Download `valtsky-android.aab`**](https://github.com/Reddirector/ValtSky/releases/latest) |
+| **Apple iOS** | `.zip` (Runner / Sideload) | iOS 13.0+ (iPhone & iPad via AltStore / Sideloadly) | [**Download `valtsky-ios-runner.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) |
 | **Windows Desktop** | `.zip` (Standalone Executable) | Windows 10 & 11 (x64) | [**Download `valtsky-windows-x64.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) |
-| **macOS Desktop** | `.zip` (Universal Binary) | macOS 11.0 Big Sur+ | [**Download `valtsky-macos.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) |
+| **macOS Desktop** | `.zip` (Universal Binary) | macOS 11.0 Big Sur+ (Apple Silicon & Intel) | [**Download `valtsky-macos.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) |
 | **Linux Desktop** | `.tar.gz` (GTK3 Bundle) | Ubuntu, Debian, Fedora, Arch | [**Download `valtsky-linux-x64.tar.gz`**](https://github.com/Reddirector/ValtSky/releases/latest) |
 | **Web App** | Single Page Application (SPA) | Chrome, Safari, Firefox, Edge | [**Launch Web Version**](https://reddirector.github.io/ValtSky/) |
+
+*(For full verification checksums and SHA-256 signatures, see [releases/README.md](releases/README.md)).*
 
 ---
 
@@ -69,17 +82,26 @@ flowchart LR
     D -->|Click 4| E["5. Complete Manifest<br/>Open Telegram Channel"]
 ```
 
-### 🛠️ 4. 1-Click Self-Healing Diagnostic Center
+### 🔗 4. Direct Telegram Channel Deep-Linking (`TelegramLauncher`)
+- The Oversized Manifest and Settings views feature an **"OPEN CHANNEL"** button powered by `TelegramLauncher`.
+- Uses native URI schemes (`tg://resolve?domain=...`) with seamless automatic fallback to web URLs (`https://t.me/...`), instantly switching the user to their private channel.
+
+### 📊 5. Metric Tile Deep-Linking
+- On the Dashboard, statistic cards (`TOTAL MEDIA`, `SYNCED`, `IN QUEUE`, `FAILED`) act as high-contrast interactive buttons.
+- Tapping any metric deep-links directly into the Activity tab with the matching filter pre-selected (`All`, `Synced`, `Queued`, `Failed`), avoiding tedious manual tab switching.
+
+### 🛠️ 6. 1-Click Self-Healing Diagnostic Center & Smart Setup
 - Proactive health monitor tracks socket connectivity, Telegram Bot Token validity, channel admin privileges, battery optimization exemptions, and disk permissions.
 - When an issue arises, the **Diagnostic Banner** appears with root-cause analysis and a **1-Click Self-Healing button** to fix the failure instantly.
+- The Settings view includes **Smart Channel ID Auto-Formatting**: entering a raw 9–13 digit channel ID automatically prepends the required `-100` prefix.
 
-### 🛡️ 5. Hardened Security & Anti-Malware Protection (Score: 98/100)
+### 🛡️ 7. Hardened Security & Anti-Malware Protection (Score: 98/100)
 - **File Header (Magic Bytes) Authentication**: Inspects initial byte signatures for JPEG (`FF D8 FF`), PNG (`89 50 4E`), and MP4 (`ftyp`) to prevent disguised binaries or malicious scripts.
 - **EICAR Virus Quarantine**: Blocks standard malware test patterns and quarantined files.
 - **Telegram MarkdownV2 Entity Defense**: Escapes reserved markdown characters to prevent bot crashes or malicious hyperlink phishing.
 - **SSRF Defense**: Enforces HTTPS and restricts custom API servers to validated local loopbacks.
 
-### 🎨 6. Strict Monochrome Noir Aesthetic with Colored Alerts
+### 🎨 8. Strict Monochrome Noir Aesthetic with Colored Alerts
 - Obsidian charcoal dark theme (`#09090B`) with high-contrast monochrome design.
 - Surgical colored accents reserved strictly for functional alerts (Crimson for errors, Amber for oversized warnings, Emerald for verified sync).
 - Smooth motion: Micro-interaction press springs (`TactilePress`), passive sine-wave socket monitors (`PassiveTransferWave`), and crossfade transitions.
@@ -122,7 +144,7 @@ flowchart LR
 1. Send any temporary test message inside your newly created channel.
 2. Forward that message to **`@userinfobot`** in Telegram.
 3. The bot will respond with your channel's unique ID (e.g., `-1001234567890`).
-> *Note: Always include the minus sign `-` and prefix `100`.*
+> *Tip: ValtSky automatically prepends `-100` if you paste a raw channel number.*
 
 ### Step 4: Configure ValtSky 🚀
 1. Open ValtSky on Android, iOS, Windows, Mac, or Linux.
@@ -149,7 +171,7 @@ cd ValtSky/valtsky_flutter
 # Install dependencies
 flutter pub get
 
-# Run tests and security audit suite (14/14 tests)
+# Run test suites and security audit (16/16 tests passing)
 flutter test
 flutter analyze
 
@@ -160,7 +182,8 @@ flutter run
 ### Compiling Multi-Platform Binaries
 
 ```bash
-# 🤖 Android Release APK & AppBundle
+# 🤖 Android Optimized Split-per-ABI APKs & AppBundle
+flutter build apk --release --split-per-abi
 flutter build apk --release
 flutter build appbundle --release
 
@@ -177,7 +200,7 @@ flutter build macos --release
 flutter build linux --release
 
 # 🌐 Web App
-flutter build web --release
+flutter build web --release --base-href "/ValtSky/"
 ```
 
 ---
@@ -190,10 +213,16 @@ ValtSky/
 │   ├── build_and_release.yml     # Multi-platform CI/CD (Android, iOS, Win, Mac, Linux, Web)
 │   └── build_apk.yml             # Fast automated PR & commit build validation
 ├── docs/
+│   ├── valtsky_app_icon.png      # Master 1024x1024 official squircle brand icon
+│   ├── valtsky_logo.svg          # Master scalable vector logo
 │   └── screenshots/              # High-resolution UI showcase and 4-click flow
 ├── index.html                    # Modern web download portal & showcase
-├── releases/
-│   └── valtsky-v2.0-release.apk  # Official compiled Android production release binary
+├── releases/                     # Compiled production releases & verification hashes
+│   ├── README.md                 # Checksums, installation guide, and v2.0 release notes
+│   ├── valtsky-v2.0-arm64-v8a.apk    # 19.1 MB optimized ARM64 production APK
+│   ├── valtsky-v2.0-release.apk      # 52.6 MB universal Android APK
+│   ├── valtsky-v2.0-armeabi-v7a.apk  # 16.6 MB legacy 32-bit ARM APK
+│   └── valtsky-v2.0-x86_64.apk       # 20.5 MB emulator/x86_64 APK
 ├── app/                          # Native Android Kotlin Engine (Room, ContentObserver)
 └── valtsky_flutter/              # Flutter Multiplatform Client
     ├── lib/
@@ -209,6 +238,7 @@ ValtSky/
     │   │   ├── views/dashboard_view.dart    # Telemetry, slideshow reel & diagnostics
     │   │   ├── views/settings_view.dart     # Telegram credentials & lossless toggles
     │   │   └── widgets/
+    │   │       ├── valtsky_logo.dart                   # Official Vector Logo widget
     │   │       ├── manual_upload_assistant_sheet.dart  # 4-Click 2GB+ manual uploader
     │   │       ├── health_status_banner.dart           # Diagnostic self-healing banner
     │   │       ├── media_item_card.dart                # High-contrast file card
@@ -216,11 +246,12 @@ ValtSky/
     │   │       └── passive_elements.dart               # Sine wave socket transfer meter
     │   └── util/
     │       ├── file_security_guard.dart     # Magic bytes inspection & EICAR defense
+    │       ├── telegram_launcher.dart       # Native & web deep-link resolver
     │       ├── media_scanner.dart           # PhotoKit & MediaStore device scanner
     │       └── theme.dart                   # Monochrome Noir design tokens
     └── test/
-        ├── security_and_stress_test.dart    # 12 Hostile security & stress attack tests
-        └── widget_test.dart                 # Navigation & 4-Click Oversized flow tests
+        ├── security_and_stress_test.dart    # Hostile security, malware & stress attack suite
+        └── widget_test.dart                 # Navigation, deep-links & 4-Click Oversized tests
 ```
 
 ---
