@@ -66,13 +66,22 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _navigateToActivityWithFilter(String? filter) {
+    setState(() => _currentIndex = 1);
+    if (filter != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _activityKey.currentState?.setFilter(filter);
+      });
+    }
+  }
+
   Widget _buildCurrentTab() {
     switch (_currentIndex) {
       case 0:
         return DashboardView(
           key: _dashboardKey,
           onNavigateToSettings: () => setState(() => _currentIndex = 2),
-          onNavigateToActivity: () => setState(() => _currentIndex = 1),
+          onNavigateToActivity: _navigateToActivityWithFilter,
         );
       case 1:
         return ActivityView(

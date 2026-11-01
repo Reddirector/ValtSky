@@ -43,6 +43,15 @@ class ActivityViewState extends State<ActivityView> {
     }
   }
 
+  void setFilter(String filter) {
+    if (_selectedFilter != filter) {
+      setState(() {
+        _selectedFilter = filter;
+      });
+      refreshItems();
+    }
+  }
+
   void _openManualUploadAssistant(List<MediaItem> items) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(

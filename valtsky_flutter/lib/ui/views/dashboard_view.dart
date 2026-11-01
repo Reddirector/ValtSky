@@ -16,7 +16,7 @@ import '../widgets/passive_elements.dart';
 
 class DashboardView extends StatefulWidget {
   final VoidCallback onNavigateToSettings;
-  final VoidCallback onNavigateToActivity;
+  final Function(String? filter)? onNavigateToActivity;
 
   const DashboardView({
     super.key,
@@ -154,7 +154,7 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
               child: HealthStatusBanner(
                 failedCount: _failedCount,
                 onNavigateToSettings: widget.onNavigateToSettings,
-                onNavigateToActivity: widget.onNavigateToActivity,
+                onNavigateToActivity: () => widget.onNavigateToActivity?.call('FAILED'),
                 onDataChanged: refreshStats,
               ),
             ),
@@ -358,7 +358,36 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
               ),
             ],
           ),
-          if (isConfigured) ...[
+          if (!isConfigured) ...[
+            const SizedBox(height: 16),
+            TactilePress(
+              onTap: widget.onNavigateToSettings,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white : Colors.black,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.link_rounded, size: 18, color: isDark ? Colors.black : Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      'CONNECT TELEGRAM BOT',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                        color: isDark ? Colors.black : Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else ...[
             const SizedBox(height: 18),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -410,7 +439,7 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
           icon: Icons.photo_library_rounded,
           color: isDark ? Colors.white : Colors.black,
           isDark: isDark,
-          onTap: widget.onNavigateToActivity,
+          onTap: () => widget.onNavigateToActivity?.call('ALL'),
         ),
         _buildMetricTile(
           title: 'SYNCED',
@@ -418,7 +447,7 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
           icon: Icons.cloud_done_rounded,
           color: ValtSkyTheme.success,
           isDark: isDark,
-          onTap: widget.onNavigateToActivity,
+          onTap: () => widget.onNavigateToActivity?.call('SYNCED'),
         ),
         _buildMetricTile(
           title: 'IN QUEUE',
@@ -426,7 +455,7 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
           icon: Icons.hourglass_top_rounded,
           color: ValtSkyTheme.warning,
           isDark: isDark,
-          onTap: widget.onNavigateToActivity,
+          onTap: () => widget.onNavigateToActivity?.call('QUEUED'),
         ),
         _buildMetricTile(
           title: 'FAILED',
@@ -434,7 +463,7 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
           icon: Icons.error_outline_rounded,
           color: _failedCount > 0 ? ValtSkyTheme.error : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
           isDark: isDark,
-          onTap: widget.onNavigateToActivity,
+          onTap: () => widget.onNavigateToActivity?.call('FAILED'),
         ),
       ],
     );

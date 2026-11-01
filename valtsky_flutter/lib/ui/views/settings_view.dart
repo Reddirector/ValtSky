@@ -39,8 +39,14 @@ class _SettingsViewState extends State<SettingsView> {
 
   Future<void> _handleValidate() async {
     final token = _botTokenController.text.trim();
-    final channel = _channelIdController.text.trim();
+    var channel = _channelIdController.text.trim();
     final customUrl = _apiServerController.text.trim();
+
+    // Smart auto-format channel ID: If user enters 9-13 pure digits without -100, auto-prepend -100
+    if (RegExp(r'^\d{9,13}$').hasMatch(channel)) {
+      channel = '-100$channel';
+      _channelIdController.text = channel;
+    }
 
     if (token.isEmpty || channel.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
