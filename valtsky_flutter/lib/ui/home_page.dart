@@ -9,6 +9,7 @@ import 'views/dashboard_view.dart';
 import 'views/activity_view.dart';
 import 'views/settings_view.dart';
 import 'widgets/passive_elements.dart';
+import 'widgets/valtsky_logo.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -104,20 +105,24 @@ class _HomePageState extends State<HomePage> {
               title: Row(
                 children: [
                   Container(
-                    width: 36,
-                    height: 36,
+                    width: 38,
+                    height: 38,
+                    padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white : Colors.black,
-                      borderRadius: BorderRadius.circular(10),
+                      color: isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5),
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: Icon(Icons.cloud_sync_rounded, color: isDark ? Colors.black : Colors.white, size: 20),
+                    child: const ValtSkyLogo(size: 30),
                   ),
                   const SizedBox(width: 12),
                   const Column(

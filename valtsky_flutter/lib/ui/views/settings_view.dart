@@ -6,6 +6,7 @@ import '../../util/theme.dart';
 import '../../util/file_security_guard.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/animated_stagger.dart';
+import '../widgets/valtsky_logo.dart';
 
 class SettingsView extends StatefulWidget {
   final VoidCallback onDataChanged;
@@ -219,6 +220,13 @@ class _SettingsViewState extends State<SettingsView> {
           StaggeredFadeSlide(
             delayMs: 160,
             child: _buildDangerZone(isDark),
+          ),
+          const SizedBox(height: 24),
+
+          // ─── BRANDING FOOTER ──────────────────────────────
+          StaggeredFadeSlide(
+            delayMs: 200,
+            child: _buildBrandingFooter(isDark),
           ),
           const SizedBox(height: 36),
         ],
@@ -679,6 +687,48 @@ class _SettingsViewState extends State<SettingsView> {
                 side: const BorderSide(color: ValtSkyTheme.error),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBrandingFooter(bool isDark) {
+    return Center(
+      child: Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const ValtSkyLogo(size: 40),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'ValtSky Multiplatform v2.0',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: -0.2),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Zero-Loss Telegram Cloud Storage • Open Source',
+            style: TextStyle(
+              fontSize: 11,
+              color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
             ),
           ),
         ],

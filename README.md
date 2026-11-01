@@ -1,6 +1,8 @@
 <div align="center">
 
-# ☁️ ValtSky Multiplatform
+<img src="docs/valtsky_app_icon.png" width="128" height="128" alt="ValtSky Logo" style="border-radius: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);" />
+
+# ValtSky Multiplatform
 
 ### Turn your private Telegram channel into unlimited, zero-loss, free cloud storage.
 

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5 -5.5 115 100" width="1024" height="1024">
+  <defs>
+    <linearGradient id="cloudGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F75FF" />
+      <stop offset="100%" stop-color="#3652D9" />
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="3" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+  <!-- Royal Blue Cloud Shape -->
+  <path d="M25,65 C15,65 10,57 10,48 C10,38 18,30 28,30 C30,17 42,7 55,7 C66,7 76,15 79,26 C88,28 95,35 95,45 C95,56 87,65 76,65 L25,65 Z"
+        fill="url(#cloudGrad)" filter="url(#shadow)" />
+  <!-- Paper Plane symbol in white -->
+  <path d="M42,43 L62,33 L54,53 L50,45 Z"
+        fill="#FFFFFF" />
+  <!-- Decorative 'V' base in Royal Blue -->
+  <path d="M35,73 L50,83 L65,73"
+        stroke="#4F75FF" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

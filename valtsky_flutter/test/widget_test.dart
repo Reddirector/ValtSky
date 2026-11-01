@@ -6,6 +6,7 @@ import 'package:valtsky_flutter/data/models/media_item.dart';
 import 'package:valtsky_flutter/data/prefs.dart';
 import 'package:valtsky_flutter/main.dart';
 import 'package:valtsky_flutter/util/telegram_launcher.dart';
+import 'package:valtsky_flutter/ui/widgets/valtsky_logo.dart';
 
 void main() {
   setUp(() async {
@@ -143,5 +144,22 @@ void main() {
     // 5. Default web telegram
     Prefs.botName = '';
     expect(TelegramLauncher.getChannelUrl(), 'https://web.telegram.org');
+  });
+
+  testWidgets('ValtSkyLogo Widget renders correctly in color and monochrome modes', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              ValtSkyLogo(size: 32),
+              ValtSkyLogo(size: 48, isMonochrome: true),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(ValtSkyLogo), findsNWidgets(2));
   });
 }
