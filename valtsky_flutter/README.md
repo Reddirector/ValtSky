@@ -96,21 +96,14 @@ flutter analyze
 
 ### Android Build
 ```bash
-# Optimized split APKs (recommended: 19 MB ARM64)
-flutter build apk --release --split-per-abi
-
-# Universal APK (contains all ABIs: 52 MB)
+# Universal Production APK (for all Android phones: 52 MB)
 flutter build apk --release
 
 # Google Play App Bundle
 flutter build appbundle --release
 ```
 
-Output APKs will be generated in `build/app/outputs/flutter-apk/`:
-- `app-arm64-v8a-release.apk`
-- `app-armeabi-v7a-release.apk`
-- `app-x86_64-release.apk`
-- `app-release.apk`
+Output: `build/app/outputs/flutter-apk/app-release.apk`
 
 ### Apple iOS Build
 ```bash

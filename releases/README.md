@@ -6,16 +6,13 @@ This directory contains release manifests, verification hashes, detailed changel
 
 ## 🚀 Official Production Binaries & Checksums
 
-### Android Production APKs (v2.0)
+### 🤖 Android Universal Phone Release
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **[`valtsky-v2.0-arm64-v8a.apk`](valtsky-v2.0-arm64-v8a.apk)** | `arm64-v8a` | **19.1 MB** | **Modern Android (Pixel, Galaxy, Xiaomi, OnePlus, 95%+ devices)** | `460a2f06a043fbec621ed306864853f99741d173eb4d66b8cf89305283c9caf8` |
-| **[`valtsky-v2.0-release.apk`](valtsky-v2.0-release.apk)** | Universal (Fat APK) | **52.6 MB** | All Android devices (contains all native ABIs) | `ce7e19ae17b2ba76a2a20e7d002e095693b9a97543b4c39772eb3efa1cdbd65d` |
-| **[`valtsky-v2.0-armeabi-v7a.apk`](valtsky-v2.0-armeabi-v7a.apk)** | `armeabi-v7a` | **16.6 MB** | Older 32-bit Android phones and tablets | `b0117901309743b949efbbaf494179c5e1bb5684cd89ebdd84462fb8645abb24` |
-| **[`valtsky-v2.0-x86_64.apk`](valtsky-v2.0-x86_64.apk)** | `x86_64` | **20.5 MB** | Android emulators, ChromeOS, and Intel x86 devices | `138ac05c5dabc268e9d276f655c2b612d135f4416900b9c3ee367d191dff765f` |
+| **[`valtsky-v2.0-release.apk`](valtsky-v2.0-release.apk)** | Universal (All ABIs) | **52.6 MB** | **All Android Phones & Tablets** (Samsung, Pixel, Xiaomi, OnePlus, Motorola, etc.) | `ce7e19ae17b2ba76a2a20e7d002e095693b9a97543b4c39772eb3efa1cdbd65d` |
 
-### Multi-Platform Production Packages (GitHub Releases)
+### 💻 Multi-Platform Production Packages (GitHub Releases)
 
 | Package Name | Target OS | Architecture | Format | Status |
 | :--- | :--- | :--- | :--- | :--- |
@@ -50,19 +47,19 @@ This directory contains release manifests, verification hashes, detailed changel
 - **EICAR Standard Quarantine**: Automatically flags and halts transmission of suspicious test virus files.
 - **MarkdownV2 Injection Defense**: All file names, captions, and user strings are sanitized against Telegram markdown parsing errors.
 - **SSRF & Loopback Restriction**: Telegram endpoint URLs enforce strict HTTPS and localhost containment.
-- **16/16 Automated Tests Passing**: 100% pass rate covering unit tests, widget navigation, 4-click oversized flow, and hostile security injection suites with 0 analyzer issues.
+- **16/16 Automated Tests Passing**: 100% test coverage across unit tests, widget navigation, 4-click oversized flow, and hostile security injection suites with 0 analyzer issues.
 
 ---
 
 ## 📲 Platform Installation Guides
 
 ### 🤖 1. Android Installation
-1. Download **`valtsky-v2.0-arm64-v8a.apk`** (recommended for all modern phones, 19 MB) or **`valtsky-v2.0-release.apk`** (Universal, 52 MB).
+1. Download **`valtsky-v2.0-release.apk`** (Universal APK for all Android phones).
 2. If prompted by your browser, enable **"Allow from this source"** for unknown apps in Android Settings.
 3. Tap **Install** and open ValtSky.
 4. Alternatively, install via ADB over USB:
    ```bash
-   adb install -r valtsky-v2.0-arm64-v8a.apk
+   adb install -r valtsky-v2.0-release.apk
    ```
 
 ### 🍎 2. Apple iOS Installation & Sideloading
@@ -105,17 +102,13 @@ Because iOS restricts unsigned IPAs outside the App Store, you have two simple o
 
 ## 🔒 Verification & Integrity
 
-To verify the integrity of downloaded APK binaries on Linux/macOS:
+To verify the integrity of the downloaded universal APK:
 ```bash
-sha256sum valtsky-v2.0-arm64-v8a.apk
-# Expected: 460a2f06a043fbec621ed306864853f99741d173eb4d66b8cf89305283c9caf8
-
 sha256sum valtsky-v2.0-release.apk
 # Expected: ce7e19ae17b2ba76a2a20e7d002e095693b9a97543b4c39772eb3efa1cdbd65d
 ```
 
 On Windows PowerShell:
 ```powershell
-Get-FileHash -Algorithm SHA256 .\valtsky-v2.0-arm64-v8a.apk
 Get-FileHash -Algorithm SHA256 .\valtsky-v2.0-release.apk
 ```

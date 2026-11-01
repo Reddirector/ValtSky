@@ -6,7 +6,7 @@
 
 ### Turn your private Telegram channel into unlimited, zero-loss, free cloud storage.
 
-[![Download Android APK](https://img.shields.io/badge/Android_APK-v2.0_ARM64_(19MB)-10B981?style=for-the-badge&logo=android&logoColor=white)](releases/)
+[![Download Android APK](https://img.shields.io/badge/Android_APK-Universal_v2.0-10B981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/download/v2.0/valtsky-v2.0-release.apk)
 [![Download iOS Runner](https://img.shields.io/badge/iOS-Sideload_Runner-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
 [![Download Windows](https://img.shields.io/badge/Windows-x64_Release-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
 [![Download macOS](https://img.shields.io/badge/macOS-Universal-grey?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
@@ -34,19 +34,9 @@ Unlike traditional cloud providers that charge recurring monthly subscriptions o
 
 ## 📦 Multi-Platform Downloads
 
-### Android Production APKs (Direct Download)
-
-| Architecture | Package | File Size | Description | Download Link |
-| :--- | :--- | :--- | :--- | :--- |
-| **ARM64 (v8a)** ⭐ | `valtsky-v2.0-arm64-v8a.apk` | **19.1 MB** | **Recommended for all modern phones** (Pixel, Galaxy, OnePlus, Xiaomi) | [**Download ARM64 APK (19 MB)**](releases/valtsky-v2.0-arm64-v8a.apk) |
-| **Universal (Fat)** | `valtsky-v2.0-release.apk` | **52.6 MB** | All-in-one package containing all CPU architectures | [**Download Universal APK (52 MB)**](releases/valtsky-v2.0-release.apk) |
-| **ARMv7 (32-bit)** | `valtsky-v2.0-armeabi-v7a.apk` | **16.6 MB** | Legacy 32-bit phones and budget devices | [**Download ARMv7 APK (16 MB)**](releases/valtsky-v2.0-armeabi-v7a.apk) |
-| **x86_64** | `valtsky-v2.0-x86_64.apk` | **20.5 MB** | Emulators, Chromebooks, and Intel-based tablets | [**Download x86_64 APK (20 MB)**](releases/valtsky-v2.0-x86_64.apk) |
-
-### Desktop, iOS & Web Releases
-
 | Platform | Format / Package | Compatibility | Download Link |
 | :--- | :--- | :--- | :--- |
+| **Android (Universal)** ⭐ | `.apk` (Single Universal Binary) | Android 7.0+ (Samsung, Pixel, Xiaomi, OnePlus, Motorola, etc.) | [**Download `valtsky-v2.0-release.apk` (52 MB)**](https://github.com/Reddirector/ValtSky/releases/download/v2.0/valtsky-v2.0-release.apk) |
 | **Android (Google Play)** | `.aab` (Optimized Bundle) | Android 7.0+ (API 24–35) | [**Download `valtsky-android.aab`**](https://github.com/Reddirector/ValtSky/releases/latest) |
 | **Apple iOS** | `.zip` (Runner / Sideload) | iOS 13.0+ (iPhone & iPad via AltStore / Sideloadly) | [**Download `valtsky-ios-runner.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) |
 | **Windows Desktop** | `.zip` (Standalone Executable) | Windows 10 & 11 (x64) | [**Download `valtsky-windows-x64.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) |
@@ -182,8 +172,7 @@ flutter run
 ### Compiling Multi-Platform Binaries
 
 ```bash
-# 🤖 Android Optimized Split-per-ABI APKs & AppBundle
-flutter build apk --release --split-per-abi
+# 🤖 Android Universal Production APK & AppBundle
 flutter build apk --release
 flutter build appbundle --release
 
@@ -219,10 +208,8 @@ ValtSky/
 ├── index.html                    # Modern web download portal & showcase
 ├── releases/                     # Compiled production releases & verification hashes
 │   ├── README.md                 # Checksums, installation guide, and v2.0 release notes
-│   ├── valtsky-v2.0-arm64-v8a.apk    # 19.1 MB optimized ARM64 production APK
-│   ├── valtsky-v2.0-release.apk      # 52.6 MB universal Android APK
-│   ├── valtsky-v2.0-armeabi-v7a.apk  # 16.6 MB legacy 32-bit ARM APK
-│   └── valtsky-v2.0-x86_64.apk       # 20.5 MB emulator/x86_64 APK
+│   ├── v2.0_release_notes.md     # Official GitHub Release notes
+│   └── valtsky-v2.0-release.apk  # 52.6 MB Universal Android production APK (all phones)
 ├── app/                          # Native Android Kotlin Engine (Room, ContentObserver)
 └── valtsky_flutter/              # Flutter Multiplatform Client
     ├── lib/

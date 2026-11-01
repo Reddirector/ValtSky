@@ -58,12 +58,8 @@ jobs:
         run: |
           cd valtsky_flutter
           flutter pub get
-          flutter build apk --release --split-per-abi
           flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk ../valtsky-android-universal.apk
-          cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ../valtsky-android-arm64-v8a.apk || true
-          cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ../valtsky-android-armeabi-v7a.apk || true
-          cp build/app/outputs/flutter-apk/app-x86_64-release.apk ../valtsky-android-x86_64.apk || true
+          cp build/app/outputs/flutter-apk/app-release.apk ../valtsky-v2.0-release.apk
 
       - name: Build Android AppBundle (Google Play)
         run: |
@@ -261,10 +257,7 @@ jobs:
             Lossless, bit-for-bit uncompressed media backup directly to your private Telegram channel with zero quality reduction and 100% EXIF preservation.
             
             ### 📦 Download Links by Platform
-            - **Android ARM64 APK (Recommended, 19 MB)**: [`valtsky-android-arm64-v8a.apk`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-android-arm64-v8a.apk)
-            - **Android Universal APK (All ABIs, 52 MB)**: [`valtsky-android-universal.apk`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-android-universal.apk)
-            - **Android ARMv7 APK (Legacy 32-bit, 16 MB)**: [`valtsky-android-armeabi-v7a.apk`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-android-armeabi-v7a.apk)
-            - **Android x86_64 APK (Emulators, 20 MB)**: [`valtsky-android-x86_64.apk`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-android-x86_64.apk)
+            - **Android Universal APK (All Phones, 52 MB)**: [`valtsky-v2.0-release.apk`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-v2.0-release.apk)
             - **Android Google Play (AAB)**: [`valtsky-android.aab`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-android.aab)
             - **Windows x64 Desktop**: [`valtsky-windows-x64.zip`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-windows-x64.zip)
             - **macOS Desktop**: [`valtsky-macos.zip`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-macos.zip)
