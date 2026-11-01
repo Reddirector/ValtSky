@@ -239,7 +239,7 @@ class ActivityViewState extends State<ActivityView> {
                       setState(() => _selectedFilter = 'OVERSIZED');
                       refreshItems();
                     },
-                    child: const Text('View > 2 GB (Click 1)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                    child: const Text('Review Vault', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
                   ),
                 ],
               ),
@@ -326,7 +326,7 @@ class ActivityViewState extends State<ActivityView> {
                             Icon(Icons.bolt_rounded, size: 20, color: isDark ? Colors.black : Colors.white),
                             const SizedBox(width: 8),
                             Text(
-                              'UPLOAD ALL OVERSIZED (CLICK 2)',
+                              'UPLOAD ALL OVERSIZED',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w900,

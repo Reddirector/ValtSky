@@ -88,9 +88,9 @@ void main() {
     expect(find.text('OVERSIZED VAULT (> 2 GB)'), findsOneWidget);
     expect(find.text('VID_20261101_4K60_CINEMATIC.mov'), findsOneWidget);
 
-    // CLICK 2: Tap 'UPLOAD ALL OVERSIZED (CLICK 2)'
-    expect(find.text('UPLOAD ALL OVERSIZED (CLICK 2)'), findsOneWidget);
-    await tester.tap(find.text('UPLOAD ALL OVERSIZED (CLICK 2)'));
+    // CLICK 2: Tap 'UPLOAD ALL OVERSIZED'
+    expect(find.text('UPLOAD ALL OVERSIZED'), findsOneWidget);
+    await tester.tap(find.text('UPLOAD ALL OVERSIZED'));
     await tester.pumpAndSettle();
 
     // Verify Assistant Sheet opens with Target Channel & 4-Click Tracker
@@ -113,9 +113,9 @@ void main() {
     // Verify Lossless Backup Confirmed
     expect(find.text('Lossless Backup Confirmed'), findsOneWidget);
 
-    // CLICK 4: Tap 'Open Channel (4th Click)'
-    expect(find.text('Open Channel (4th Click)'), findsOneWidget);
-    await tester.tap(find.text('Open Channel (4th Click)'));
+    // CLICK 4: Tap 'Open Telegram Channel'
+    expect(find.text('Open Telegram Channel'), findsOneWidget);
+    await tester.tap(find.text('Open Telegram Channel'));
     await tester.pumpAndSettle();
   });
 }

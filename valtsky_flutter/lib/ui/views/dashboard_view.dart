@@ -607,38 +607,38 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
             ],
           ),
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF18181B) : const Color(0xFFFAFAFA),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+          Row(
+            children: [
+              Icon(Icons.schedule_rounded, size: 14, color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Oldest captures sync first (chronological order)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.swap_vert_circle_rounded, size: 15, color: isDark ? Colors.white : Colors.black),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'Chronological Order: Oldest files upload first',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '100% EXIF',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : Colors.black,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Oldest → Newest',
-                    style: TextStyle(fontSize: 10, color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

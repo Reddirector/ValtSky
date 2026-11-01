@@ -368,7 +368,7 @@ class _ManualUploadAssistantSheetState extends State<ManualUploadAssistantSheet>
             // Protocol Selection (If not uploading / completed)
             if (!_isUploading && !_isComplete) ...[
               Text(
-                'SELECT 2GB+ LOSSLESS ROUTE (CLICK 3)',
+                'SELECT TRANSMISSION ROUTE',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
@@ -589,7 +589,7 @@ class _ManualUploadAssistantSheetState extends State<ManualUploadAssistantSheet>
                         ),
                         alignment: Alignment.center,
                         child: const Text(
-                          'Open Channel (4th Click)',
+                          'Open Telegram Channel',
                           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),

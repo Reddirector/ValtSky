@@ -369,7 +369,7 @@ class _SettingsViewState extends State<SettingsView> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('100% Bit-for-Bit Lossless Mode', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            subtitle: const Text('Sends as Document. Preserves exact camera raw bytes, colors, GPS & full EXIF without Telegram re-compression.', style: TextStyle(fontSize: 12)),
+            subtitle: const Text('Transmits as raw Document. Preserves exact camera bytes, color profiles, and full EXIF.', style: TextStyle(fontSize: 12)),
             value: _useOriginalQuality,
             activeThumbColor: ValtSkyTheme.success,
             onChanged: (val) {
@@ -383,7 +383,7 @@ class _SettingsViewState extends State<SettingsView> {
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Smart Multi-Part Chunking (Files > 50MB)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            subtitle: const Text('Splits long 4K videos or giant files into 48MB lossless parts with SHA-256 verification so you can upload unlimited file sizes to your bot.', style: TextStyle(fontSize: 12)),
+            subtitle: const Text('Splits files >50MB into 48MB verified parts to bypass standard Bot API limits.', style: TextStyle(fontSize: 12)),
             value: _enableChunking,
             activeThumbColor: ValtSkyTheme.primaryAccent,
             onChanged: (val) {
@@ -410,23 +410,22 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0F1520) : const Color(0xFFF8FAFC),
+              color: isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isDark ? const Color(0xFF243046) : const Color(0xFFE2E8F0),
+                color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
               ),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline_rounded, size: 16, color: ValtSkyTheme.primaryAccent),
+                Icon(Icons.terminal_rounded, size: 16, color: isDark ? Colors.white : Colors.black),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Tip: If you run a local telegram-bot-api server (Docker), enter its URL here to unlock direct single-file 2,000 MB (2GB) uploads with zero chunking!',
-                    style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600], height: 1.3),
+                    'Local Bot API: Enter custom endpoint to unlock single-file 2 GB uploads without chunking.',
+                    style: TextStyle(fontSize: 11, color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
                   ),
                 ),
               ],

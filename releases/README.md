@@ -8,7 +8,7 @@ This directory contains release manifests, verification hashes, and cross-platfo
 
 | Package Name | Target Platform | Architecture | SHA-256 Checksum | Download Location |
 | :--- | :--- | :--- | :--- | :--- |
-| **`valtsky-v2.0-release.apk`** | Android 7.0+ | Universal (ARM64, ARMv7, x86_64) | `616ffee1f1d4a9b2c63963862f60d2bf4099986ddcfd08f6c91ce16f62cad85b` | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
+| **`valtsky-v2.0-release.apk`** | Android 7.0+ | Universal (ARM64, ARMv7, x86_64) | `453e7dccf73d14e3d78f95ecc36bfe35274a88fc9dd54f71bf88f828bf9026ac` | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
 | **`valtsky-android.aab`** | Google Play | Universal Play Bundle | Generated via GitHub Actions | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
 | **`valtsky-ios-runner.zip`** | Apple iOS 13+ | iPhone / iPad (ARM64) | Generated via GitHub Actions | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
 | **`valtsky-windows-x64.zip`** | Windows 10/11 | x86_64 | Generated via GitHub Actions | [GitHub Releases](https://github.com/Reddirector/ValtSky/releases) |
