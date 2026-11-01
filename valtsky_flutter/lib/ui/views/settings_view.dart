@@ -7,6 +7,8 @@ import '../../util/file_security_guard.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/animated_stagger.dart';
 import '../widgets/valtsky_logo.dart';
+import '../widgets/telegram_phone_login_widget.dart';
+import '../widgets/telegram_profile_card.dart';
 
 class SettingsView extends StatefulWidget {
   final VoidCallback onDataChanged;
@@ -28,10 +30,12 @@ class _SettingsViewState extends State<SettingsView> {
   bool _useOriginalQuality = Prefs.useOriginalQuality;
   bool _enableChunking = Prefs.enableChunking;
   NetworkTypeChoice _networkType = Prefs.uploadNetworkType;
+  late String _authMode;
 
   @override
   void initState() {
     super.initState();
+    _authMode = Prefs.authMethod;
     _botTokenController.text = Prefs.botToken;
     _channelIdController.text = Prefs.channelId;
     _apiServerController.text = Prefs.apiBaseUrl;
@@ -197,7 +201,27 @@ class _SettingsViewState extends State<SettingsView> {
           // ─── TELEGRAM CONFIG CARD ────────────────────────
           StaggeredFadeSlide(
             delayMs: 0,
-            child: _buildTelegramConfigCard(isDark, isMonitoring),
+            child: _authMode == 'phone'
+                ? (!Prefs.isConfigured()
+                    ? TelegramPhoneLoginWidget(
+                        onLoginSuccess: () {
+                          setState(() {});
+                          widget.onDataChanged();
+                        },
+                        onSwitchToBotMode: () {
+                          setState(() => _authMode = 'bot');
+                        },
+                      )
+                    : TelegramProfileCard(
+                        isDark: isDark,
+                        onDisconnect: () {
+                          setState(() {
+                            _authMode = 'phone';
+                          });
+                          widget.onDataChanged();
+                        },
+                      ))
+                : _buildTelegramConfigCard(isDark, isMonitoring),
           ),
           const SizedBox(height: 20),
 
@@ -242,6 +266,19 @@ class _SettingsViewState extends State<SettingsView> {
 
   Widget _buildTelegramConfigCard(bool isDark, bool isMonitoring) {
     final isConfigured = Prefs.isConfigured();
+    final isPhoneAuth = Prefs.authMethod == 'phone' && Prefs.userPhoneNumber.isNotEmpty;
+
+    if (isConfigured && isPhoneAuth) {
+      return TelegramProfileCard(
+        isDark: isDark,
+        onDisconnect: () {
+          setState(() {
+            _authMode = 'phone';
+          });
+          widget.onDataChanged();
+        },
+      );
+    }
 
     return GlassCard(
       padding: const EdgeInsets.all(20),
@@ -338,6 +375,17 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ),
           ),
+
+          if (!isConfigured) ...[
+            const SizedBox(height: 14),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => setState(() => _authMode = 'phone'),
+                icon: const Icon(Icons.phone_android_rounded, size: 16),
+                label: const Text('Switch to Direct Phone Login (10s Setup)', style: TextStyle(fontSize: 12)),
+              ),
+            ),
+          ],
         ],
       ),
     );

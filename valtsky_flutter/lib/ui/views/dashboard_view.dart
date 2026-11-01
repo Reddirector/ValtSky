@@ -221,7 +221,7 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
     if (!isConfigured) {
       statusColor = ValtSkyTheme.warning;
       statusTitle = 'Setup Required';
-      statusSubtitle = 'Connect your Telegram bot to enable cloud backup';
+      statusSubtitle = 'Connect your Telegram account to enable cloud backup';
       statusIcon = Icons.settings_outlined;
     } else if (!isMonitoring) {
       statusColor = isDark ? Colors.white : Colors.black;
@@ -236,8 +236,9 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
     } else {
       statusColor = ValtSkyTheme.success;
       statusTitle = 'Live Cloud Sync';
+      final who = Prefs.telegramUserName.isNotEmpty ? ' (${Prefs.telegramUserName})' : '';
       statusSubtitle = Prefs.channelName.isNotEmpty 
-          ? 'Syncing silently to ${Prefs.channelName}'
+          ? 'Syncing silently to ${Prefs.channelName}$who'
           : 'Monitoring camera roll in background';
       statusIcon = Icons.cloud_done_rounded;
     }
@@ -375,7 +376,7 @@ class DashboardViewState extends State<DashboardView> with SingleTickerProviderS
                     Icon(Icons.link_rounded, size: 18, color: isDark ? Colors.black : Colors.white),
                     const SizedBox(width: 8),
                     Text(
-                      'CONNECT TELEGRAM BOT',
+                      'CONNECT TELEGRAM',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w900,

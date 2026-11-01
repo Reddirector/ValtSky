@@ -18,11 +18,47 @@ class Prefs {
   static const String keyApiBaseUrl = 'api_base_url';
   static const String keyEnableChunking = 'enable_chunking';
   static const String keyMaxChunkSizeMb = 'max_chunk_size_mb';
+  static const String keyAuthMethod = 'auth_method'; // 'phone' or 'bot'
+  static const String keyUserPhoneNumber = 'user_phone_number';
+  static const String keyTelegramUserId = 'telegram_user_id';
+  static const String keyTelegramUserName = 'telegram_user_name';
+  static const String keyTelegramUserHandle = 'telegram_user_handle';
+  static const String keyTelegramIsPremium = 'telegram_is_premium';
 
   static SharedPreferences? _prefs;
 
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+  }
+
+  static String get authMethod => _prefs?.getString(keyAuthMethod) ?? 'phone';
+  static set authMethod(String value) => _prefs?.setString(keyAuthMethod, value);
+
+  static String get userPhoneNumber => _prefs?.getString(keyUserPhoneNumber) ?? '';
+  static set userPhoneNumber(String value) => _prefs?.setString(keyUserPhoneNumber, value);
+
+  static String get telegramUserId => _prefs?.getString(keyTelegramUserId) ?? '';
+  static set telegramUserId(String value) => _prefs?.setString(keyTelegramUserId, value);
+
+  static String get telegramUserName => _prefs?.getString(keyTelegramUserName) ?? '';
+  static set telegramUserName(String value) => _prefs?.setString(keyTelegramUserName, value);
+
+  static String get telegramUserHandle => _prefs?.getString(keyTelegramUserHandle) ?? '';
+  static set telegramUserHandle(String value) => _prefs?.setString(keyTelegramUserHandle, value);
+
+  static bool get telegramIsPremium => _prefs?.getBool(keyTelegramIsPremium) ?? false;
+  static set telegramIsPremium(bool value) => _prefs?.setBool(keyTelegramIsPremium, value);
+
+  static Future<void> disconnectTelegram() async {
+    await _prefs?.remove(keyUserPhoneNumber);
+    await _prefs?.remove(keyTelegramUserId);
+    await _prefs?.remove(keyTelegramUserName);
+    await _prefs?.remove(keyTelegramUserHandle);
+    await _prefs?.remove(keyTelegramIsPremium);
+    await _prefs?.remove(keyChannelId);
+    await _prefs?.remove(keyChannelName);
+    await _prefs?.remove(keyBotToken);
+    await _prefs?.remove(keyBotName);
   }
 
   static String get botToken => _prefs?.getString(keyBotToken) ?? '';
@@ -79,7 +115,10 @@ class Prefs {
   static int get maxChunkSizeMb => _prefs?.getInt(keyMaxChunkSizeMb) ?? 48;
   static set maxChunkSizeMb(int value) => _prefs?.setInt(keyMaxChunkSizeMb, value);
 
-  static bool isConfigured() => botToken.isNotEmpty && channelId.isNotEmpty;
+  static bool isConfigured() {
+    if (channelId.isEmpty) return false;
+    return botToken.isNotEmpty || userPhoneNumber.isNotEmpty;
+  }
 
   static Future<void> clearAllSyncState() async {
     await _prefs?.remove(keyLastSynced);

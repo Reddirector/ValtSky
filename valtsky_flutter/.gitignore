@@ -43,3 +43,18 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets & Environment (NEVER COMMIT)
+*secrets*
+!*secrets.template*
+*.env*
+secrets.dart
+lib/config/secrets.dart
+*.pem
+*.key
+*.keystore
+*.jks
+*.p12
+auth.json
+*session*
+

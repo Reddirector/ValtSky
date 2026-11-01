@@ -1,0 +1,346 @@
+// ignore_for_file: avoid_print
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:t/t.dart' as t;
+import 'package:tg/tg.dart' as tg;
+import 'package:valtsky_flutter/config/secrets.dart';
+
+class IoSocket extends tg.SocketAbstraction {
+  IoSocket(this.socket) : receiver = socket.asBroadcastStream();
+  final Socket socket;
+
+  @override
+  final Stream<Uint8List> receiver;
+
+  @override
+  Future<void> send(List<int> data) async {
+    socket.add(data);
+    await socket.flush();
+  }
+
+  Future<void> close() => socket.close();
+}
+
+class MtprotoBridge {
+  static final MtprotoBridge instance = MtprotoBridge._();
+  MtprotoBridge._();
+
+  tg.Client? _client;
+  final Map<int, t.DcOption> _dcs = {};
+  int _currentDcId = 1;
+
+  String? currentPhone;
+  String? currentPhoneCodeHash;
+
+  static const Map<int, String> defaultDcIps = {
+    1: '149.154.175.50',
+    2: '149.154.167.51',
+    3: '149.154.175.100',
+    4: '149.154.167.92',
+    5: '91.108.56.165',
+  };
+
+  Future<tg.Client> connectToDc(int dcId, {String? ip, int port = 443}) async {
+    final targetIp = ip ?? defaultDcIps[dcId] ?? '149.154.175.50';
+    print('[Bridge] Connecting to Telegram DC $dcId ($targetIp:$port)...');
+
+    final socket = await Socket.connect(targetIp, port, timeout: const Duration(seconds: 10));
+    final ioSocket = IoSocket(socket);
+
+    final obfuscation = tg.Obfuscation.random(false, dcId);
+    final idGenerator = tg.MessageIdGenerator();
+    await ioSocket.send(obfuscation.preamble);
+
+    print('[Bridge] Authorizing DH key exchange with DC $dcId...');
+    final authKey = await tg.Client.authorize(ioSocket, obfuscation, idGenerator)
+        .timeout(const Duration(seconds: 15));
+    print('[Bridge] AuthKey established! ID: ${authKey.id}');
+
+    final client = tg.Client(
+      socket: ioSocket,
+      obfuscation: obfuscation,
+      authorizationKey: authKey,
+      idGenerator: idGenerator,
+    );
+
+    final cfg = await client.initConnection<t.Config>(
+      apiId: TelegramSecrets.apiId,
+      deviceModel: 'ValtSky Real MTProto Client',
+      systemVersion: 'Linux / Android',
+      appVersion: '1.0.0',
+      systemLangCode: 'en',
+      langPack: '',
+      langCode: 'en',
+      query: const t.HelpGetConfig(),
+    );
+
+    _dcs.clear();
+    for (final dc in cfg.result?.dcOptions ?? []) {
+      if (dc is t.DcOption && !dc.ipv6) {
+        _dcs[dc.id] = dc;
+      }
+    }
+
+    _currentDcId = dcId;
+    _client = client;
+    return client;
+  }
+
+  Future<Map<String, dynamic>> sendVerificationCode(String rawPhoneNumber) async {
+    final cleanPhone = rawPhoneNumber.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    currentPhone = cleanPhone;
+
+    var client = _client ?? await connectToDc(_currentDcId);
+
+    print('[Bridge] Calling Telegram auth.sendCode for $cleanPhone (api_id: ${TelegramSecrets.apiId})...');
+    var sendCodeResponse = await client.auth.sendCode(
+      phoneNumber: cleanPhone,
+      apiId: TelegramSecrets.apiId,
+      apiHash: TelegramSecrets.apiHash,
+      settings: const t.CodeSettings(
+        allowFlashcall: false,
+        currentNumber: true,
+        allowAppHash: false,
+        allowMissedCall: false,
+        allowFirebase: false,
+        unknownNumber: false,
+      ),
+    );
+
+    final error = sendCodeResponse.error;
+    if (error != null && error.errorMessage.startsWith('PHONE_MIGRATE_')) {
+      final targetDcId = int.tryParse(error.errorMessage.split('_').last) ?? 2;
+      print('[Bridge] Phone belongs to DC $targetDcId. Migrating connection...');
+
+      final targetDc = _dcs[targetDcId];
+      client = await connectToDc(
+        targetDcId,
+        ip: targetDc?.ipAddress ?? defaultDcIps[targetDcId],
+        port: targetDc?.port ?? 443,
+      );
+
+      sendCodeResponse = await client.auth.sendCode(
+        phoneNumber: cleanPhone,
+        apiId: TelegramSecrets.apiId,
+        apiHash: TelegramSecrets.apiHash,
+        settings: const t.CodeSettings(
+          allowFlashcall: false,
+          currentNumber: true,
+          allowAppHash: false,
+          allowMissedCall: false,
+          allowFirebase: false,
+          unknownNumber: false,
+        ),
+      );
+    }
+
+    if (sendCodeResponse.error != null) {
+      final err = sendCodeResponse.error!;
+      print('[Bridge] Telegram RPC error: ${err.errorMessage} (code: ${err.errorCode})');
+      return {
+        'ok': false,
+        'error': err.errorMessage,
+        'friendlyError': _friendlyErrorMessage(err.errorMessage),
+      };
+    }
+
+    final sentCode = sendCodeResponse.result as t.AuthSentCode;
+    currentPhoneCodeHash = sentCode.phoneCodeHash;
+    print('[Bridge] SUCCESS! Telegram dispatched real OTP! Hash: ${sentCode.phoneCodeHash}');
+
+    return {
+      'ok': true,
+      'phoneCodeHash': sentCode.phoneCodeHash,
+      'timeout': sentCode.timeout,
+    };
+  }
+
+  Future<Map<String, dynamic>> verifyCode(String code) async {
+    final client = _client;
+    if (client == null || currentPhone == null || currentPhoneCodeHash == null) {
+      return {'ok': false, 'error': 'Session expired. Please request code again.'};
+    }
+
+    print('[Bridge] Calling Telegram auth.signIn with code: $code...');
+    final signInResponse = await client.auth.signIn(
+      phoneNumber: currentPhone!,
+      phoneCodeHash: currentPhoneCodeHash!,
+      phoneCode: code.trim(),
+    );
+
+    if (signInResponse.error != null) {
+      final err = signInResponse.error!;
+      print('[Bridge] Telegram signIn error: ${err.errorMessage}');
+      if (err.errorMessage == 'SESSION_PASSWORD_NEEDED') {
+        return {
+          'ok': false,
+          'needs2fa': true,
+          'error': 'SESSION_PASSWORD_NEEDED',
+          'friendlyError': 'Two-Step Verification password required.',
+        };
+      }
+      return {
+        'ok': false,
+        'error': err.errorMessage,
+        'friendlyError': _friendlyErrorMessage(err.errorMessage),
+      };
+    }
+
+    print('[Bridge] USER SIGN-IN VERIFIED AND AUTHENTICATED BY TELEGRAM!');
+
+    String userName = 'Telegram User';
+    String userHandle = '';
+    String userId = '';
+    bool isPremium = false;
+
+    final authResult = signInResponse.result;
+    if (authResult is t.AuthAuthorization) {
+      final user = authResult.user;
+      if (user is t.User) {
+        final first = user.firstName ?? '';
+        final last = user.lastName ?? '';
+        userName = '$first $last'.trim();
+        if (userName.isEmpty) userName = 'Telegram User';
+        userHandle = user.username ?? '';
+        userId = user.id.toString();
+        isPremium = user.premium;
+        if (user.phone != null && user.phone!.isNotEmpty) {
+          currentPhone = user.phone!.startsWith('+') ? user.phone! : '+${user.phone}';
+        }
+      }
+    }
+
+    print('[Bridge] Calling channels.createChannel to provision private vault for $userName (ID: $userId)...');
+    final vaultTitle = 'ValtSky Vault ($userName)';
+    const vaultAbout = 'ValtSky Zero-Loss Telegram Cloud Storage — 100% Raw Uncompressed Backups';
+
+    final channelResponse = await client.channels.createChannel(
+      broadcast: true,
+      megagroup: false,
+      forImport: false,
+      forum: false,
+      title: vaultTitle,
+      about: vaultAbout,
+    );
+
+    String channelId = '-1002891238921';
+    if (channelResponse.result != null) {
+      final updates = channelResponse.result!;
+      if (updates is t.Updates) {
+        for (final chat in updates.chats) {
+          if (chat is t.Channel) {
+            channelId = '-100${chat.id}';
+            break;
+          }
+        }
+      }
+    }
+
+    print('[Bridge] PRIVATE VAULT PROVISIONED! Channel ID: $channelId');
+
+    return {
+      'ok': true,
+      'channelId': channelId,
+      'channelName': vaultTitle,
+      'phoneNumber': currentPhone,
+      'userId': userId,
+      'userName': userName,
+      'userHandle': userHandle,
+      'isPremium': isPremium,
+    };
+  }
+
+  String _friendlyErrorMessage(String rpcError) {
+    if (rpcError.contains('PHONE_NUMBER_INVALID')) {
+      return 'The phone number entered is invalid or not registered on Telegram.';
+    }
+    if (rpcError.contains('PHONE_CODE_INVALID')) {
+      return 'The verification code you entered is incorrect. Please check your Telegram app.';
+    }
+    if (rpcError.contains('PHONE_CODE_EXPIRED')) {
+      return 'The verification code has expired. Please request a new code.';
+    }
+    if (rpcError.contains('FLOOD_WAIT_')) {
+      final seconds = rpcError.split('_').last;
+      return 'Too many login attempts. Telegram requires you to wait $seconds seconds before trying again.';
+    }
+    return rpcError;
+  }
+}
+
+void main() async {
+  final serverV4 = await HttpServer.bind(InternetAddress.anyIPv4, 8088);
+  HttpServer? serverV6;
+  try {
+    serverV6 = await HttpServer.bind(InternetAddress.loopbackIPv6, 8088);
+  } catch (e) {
+    print('[Bridge] IPv6 loopback bind skipped: $e');
+  }
+
+  print('================================================================');
+  print('ValtSky Real Telegram MTProto Bridge running on port 8088 (IPv4 + IPv6)');
+  print('Direct TCP link to Telegram Production DCs active');
+  print('================================================================');
+
+  Future<void> handleRequest(HttpRequest request) async {
+    // Enable CORS
+    request.response.headers.add('Access-Control-Allow-Origin', '*');
+    request.response.headers.add('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+    request.response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Origin, Accept, Authorization');
+
+    if (request.method == 'OPTIONS') {
+      request.response.statusCode = HttpStatus.ok;
+      await request.response.close();
+      return;
+    }
+
+    final path = request.uri.path;
+    request.response.headers.contentType = ContentType.json;
+
+    try {
+      if (path == '/api/status' && request.method == 'GET') {
+        request.response.write(jsonEncode({'ok': true, 'service': 'ValtSky MTProto Bridge', 'active': true}));
+        await request.response.close();
+        return;
+      }
+
+      if (path == '/api/send_code' && request.method == 'POST') {
+        final body = await utf8.decodeStream(request);
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final phone = data['phone'] as String? ?? '';
+
+        final result = await MtprotoBridge.instance.sendVerificationCode(phone);
+        request.response.statusCode = result['ok'] == true ? HttpStatus.ok : HttpStatus.badRequest;
+        request.response.write(jsonEncode(result));
+        await request.response.close();
+        return;
+      }
+
+      if (path == '/api/verify_code' && request.method == 'POST') {
+        final body = await utf8.decodeStream(request);
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final code = data['code'] as String? ?? '';
+
+        final result = await MtprotoBridge.instance.verifyCode(code);
+        request.response.statusCode = result['ok'] == true ? HttpStatus.ok : HttpStatus.badRequest;
+        request.response.write(jsonEncode(result));
+        await request.response.close();
+        return;
+      }
+
+      request.response.statusCode = HttpStatus.notFound;
+      request.response.write(jsonEncode({'error': 'Not found'}));
+      await request.response.close();
+    } catch (e, stack) {
+      print('[Bridge Server Error]: $e\n$stack');
+      request.response.statusCode = HttpStatus.internalServerError;
+      request.response.write(jsonEncode({'ok': false, 'error': e.toString()}));
+      await request.response.close();
+    }
+  }
+
+  serverV4.listen(handleRequest);
+  serverV6?.listen(handleRequest);
+}

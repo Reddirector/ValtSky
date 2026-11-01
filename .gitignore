@@ -13,3 +13,16 @@ build/
 
 # Kotlin cache
 .kotlin/
+
+# Secrets & Environment (NEVER COMMIT)
+*secrets*
+!*secrets.template*
+*.env*
+secrets.dart
+*.pem
+*.key
+*.keystore
+*.jks
+*.p12
+auth.json
+*session*

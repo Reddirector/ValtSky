@@ -24,7 +24,7 @@ endpoint_infrastructure:
   binary_distribution_hub: "https://github.com/Reddirector/ValtSky/releases/tag/v2.0"
   production_artifacts:
     android_universal_apk: "https://github.com/Reddirector/ValtSky/releases/download/v2.0/valtsky-v2.0-release.apk"
-    sha256_checksum: "ce7e19ae17b2ba76a2a20e7d002e095693b9a97543b4c39772eb3efa1cdbd65d"
+    sha256_checksum: "5bd57e9c06c59091d6ac604c618c13ef49f86a10e8b149b483777cf316ac6d03"
 
 reproduction_and_bootstrap:
   native_android_sideload: |
@@ -395,5 +395,5 @@ flutter build apk --release
 
 # 4. Generate SHA-256 verification digest
 sha256sum build/app/outputs/flutter-apk/app-release.apk
-# Target Checksum: ce7e19ae17b2ba76a2a20e7d002e095693b9a97543b4c39772eb3efa1cdbd65d
+# Target Checksum: 5bd57e9c06c59091d6ac604c618c13ef49f86a10e8b149b483777cf316ac6d03
 ```

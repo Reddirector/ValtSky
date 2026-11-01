@@ -19,6 +19,11 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Turn your Telegram channel into unlimited, zero-loss, 100% uncompressed private cloud storage.">
+  
+  <!-- Security Headers (OWASP Hardening) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob: 'unsafe-inline' 'wasm-unsafe-eval'; connect-src 'self' https: wss: http://localhost:8088 http://127.0.0.1:8088 http://localhost:* http://127.0.0.1:* http://*:8088; object-src 'none'; base-uri 'self';">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -31,16 +36,71 @@
 
   <title>ValtSky — Zero-Loss Telegram Cloud Vault</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      background-color: #09090B;
+      color: #FAFAFA;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      color: #A1A1AA;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      border-top-color: #38BDF8;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Initializing ValtSky Engine...</div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <script>
+    // In debug mode with DWDS, automatically trigger the entrypoint without waiting for the Dart DevTools extension
+    (function autoStartDart() {
+      const startTimer = setInterval(function() {
+        if (window.$dartRunMain && !window.$dartMainExecuted) {
+          try {
+            window.$dartRunMain();
+            clearInterval(startTimer);
+            const loader = document.getElementById('loading');
+            if (loader) loader.style.display = 'none';
+          } catch(e) {
+            console.error("[ValtSky] Error executing $dartRunMain:", e);
+          }
+        } else if (window.$dartMainExecuted) {
+          clearInterval(startTimer);
+          const loader = document.getElementById('loading');
+          if (loader) loader.style.display = 'none';
+        }
+      }, 50);
+      setTimeout(function() { clearInterval(startTimer); }, 15000);
+    })();
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

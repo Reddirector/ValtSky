@@ -47,11 +47,16 @@ void main() {
     await tester.tap(find.text('Settings'));
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify Settings view fields
+    // Verify Settings view shows Direct Telegram Login and Any-Size Lossless Engine
+    expect(find.text('Direct Telegram Login'), findsOneWidget);
+    expect(find.text('Any-Size Lossless Engine'), findsOneWidget);
+
+    // Test switching to Advanced Custom Bot Token & Channel ID mode
+    await tester.tap(find.text('Advanced: Use Custom Bot Token & Channel ID'));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('Telegram Bot API'), findsOneWidget);
     expect(find.text('BOT TOKEN'), findsOneWidget);
     expect(find.text('CHANNEL ID'), findsOneWidget);
-    expect(find.text('Any-Size Lossless Engine'), findsOneWidget);
 
     // 6. Navigate back to Dashboard
     await tester.tap(find.text('Dashboard'));
