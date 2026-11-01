@@ -1,17 +1,21 @@
 import 'dart:io';
 import 'dart:async';
-import 'package:image/image.dart' as img;
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import '../data/db/database_helper.dart';
 import '../data/models/media_item.dart';
 import '../data/prefs.dart';
 import 'telegram_api.dart';
 import '../util/file_utils.dart';
+import '../util/file_security_guard.dart';
 
 class SyncEngine {
-  static const int maxTelegramSize = 50 * 1024 * 1024; // 50MB
-  
   bool _isSyncing = false;
   Completer<void>? _syncCompleter;
+
+  // Real-time speed and status notifier for the UI
+  static final ValueNotifier<String> uploadSpeedNotifier = ValueNotifier<String>('');
+  static final ValueNotifier<String> currentItemNotifier = ValueNotifier<String>('');
 
   Future<void> startSync() async {
     if (_isSyncing) return;
@@ -22,39 +26,56 @@ class SyncEngine {
 
   void stopSync() {
     _isSyncing = false;
+    uploadSpeedNotifier.value = '';
+    currentItemNotifier.value = '';
     _syncCompleter?.complete();
   }
 
   Future<void> _processQueue() async {
     while (_isSyncing) {
       if (Prefs.uploadPaused) {
-        await Future.delayed(const Duration(seconds: 5));
+        uploadSpeedNotifier.value = 'Paused';
+        await Future.delayed(const Duration(seconds: 3));
         continue;
       }
 
+      // CRITICAL: Strictly fetch the OLDEST media first (dateTaken ASC)
+      // This guarantees older photos/videos are posted first, appearing at the top of the Telegram channel.
       final item = await DatabaseHelper.instance.getNextPending();
       if (item == null) {
         _isSyncing = false;
+        uploadSpeedNotifier.value = '';
+        currentItemNotifier.value = '';
         break;
       }
 
-      // Check network
-      // (Placeholder for network connectivity check)
+      currentItemNotifier.value = item.filePath.split('/').last;
 
       final file = File(item.filePath);
       if (!await file.exists()) {
         await DatabaseHelper.instance.update(item.copyWith(
           status: MediaItem.statusFailed,
-          errorReason: 'File not found',
+          errorReason: 'File not found on storage',
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
         continue;
       }
 
-      // Update status to uploading
+      // 🛡️ Senior Cybersecurity Guard: Inspect magic bytes and verify file integrity
+      final validation = await FileSecurityGuard.validateFile(file);
+      if (!validation.isValid) {
+        await DatabaseHelper.instance.update(item.copyWith(
+          status: MediaItem.statusFailed,
+          errorReason: '🛡️ Security Guard: ${validation.error}',
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        ));
+        continue;
+      }
+
+      // Mark status as uploading
       await DatabaseHelper.instance.update(item.copyWith(status: MediaItem.statusUploading));
 
-      // Calculate hash if missing
+      // Compute hash for deduplication
       if (item.fileHash == null) {
         final hash = await FileUtils.getFileHash(file);
         if (hash != null) {
@@ -64,7 +85,7 @@ class SyncEngine {
               status: MediaItem.statusDone,
               fileHash: hash,
               telegramMessageId: existing.telegramMessageId,
-              errorReason: 'Deduplicated (Hash Match)',
+              errorReason: 'Deduplicated (Identical Checksum)',
               updatedAt: DateTime.now().millisecondsSinceEpoch,
             ));
             continue;
@@ -73,7 +94,7 @@ class SyncEngine {
         }
       }
 
-      final result = await _handleLargeAndUpload(item, file);
+      final result = await _uploadWithSpeedOptimization(item, file);
 
       if (result is Success) {
         await DatabaseHelper.instance.update(item.copyWith(
@@ -84,7 +105,9 @@ class SyncEngine {
         ));
         Prefs.lastSyncedTs = DateTime.now().millisecondsSinceEpoch;
       } else if (result is TelegramError) {
-        if (result.code == 429) { // Rate limit
+        if (result.code == 429) {
+          // Rate limited: cooldown
+          uploadSpeedNotifier.value = 'Cooldown (${result.retryAfterSeconds ?? 30}s)';
           await Future.delayed(Duration(seconds: result.retryAfterSeconds ?? 30));
           await DatabaseHelper.instance.update(item.copyWith(status: MediaItem.statusPending));
         } else {
@@ -102,59 +125,127 @@ class SyncEngine {
         ));
       }
     }
+
     _isSyncing = false;
+    uploadSpeedNotifier.value = '';
+    currentItemNotifier.value = '';
   }
 
-  Future<UploadResult> _handleLargeAndUpload(MediaItem item, File file) async {
-    if (item.fileSize > maxTelegramSize && item.mimeType.startsWith('image')) {
-      final compressed = await _compressImage(file);
-      if (compressed != null) {
-        final result = await TelegramApi.sendMedia(
-          Prefs.botToken,
-          Prefs.channelId,
-          compressed,
-          false,
-          'Compressed due to size limit',
-        );
-        return result;
+  /// High-speed upload with live speed meter and in-memory chunk streaming
+  Future<UploadResult> _uploadWithSpeedOptimization(MediaItem item, File file) async {
+    final rawName = file.path.split('/').last;
+    final fileName = FileSecurityGuard.sanitizeFileName(rawName);
+    final fileSize = await file.length();
+    final maxSingleBytes = Prefs.maxChunkSizeMb * 1024 * 1024;
+    final dateStr = DateFormat('dd/MM/yyyy HH:mm:ss').format(
+      DateTime.fromMillisecondsSinceEpoch(item.dateTaken),
+    );
+
+    int lastBytes = 0;
+    DateTime lastTime = DateTime.now();
+
+    void updateSpeed(int sent, int total) {
+      final now = DateTime.now();
+      final ms = now.difference(lastTime).inMilliseconds;
+      if (ms >= 400 && sent > lastBytes) {
+        final bytesDelta = sent - lastBytes;
+        final speedMBps = (bytesDelta / (1024 * 1024)) / (ms / 1000);
+        uploadSpeedNotifier.value = '⚡ ${speedMBps.toStringAsFixed(1)} MB/s';
+        lastBytes = sent;
+        lastTime = now;
       }
     }
 
-    return await TelegramApi.sendMedia(
-      Prefs.botToken,
-      Prefs.channelId,
-      file,
-      Prefs.useOriginalQuality,
-      null,
-    );
+    // Direct upload if within limit
+    if (fileSize <= maxSingleBytes || !Prefs.enableChunking) {
+      final caption = '$fileName\nDate: $dateStr\nSize: ${_formatSize(fileSize)}';
+      return await TelegramApi.sendMedia(
+        Prefs.botToken,
+        Prefs.channelId,
+        file,
+        Prefs.useOriginalQuality,
+        caption,
+        onProgress: updateSpeed,
+      );
+    }
+
+    // Large file: Stream raw chunks in-memory for maximum speed
+    return await _streamChunkedFile(file, fileName, fileSize, maxSingleBytes, dateStr, item.fileHash, updateSpeed);
   }
 
-  Future<File?> _compressImage(File file) async {
-    try {
-      final bytes = await file.readAsBytes();
-      img.Image? image = img.decodeImage(bytes);
-      if (image == null) return null;
+  /// Zero-disk-bottleneck streaming: Reads directly from RAM and streams to Telegram
+  Future<UploadResult> _streamChunkedFile(
+    File file,
+    String originalName,
+    int totalBytes,
+    int chunkBytes,
+    String dateStr,
+    String? fileHash,
+    void Function(int sent, int total) onProgress,
+  ) async {
+    final totalParts = (totalBytes / chunkBytes).ceil();
+    int lastMessageId = 0;
+    RandomAccessFile? raf;
 
-      final compressedBytes = img.encodeJpg(image, quality: 70);
-      final tempFile = File('\${Directory.systemTemp.path}/temp_compressed.jpg');
-      await tempFile.writeAsBytes(compressedBytes);
-      return tempFile;
+    try {
+      raf = await file.open(mode: FileMode.read);
+      for (int part = 1; part <= totalParts; part++) {
+        if (Prefs.uploadPaused) {
+          uploadSpeedNotifier.value = 'Paused';
+          while (Prefs.uploadPaused) {
+            await Future.delayed(const Duration(seconds: 3));
+          }
+        }
+
+        final partFileName = '$originalName.part${part.toString().padLeft(3, '0')}';
+        final bytesToRead = (part == totalParts) ? (totalBytes - (part - 1) * chunkBytes) : chunkBytes;
+
+        // In-memory buffer read: 0 disk overhead
+        final buffer = await raf.read(bytesToRead);
+
+        final partCaption = '📦 $originalName [Part $part/$totalParts]\n'
+            'Part Size: ${_formatSize(bytesToRead)} / ${_formatSize(totalBytes)}\n'
+            'Date: $dateStr';
+
+        currentItemNotifier.value = '$originalName [$part/$totalParts]';
+
+        final result = await TelegramApi.sendBytes(
+          Prefs.botToken,
+          Prefs.channelId,
+          buffer,
+          partFileName,
+          true, // Always lossless document for chunks
+          partCaption,
+          onProgress: onProgress,
+        );
+
+        if (result is Success) {
+          lastMessageId = result.telegramMessageId;
+        } else {
+          return result;
+        }
+      }
+
+      // Send completion manifest
+      final manifestText = '✅ *Upload Complete: $originalName*\n'
+          '📁 Total Parts: $totalParts\n'
+          '📊 Full Size: ${_formatSize(totalBytes)}\n'
+          '🕒 Date: $dateStr\n'
+          '${fileHash != null ? '🔐 SHA-256: `$fileHash`' : ''}\n'
+          '💡 _Preserved in exact chronological order._';
+      await TelegramApi.sendMessage(Prefs.botToken, Prefs.channelId, manifestText);
+
+      return Success(lastMessageId);
     } catch (e) {
-      return null;
+      return Failure('Fast streaming failed: ${e.toString()}');
+    } finally {
+      await raf?.close();
     }
   }
-}
 
-extension on DatabaseHelper {
-  Future<MediaItem?> getItemByHash(String hash) async {
-    final db = await database;
-    final maps = await db.query(
-      'media_items',
-      where: 'fileHash = ?',
-      whereArgs: [hash],
-      limit: 1,
-    );
-    if (maps.isNotEmpty) return MediaItem.fromMap(maps.first);
-    return null;
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }

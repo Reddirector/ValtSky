@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'data/prefs.dart';
@@ -8,7 +9,9 @@ import 'util/theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Prefs.init();
-  BackgroundService.init();
+  if (!kIsWeb) {
+    BackgroundService.init();
+  }
   runApp(const ValtSkyApp());
 }
 

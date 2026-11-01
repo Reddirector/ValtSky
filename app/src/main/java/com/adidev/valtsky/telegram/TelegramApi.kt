@@ -23,9 +23,10 @@ object TelegramApi {
 
     private val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .connectionPool(okhttp3.ConnectionPool(10, 5, TimeUnit.MINUTES))
             .connectTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(5, TimeUnit.MINUTES)
+            .readTimeout(5, TimeUnit.MINUTES)
             .retryOnConnectionFailure(true)
             .build()
     }

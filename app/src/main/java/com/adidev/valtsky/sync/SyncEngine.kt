@@ -152,12 +152,12 @@ class SyncEngine(private val context: Context) {
             }
 
             val result = try {
-                withTimeout(65000) { // Slightly more than 1 min to allow OkHttp to time out first
+                withTimeout(300000L) { // 5-minute ceiling for large lossless uploads & mobile networks
                     handleLargeAndUpload(item, file)
                 }
             } catch (e: TimeoutCancellationException) {
                 Log.e(TAG, "Upload timed out for ${item.filePath}")
-                TelegramApi.UploadResult.Failure("Upload timeout (> 1 min)")
+                TelegramApi.UploadResult.Failure("Upload timeout (> 5 min)")
             } catch (e: Exception) {
                 Log.e(TAG, "Upload error for ${item.filePath}", e)
                 TelegramApi.UploadResult.Failure("Upload error: ${e.message}")

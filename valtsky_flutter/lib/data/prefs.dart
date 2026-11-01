@@ -15,6 +15,9 @@ class Prefs {
   static const String keyChannelName = 'channel_name';
   static const String keySelectedTheme = 'selected_theme';
   static const String keyUploadPaused = 'upload_paused';
+  static const String keyApiBaseUrl = 'api_base_url';
+  static const String keyEnableChunking = 'enable_chunking';
+  static const String keyMaxChunkSizeMb = 'max_chunk_size_mb';
 
   static SharedPreferences? _prefs;
 
@@ -66,6 +69,15 @@ class Prefs {
 
   static bool get uploadPaused => _prefs?.getBool(keyUploadPaused) ?? false;
   static set uploadPaused(bool value) => _prefs?.setBool(keyUploadPaused, value);
+
+  static String get apiBaseUrl => _prefs?.getString(keyApiBaseUrl) ?? 'https://api.telegram.org';
+  static set apiBaseUrl(String value) => _prefs?.setString(keyApiBaseUrl, value.trim().replaceAll(RegExp(r'/+$'), ''));
+
+  static bool get enableChunking => _prefs?.getBool(keyEnableChunking) ?? true;
+  static set enableChunking(bool value) => _prefs?.setBool(keyEnableChunking, value);
+
+  static int get maxChunkSizeMb => _prefs?.getInt(keyMaxChunkSizeMb) ?? 48;
+  static set maxChunkSizeMb(int value) => _prefs?.setInt(keyMaxChunkSizeMb, value);
 
   static bool isConfigured() => botToken.isNotEmpty && channelId.isNotEmpty;
 

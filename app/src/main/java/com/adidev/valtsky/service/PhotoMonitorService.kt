@@ -56,6 +56,9 @@ class PhotoMonitorService : Service() {
     private var totalCount = 0
     private var uploadedCount = 0
     private var pendingCount = 0
+    private var totalCountObserver: androidx.lifecycle.Observer<Int>? = null
+    private var uploadedCountObserver: androidx.lifecycle.Observer<Int>? = null
+    private var pendingCountObserver: androidx.lifecycle.Observer<Int>? = null
 
     private val connectivityManager by lazy {
         getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -133,19 +136,19 @@ class PhotoMonitorService : Service() {
     }
 
     private fun observeCounts() {
-        // Requirement Feature 3: Removed notification updates from here
-        // Just keeping internal state if needed, but not calling updateNotification()
         val dao = AppDatabase.getInstance(this).mediaDao()
-        dao.getTotalCount().observeForever { count: Int? -> totalCount = count ?: 0 }
-        dao.getUploadedCount().observeForever { count: Int? -> uploadedCount = count ?: 0 }
-        dao.getPendingCount().observeForever { count: Int? -> 
+        totalCountObserver = androidx.lifecycle.Observer { count -> totalCount = count ?: 0 }
+        uploadedCountObserver = androidx.lifecycle.Observer { count -> uploadedCount = count ?: 0 }
+        pendingCountObserver = androidx.lifecycle.Observer { count ->
             val oldPending = pendingCount
-            pendingCount = count ?: 0 
-            // If it was > 0 and now 0, and we are not scanning, it's done
+            pendingCount = count ?: 0
             if (oldPending > 0 && pendingCount == 0 && !isInitialScanRunning) {
                 showCompletionNotification()
             }
         }
+        dao.getTotalCount().observeForever(totalCountObserver!!)
+        dao.getUploadedCount().observeForever(uploadedCountObserver!!)
+        dao.getPendingCount().observeForever(pendingCountObserver!!)
     }
 
     private suspend fun performInitialScan(forceFullScan: Boolean = false) {
@@ -175,7 +178,7 @@ class PhotoMonitorService : Service() {
             )
 
             for (uri in uris) {
-                contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+                contentResolver.query(uri, projection, selection, selectionArgs, "${MediaStore.MediaColumns.DATE_ADDED} ASC")?.use { cursor ->
                     val dataIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA)
                     val mimeIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
                     val dateIdx = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
@@ -270,8 +273,18 @@ class PhotoMonitorService : Service() {
 
     override fun onDestroy() {
         syncEngine.stopSync()
-        observer?.let { contentResolver.unregisterContentObserver(it) }
-        connectivityManager.unregisterNetworkCallback(networkCallback)
+        observer?.let { 
+            try {
+                contentResolver.unregisterContentObserver(it)
+            } catch (_: Exception) {}
+        }
+        try {
+            connectivityManager.unregisterNetworkCallback(networkCallback)
+        } catch (_: Exception) {}
+        val dao = AppDatabase.getInstance(this).mediaDao()
+        totalCountObserver?.let { dao.getTotalCount().removeObserver(it) }
+        uploadedCountObserver?.let { dao.getUploadedCount().removeObserver(it) }
+        pendingCountObserver?.let { dao.getPendingCount().removeObserver(it) }
         super.onDestroy()
     }
 

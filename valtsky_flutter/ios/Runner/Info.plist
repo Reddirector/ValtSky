@@ -7,7 +7,16 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Valtsky Flutter</string>
+	<string>ValtSky</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ValtSky requires photo library access to back up your photos and videos losslessly to your Telegram channel.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>ValtSky requires access to save media to your photo library.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

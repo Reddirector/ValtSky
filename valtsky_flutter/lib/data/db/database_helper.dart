@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/media_item.dart';
@@ -5,6 +7,20 @@ import '../models/media_item.dart';
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
+  static final Map<String, MediaItem> _webItems = {};
+  static bool _inMemoryOverride = false;
+
+  static void enableMemoryStoreForTesting() => _inMemoryOverride = true;
+
+  static bool get _useMemoryStore {
+    if (kIsWeb || _inMemoryOverride) return true;
+    try {
+      if (!Platform.isAndroid && !Platform.isIOS) return true;
+    } catch (_) {
+      return true;
+    }
+    return false;
+  }
 
   DatabaseHelper._init();
 
@@ -44,11 +60,22 @@ class DatabaseHelper {
   }
 
   Future<int> insert(MediaItem item) async {
+    if (_useMemoryStore) {
+      if (!_webItems.containsKey(item.filePath)) {
+        _webItems[item.filePath] = item;
+        return 1;
+      }
+      return 0;
+    }
     final db = await instance.database;
     return await db.insert('media_items', item.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   Future<int> update(MediaItem item) async {
+    if (_useMemoryStore) {
+      _webItems[item.filePath] = item;
+      return 1;
+    }
     final db = await instance.database;
     return await db.update(
       'media_items',
@@ -59,6 +86,9 @@ class DatabaseHelper {
   }
 
   Future<MediaItem?> getItem(String path) async {
+    if (_useMemoryStore) {
+      return _webItems[path];
+    }
     final db = await instance.database;
     final maps = await db.query(
       'media_items',
@@ -72,12 +102,83 @@ class DatabaseHelper {
     return null;
   }
 
-  Future<MediaItem?> getNextPending() async {
+  Future<MediaItem?> getItemByHash(String hash) async {
+    if (_useMemoryStore) {
+      for (final item in _webItems.values) {
+        if (item.fileHash == hash) return item;
+      }
+      return null;
+    }
     final db = await instance.database;
     final maps = await db.query(
       'media_items',
-      where: 'status = ?',
-      whereArgs: [MediaItem.statusPending],
+      where: 'fileHash = ?',
+      whereArgs: [hash],
+      limit: 1,
+    );
+    if (maps.isNotEmpty) return MediaItem.fromMap(maps.first);
+    return null;
+  }
+
+  Future<List<MediaItem>> getAllItems({String? statusFilter}) async {
+    const int twoGigabytes = 2147483648;
+    if (_useMemoryStore) {
+      var items = _webItems.values.toList();
+      if (statusFilter == 'OVERSIZED' || statusFilter == '> 2 GB') {
+        items = items.where((e) => e.fileSize >= twoGigabytes).toList();
+      } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
+        items = items.where((e) => e.status == statusFilter).toList();
+      }
+      items.sort((a, b) => b.dateTaken.compareTo(a.dateTaken));
+      return items;
+    }
+    final db = await instance.database;
+    final List<Map<String, dynamic>> maps;
+    if (statusFilter == 'OVERSIZED' || statusFilter == '> 2 GB') {
+      maps = await db.query(
+        'media_items',
+        where: 'fileSize >= ?',
+        whereArgs: [twoGigabytes],
+        orderBy: 'dateTaken DESC',
+      );
+    } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
+      maps = await db.query(
+        'media_items',
+        where: 'status = ?',
+        whereArgs: [statusFilter],
+        orderBy: 'dateTaken DESC',
+      );
+    } else {
+      maps = await db.query('media_items', orderBy: 'dateTaken DESC');
+    }
+    return maps.map((e) => MediaItem.fromMap(e)).toList();
+  }
+
+  Future<int> getOversizedCount({int minSizeBytes = 2147483648}) async {
+    if (_useMemoryStore) {
+      return _webItems.values.where((e) => e.fileSize >= minSizeBytes).length;
+    }
+    final db = await instance.database;
+    return Sqflite.firstIntValue(await db.rawQuery(
+      'SELECT COUNT(*) FROM media_items WHERE fileSize >= ?',
+      [minSizeBytes],
+    )) ?? 0;
+  }
+
+  Future<MediaItem?> getNextPending() async {
+    const int twoGigabytes = 2147483648;
+    if (_useMemoryStore) {
+      final pending = _webItems.values
+          .where((e) => e.status == MediaItem.statusPending && e.fileSize < twoGigabytes)
+          .toList();
+      pending.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      return pending.firstOrNull;
+    }
+    final db = await instance.database;
+    final maps = await db.query(
+      'media_items',
+      where: 'status = ? AND fileSize < ?',
+      whereArgs: [MediaItem.statusPending, twoGigabytes],
       orderBy: 'dateTaken ASC',
       limit: 1,
     );
@@ -89,17 +190,35 @@ class DatabaseHelper {
   }
 
   Future<List<MediaItem>> getAllPending() async {
+    const int twoGigabytes = 2147483648;
+    if (_useMemoryStore) {
+      final pending = _webItems.values
+          .where((e) => e.status == MediaItem.statusPending && e.fileSize < twoGigabytes)
+          .toList();
+      pending.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      return pending;
+    }
     final db = await instance.database;
     final maps = await db.query(
       'media_items',
-      where: 'status = ?',
-      whereArgs: [MediaItem.statusPending],
+      where: 'status = ? AND fileSize < ?',
+      whereArgs: [MediaItem.statusPending, twoGigabytes],
       orderBy: 'dateTaken ASC',
     );
     return maps.map((e) => MediaItem.fromMap(e)).toList();
   }
 
   Future<int> resetUploadingToPending() async {
+    if (_useMemoryStore) {
+      int count = 0;
+      for (final item in _webItems.values) {
+        if (item.status == MediaItem.statusUploading) {
+          _webItems[item.filePath] = item.copyWith(status: MediaItem.statusPending);
+          count++;
+        }
+      }
+      return count;
+    }
     final db = await instance.database;
     return await db.update(
       'media_items',
@@ -110,29 +229,45 @@ class DatabaseHelper {
   }
 
   Future<int> getTotalCount() async {
+    if (_useMemoryStore) {
+      return _webItems.length;
+    }
     final db = await instance.database;
     return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM media_items')) ?? 0;
   }
 
   Future<int> getUploadedCount() async {
+    if (_useMemoryStore) {
+      return _webItems.values.where((e) => e.status == MediaItem.statusDone).length;
+    }
     final db = await instance.database;
     return Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM media_items WHERE status = 'DONE'")) ?? 0;
   }
 
   Future<int> getPendingCount() async {
+    if (_useMemoryStore) {
+      return _webItems.values.where((e) => e.status == MediaItem.statusPending || e.status == MediaItem.statusUploading).length;
+    }
     final db = await instance.database;
     return Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM media_items WHERE status = 'PENDING' OR status = 'UPLOADING'")) ?? 0;
   }
 
   Future<int> getFailedCount() async {
+    if (_useMemoryStore) {
+      return _webItems.values.where((e) => e.status == MediaItem.statusFailed).length;
+    }
     final db = await instance.database;
     return Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM media_items WHERE status = 'FAILED'")) ?? 0;
   }
 
   Stream<List<MediaItem>> getFailedItemsStream() async* {
+    if (_useMemoryStore) {
+      while (true) {
+        yield _webItems.values.where((e) => e.status == MediaItem.statusFailed).toList();
+        await Future.delayed(const Duration(seconds: 2));
+      }
+    }
     final db = await instance.database;
-    // sqflite doesn't support streams natively, we would usually use a wrapper or manual triggers.
-    // For now, this is a placeholder. In a real app, we'd use something like Watcher.
     while (true) {
       final maps = await db.query(
         'media_items',
@@ -146,6 +281,9 @@ class DatabaseHelper {
   }
 
   Future<bool> exists(String path) async {
+    if (_useMemoryStore) {
+      return _webItems.containsKey(path);
+    }
     final db = await instance.database;
     final maps = await db.query(
       'media_items',
@@ -156,6 +294,16 @@ class DatabaseHelper {
   }
 
   Future<int> retryAllFailed() async {
+    if (_useMemoryStore) {
+      int count = 0;
+      for (final item in _webItems.values) {
+        if (item.status == MediaItem.statusFailed) {
+          _webItems[item.filePath] = item.copyWith(status: MediaItem.statusPending, retryCount: 0);
+          count++;
+        }
+      }
+      return count;
+    }
     final db = await instance.database;
     return await db.update(
       'media_items',
@@ -166,6 +314,14 @@ class DatabaseHelper {
   }
 
   Future<int> retrySingle(String path) async {
+    if (_useMemoryStore) {
+      final item = _webItems[path];
+      if (item != null) {
+        _webItems[path] = item.copyWith(status: MediaItem.statusPending, retryCount: 0);
+        return 1;
+      }
+      return 0;
+    }
     final db = await instance.database;
     return await db.update(
       'media_items',
@@ -176,15 +332,31 @@ class DatabaseHelper {
   }
 
   Future<int> markAsManuallyDone(List<String> paths) async {
+    if (_useMemoryStore) {
+      int count = 0;
+      for (final p in paths) {
+        final item = _webItems[p];
+        if (item != null) {
+          _webItems[p] = item.copyWith(status: MediaItem.statusDone, errorReason: 'Manually Uploaded');
+          count++;
+        }
+      }
+      return count;
+    }
     final db = await instance.database;
     return await db.update(
       'media_items',
       {'status': MediaItem.statusDone, 'errorReason': 'Manually Uploaded'},
-      where: 'filePath IN (${paths.map((e) => "'\$e'").join(',')})',
+      where: 'filePath IN (${paths.map((e) => "'$e'").join(',')})',
     );
   }
 
   Future<int> deleteAll() async {
+    if (_useMemoryStore) {
+      final count = _webItems.length;
+      _webItems.clear();
+      return count;
+    }
     final db = await instance.database;
     return await db.delete('media_items');
   }
