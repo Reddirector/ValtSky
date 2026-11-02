@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:tg/tg.dart' as tg;
 
 class _IoSocket extends tg.SocketAbstraction {
@@ -21,7 +21,16 @@ class _IoSocket extends tg.SocketAbstraction {
 
 class TelegramTransport {
   static Future<tg.SocketAbstraction> connect(String ip, int port) async {
-    final socket = await Socket.connect(ip, port, timeout: const Duration(seconds: 10));
-    return _IoSocket(socket);
+    try {
+      final socket = await Socket.connect(ip, port, timeout: const Duration(seconds: 8));
+      return _IoSocket(socket);
+    } catch (e) {
+      if (port == 443) {
+        debugPrint('[TelegramTransport] Port 443 failed ($e), retrying on port 80...');
+        final socket = await Socket.connect(ip, 80, timeout: const Duration(seconds: 8));
+        return _IoSocket(socket);
+      }
+      rethrow;
+    }
   }
 }
