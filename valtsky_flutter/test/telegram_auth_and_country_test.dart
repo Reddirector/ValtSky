@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:valtsky_flutter/data/country_data.dart';
 import 'package:valtsky_flutter/data/prefs.dart';
+import 'package:valtsky_flutter/services/telegram_auth_service.dart';
 import 'package:valtsky_flutter/ui/widgets/telegram_phone_login_widget.dart';
 import 'package:valtsky_flutter/ui/widgets/telegram_profile_card.dart';
 
@@ -240,6 +241,19 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(disconnected, isTrue);
+    });
+
+    test('AuthState supports deliveryDescription, codeLength, and timeoutSeconds', () {
+      final state = AuthState.initial().copyWith(
+        step: AuthStep.enterCode,
+        deliveryDescription: 'Telegram sent a 5-digit code via SMS',
+        codeLength: 6,
+        timeoutSeconds: 45,
+      );
+      expect(state.step, equals(AuthStep.enterCode));
+      expect(state.deliveryDescription, equals('Telegram sent a 5-digit code via SMS'));
+      expect(state.codeLength, equals(6));
+      expect(state.timeoutSeconds, equals(45));
     });
   });
 }

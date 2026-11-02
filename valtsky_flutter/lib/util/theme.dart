@@ -31,6 +31,7 @@ class ValtSkyTheme {
   static const Color success = Color(0xFF10B981); // Emerald Green
   static const Color warning = Color(0xFFF59E0B); // Amber Warning
   static const Color info = Color(0xFF0EA5E9); // Electric Blue Alert
+  static const Color telegramBlue = Color(0xFF2AABEE); // Official Telegram Sky Blue
 
   // Light Theme (Clean Crisp Minimalist Black & White)
   static ThemeData light() {

@@ -24,6 +24,9 @@ class AuthState {
   final String? userId;
   final bool isPremium;
   final bool isLoading;
+  final String? deliveryDescription;
+  final int codeLength;
+  final int timeoutSeconds;
 
   const AuthState({
     required this.step,
@@ -37,6 +40,9 @@ class AuthState {
     this.userId,
     this.isPremium = false,
     this.isLoading = false,
+    this.deliveryDescription,
+    this.codeLength = 5,
+    this.timeoutSeconds = 60,
   });
 
   factory AuthState.initial() => const AuthState(step: AuthStep.enterPhone);
@@ -53,6 +59,9 @@ class AuthState {
     String? userId,
     bool? isPremium,
     bool? isLoading,
+    String? deliveryDescription,
+    int? codeLength,
+    int? timeoutSeconds,
   }) {
     return AuthState(
       step: step ?? this.step,
@@ -66,6 +75,9 @@ class AuthState {
       userId: userId ?? this.userId,
       isPremium: isPremium ?? this.isPremium,
       isLoading: isLoading ?? this.isLoading,
+      deliveryDescription: deliveryDescription ?? this.deliveryDescription,
+      codeLength: codeLength ?? this.codeLength,
+      timeoutSeconds: timeoutSeconds ?? this.timeoutSeconds,
     );
   }
 }
@@ -155,6 +167,69 @@ class TelegramAuthService {
     } catch (e) {
       stateNotifier.value = currentState.copyWith(
         step: AuthStep.enterPhone,
+        errorMessage: 'Connection error: ${e.toString()}',
+        isLoading: false,
+      );
+      return false;
+    }
+  }
+
+  Future<bool> resendCode() async {
+    final phone = currentState.phoneNumber;
+    final hash = currentState.phoneCodeHash;
+    if (phone == null || hash == null) {
+      stateNotifier.value = currentState.copyWith(
+        errorMessage: 'Unable to resend: missing phone number or session hash',
+      );
+      return false;
+    }
+
+    stateNotifier.value = currentState.copyWith(
+      isLoading: true,
+      errorMessage: null,
+    );
+
+    try {
+      final res = await _dio.post(
+        '/api/resend_code',
+        data: {'phone_number': phone, 'phone_code_hash': hash},
+        options: Options(
+          sendTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 15),
+        ),
+      );
+
+      final data = res.data as Map<String, dynamic>;
+      if (data['ok'] == true) {
+        stateNotifier.value = currentState.copyWith(
+          step: AuthStep.enterCode,
+          phoneCodeHash: data['phoneCodeHash'] as String,
+          timeoutSeconds: data['timeout'] as int? ?? 60,
+          deliveryDescription: 'A new verification code was resent via Telegram / SMS.',
+          isLoading: false,
+        );
+        return true;
+      } else {
+        final err = data['friendlyError'] ?? data['error'] ?? 'Failed to resend code';
+        stateNotifier.value = currentState.copyWith(
+          errorMessage: err.toString(),
+          isLoading: false,
+        );
+        return false;
+      }
+    } on DioException catch (e) {
+      String message = 'Cannot reach Telegram MTProto Bridge. Ensure bridge is running on port 8088.';
+      if (e.response?.data != null && e.response!.data is Map) {
+        final resp = e.response!.data as Map<String, dynamic>;
+        message = resp['friendlyError']?.toString() ?? resp['error']?.toString() ?? message;
+      }
+      stateNotifier.value = currentState.copyWith(
+        errorMessage: message,
+        isLoading: false,
+      );
+      return false;
+    } catch (e) {
+      stateNotifier.value = currentState.copyWith(
         errorMessage: 'Connection error: ${e.toString()}',
         isLoading: false,
       );

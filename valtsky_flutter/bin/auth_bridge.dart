@@ -101,7 +101,7 @@ class MtprotoBridge {
       apiHash: TelegramSecrets.apiHash,
       settings: const t.CodeSettings(
         allowFlashcall: false,
-        currentNumber: true,
+        currentNumber: false,
         allowAppHash: false,
         allowMissedCall: false,
         allowFirebase: false,
@@ -127,7 +127,7 @@ class MtprotoBridge {
         apiHash: TelegramSecrets.apiHash,
         settings: const t.CodeSettings(
           allowFlashcall: false,
-          currentNumber: true,
+          currentNumber: false,
           allowAppHash: false,
           allowMissedCall: false,
           allowFirebase: false,
@@ -149,6 +149,35 @@ class MtprotoBridge {
     final sentCode = sendCodeResponse.result as t.AuthSentCode;
     currentPhoneCodeHash = sentCode.phoneCodeHash;
     print('[Bridge] SUCCESS! Telegram dispatched real OTP! Hash: ${sentCode.phoneCodeHash}');
+
+    return {
+      'ok': true,
+      'phoneCodeHash': sentCode.phoneCodeHash,
+      'timeout': sentCode.timeout,
+    };
+  }
+
+  Future<Map<String, dynamic>> resendCode(String phoneNumber, String phoneCodeHash) async {
+    final client = _client ?? await connectToDc(_currentDcId);
+    print('[Bridge] Calling Telegram auth.resendCode for $phoneNumber...');
+    final res = await client.auth.resendCode(
+      phoneNumber: phoneNumber,
+      phoneCodeHash: phoneCodeHash,
+    );
+
+    if (res.error != null) {
+      final err = res.error!;
+      print('[Bridge] Telegram auth.resendCode error: ${err.errorMessage}');
+      return {
+        'ok': false,
+        'error': err.errorMessage,
+        'friendlyError': _friendlyErrorMessage(err.errorMessage),
+      };
+    }
+
+    final sentCode = res.result as t.AuthSentCode;
+    currentPhoneCodeHash = sentCode.phoneCodeHash;
+    print('[Bridge] SUCCESS! Telegram resent OTP! Hash: ${sentCode.phoneCodeHash}, Type: ${sentCode.type.runtimeType}');
 
     return {
       'ok': true,
@@ -324,6 +353,19 @@ void main() async {
         final code = data['code'] as String? ?? '';
 
         final result = await MtprotoBridge.instance.verifyCode(code);
+        request.response.statusCode = result['ok'] == true ? HttpStatus.ok : HttpStatus.badRequest;
+        request.response.write(jsonEncode(result));
+        await request.response.close();
+        return;
+      }
+
+      if (path == '/api/resend_code' && request.method == 'POST') {
+        final body = await utf8.decodeStream(request);
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final phone = data['phone_number'] as String? ?? '';
+        final hash = data['phone_code_hash'] as String? ?? '';
+
+        final result = await MtprotoBridge.instance.resendCode(phone, hash);
         request.response.statusCode = result['ok'] == true ? HttpStatus.ok : HttpStatus.badRequest;
         request.response.write(jsonEncode(result));
         await request.response.close();

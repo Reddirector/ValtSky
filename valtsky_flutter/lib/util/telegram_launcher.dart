@@ -82,4 +82,21 @@ class TelegramLauncher {
       }
     }
   }
+
+  /// Launch official Telegram client or Telegram Web so user can view login notifications
+  static Future<void> openTelegramApp() async {
+    final nativeUri = Uri.parse('tg://');
+    final webUri = Uri.parse('https://web.telegram.org');
+    try {
+      if (await canLaunchUrl(nativeUri)) {
+        await launchUrl(nativeUri, mode: LaunchMode.externalApplication);
+        return;
+      }
+      await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      try {
+        await launchUrl(webUri, mode: LaunchMode.platformDefault);
+      } catch (_) {}
+    }
+  }
 }

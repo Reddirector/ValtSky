@@ -29,7 +29,7 @@ Deterministic Capped Jitter on HTTP 429       O(1) Heap Bounded via Socket-Piped
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **[`valtsky-v2.0-release.apk`](valtsky-v2.0-release.apk)** | Universal (All ABIs) | **64.3 MB** | **All Android Phones & Tablets** (Samsung, Pixel, Xiaomi, OnePlus, Motorola, etc.) | `adcd88f1cc25cc3b59ef94903431c4064965d5c7b3a4c76523ea3e87f463e5e2` |
+| **[`valtsky-v2.0-release.apk`](valtsky-v2.0-release.apk)** | Universal (All ABIs) | **64.3 MB** | **All Android Phones & Tablets** (Samsung, Pixel, Xiaomi, OnePlus, Motorola, etc.) | `7e4b3890f49cf866718255c46f0e42b6871d27be9362727f789e9bd0a39066ce` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
 
@@ -131,7 +131,7 @@ Because iOS restricts unsigned IPAs outside the App Store, you have two simple o
 To verify the integrity of the downloaded universal APK:
 ```bash
 sha256sum valtsky-v2.0-release.apk
-# Expected: adcd88f1cc25cc3b59ef94903431c4064965d5c7b3a4c76523ea3e87f463e5e2
+# Expected: 7e4b3890f49cf866718255c46f0e42b6871d27be9362727f789e9bd0a39066ce
 ```
 
 On Windows PowerShell:

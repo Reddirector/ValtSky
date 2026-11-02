@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/telegram_auth_service.dart';
 import '../../data/country_data.dart';
+import '../../util/telegram_launcher.dart';
 import '../../util/theme.dart';
 import 'animated_stagger.dart';
 
@@ -24,19 +26,86 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
   final TextEditingController _codeController = TextEditingController();
   Country _selectedCountry = CountryData.defaultCountry; // Defaults to India (+91, 10 digits)
   bool _isLoading = false;
+  Timer? _resendTimer;
+  int _resendCountdown = 0;
 
   @override
   void initState() {
     super.initState();
     _phoneController.addListener(_onPhoneChanged);
+    TelegramAuthService.instance.stateNotifier.addListener(_onAuthStateChanged);
   }
 
   @override
   void dispose() {
     _phoneController.removeListener(_onPhoneChanged);
+    TelegramAuthService.instance.stateNotifier.removeListener(_onAuthStateChanged);
+    _resendTimer?.cancel();
     _phoneController.dispose();
     _codeController.dispose();
     super.dispose();
+  }
+
+  void _onAuthStateChanged() {
+    final state = TelegramAuthService.instance.currentState;
+    if (state.step == AuthStep.enterCode && _resendTimer == null && _resendCountdown == 0) {
+      _startResendTimer(state.timeoutSeconds);
+    }
+  }
+
+  void _startResendTimer(int seconds) {
+    _resendTimer?.cancel();
+    final duration = seconds > 0 ? seconds : 60;
+    setState(() {
+      _resendCountdown = duration;
+    });
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCountdown <= 1) {
+        timer.cancel();
+        setState(() {
+          _resendCountdown = 0;
+          _resendTimer = null;
+        });
+      } else {
+        setState(() {
+          _resendCountdown--;
+        });
+      }
+    });
+  }
+
+  Future<void> _handleResendCode() async {
+    setState(() => _isLoading = true);
+    final success = await TelegramAuthService.instance.resendCode();
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (success) {
+        final timeout = TelegramAuthService.instance.currentState.timeoutSeconds;
+        _startResendTimer(timeout);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: ValtSkyTheme.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: const Text('A new verification code has been dispatched via SMS!'),
+          ),
+        );
+      } else {
+        final err = TelegramAuthService.instance.currentState.errorMessage ?? 'Failed to resend code';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: ValtSkyTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: Text(err),
+          ),
+        );
+      }
+    }
   }
 
   void _onPhoneChanged() {
@@ -117,7 +186,9 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
     final success = await TelegramAuthService.instance.sendVerificationCode(fullNumber);
     if (mounted) {
       setState(() => _isLoading = false);
-      if (!success) {
+      if (success) {
+        _startResendTimer(TelegramAuthService.instance.currentState.timeoutSeconds);
+      } else {
         final err = TelegramAuthService.instance.currentState.errorMessage ?? 'Failed to send code';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -390,7 +461,12 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () => TelegramAuthService.instance.reset(),
+                      onPressed: () {
+                        _resendTimer?.cancel();
+                        _resendTimer = null;
+                        _resendCountdown = 0;
+                        TelegramAuthService.instance.reset();
+                      },
                       style: TextButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
@@ -399,10 +475,58 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Check your official Telegram app for the 5-digit login code.',
-                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                const SizedBox(height: 8),
+
+                // Delivery Notice Banner
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: ValtSkyTheme.telegramBlue.withValues(alpha: 0.08),
+                    border: Border.all(color: ValtSkyTheme.telegramBlue.withValues(alpha: 0.25)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.mark_chat_unread_rounded, size: 17, color: ValtSkyTheme.telegramBlue),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              state.deliveryDescription ??
+                                  'Telegram delivered your login code to the official "Telegram" chat (with the blue verified badge).',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.white : Colors.black87,
+                                height: 1.35,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: TelegramLauncher.openTelegramApp,
+                          icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                          label: const Text(
+                            'OPEN TELEGRAM APP TO VIEW CODE',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: ValtSkyTheme.telegramBlue,
+                            side: BorderSide(color: ValtSkyTheme.telegramBlue.withValues(alpha: 0.45)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 14),
 
@@ -412,12 +536,12 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                   textAlign: TextAlign.center,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(5),
+                    LengthLimitingTextInputFormatter(6),
                   ],
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 8),
                   decoration: InputDecoration(
                     counterText: '',
-                    hintText: '•••••',
+                    hintText: '••••••',
                     hintStyle: TextStyle(color: Colors.grey.withValues(alpha: 0.5), letterSpacing: 8),
                     filled: true,
                     fillColor: isDark ? const Color(0xFF18181B) : const Color(0xFFF8FAFC),
@@ -478,6 +602,42 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                             ),
                     ),
                   ),
+                ),
+
+                const SizedBox(height: 14),
+                Center(
+                  child: _resendCountdown > 0
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.timer_outlined, size: 14, color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Didn\'t receive code? Resend via SMS in ${_resendCountdown}s',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        )
+                      : TextButton.icon(
+                          onPressed: _isLoading ? null : _handleResendCode,
+                          icon: const Icon(Icons.sms_rounded, size: 16, color: ValtSkyTheme.telegramBlue),
+                          label: const Text(
+                            'RESEND CODE VIA SMS',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: ValtSkyTheme.telegramBlue,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          ),
+                        ),
                 ),
               ],
 

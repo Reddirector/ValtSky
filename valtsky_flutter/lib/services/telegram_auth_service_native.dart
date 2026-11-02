@@ -27,6 +27,9 @@ class AuthState {
   final String? userId;
   final bool isPremium;
   final bool isLoading;
+  final String? deliveryDescription;
+  final int codeLength;
+  final int timeoutSeconds;
 
   const AuthState({
     required this.step,
@@ -40,6 +43,9 @@ class AuthState {
     this.userId,
     this.isPremium = false,
     this.isLoading = false,
+    this.deliveryDescription,
+    this.codeLength = 5,
+    this.timeoutSeconds = 60,
   });
 
   factory AuthState.initial() => const AuthState(step: AuthStep.enterPhone);
@@ -56,6 +62,9 @@ class AuthState {
     String? userId,
     bool? isPremium,
     bool? isLoading,
+    String? deliveryDescription,
+    int? codeLength,
+    int? timeoutSeconds,
   }) {
     return AuthState(
       step: step ?? this.step,
@@ -69,6 +78,9 @@ class AuthState {
       userId: userId ?? this.userId,
       isPremium: isPremium ?? this.isPremium,
       isLoading: isLoading ?? this.isLoading,
+      deliveryDescription: deliveryDescription ?? this.deliveryDescription,
+      codeLength: codeLength ?? this.codeLength,
+      timeoutSeconds: timeoutSeconds ?? this.timeoutSeconds,
     );
   }
 }
@@ -181,7 +193,7 @@ class TelegramAuthService {
         apiHash: TelegramSecrets.apiHash,
         settings: const t.CodeSettings(
           allowFlashcall: false,
-          currentNumber: true,
+          currentNumber: false,
           allowAppHash: false,
           allowMissedCall: false,
           allowFirebase: false,
@@ -207,7 +219,7 @@ class TelegramAuthService {
           apiHash: TelegramSecrets.apiHash,
           settings: const t.CodeSettings(
             allowFlashcall: false,
-            currentNumber: true,
+            currentNumber: false,
             allowAppHash: false,
             allowMissedCall: false,
             allowFirebase: false,
@@ -221,11 +233,17 @@ class TelegramAuthService {
       }
 
       final sentCode = sendCodeResponse.result as t.AuthSentCode;
-      debugPrint('[TelegramMTProto] OTP sent successfully! Hash: ${sentCode.phoneCodeHash}');
+      debugPrint('[TelegramMTProto] OTP sent successfully! Hash: ${sentCode.phoneCodeHash}, Type: ${sentCode.type.runtimeType}, Timeout: ${sentCode.timeout}');
+
+      final delivery = _describeDelivery(sentCode.type, cleanPhone);
+      final len = _extractCodeLength(sentCode.type);
 
       stateNotifier.value = currentState.copyWith(
         step: AuthStep.enterCode,
         phoneCodeHash: sentCode.phoneCodeHash,
+        deliveryDescription: delivery,
+        codeLength: len,
+        timeoutSeconds: sentCode.timeout ?? 60,
         isLoading: false,
       );
       return true;
@@ -238,6 +256,95 @@ class TelegramAuthService {
       );
       return false;
     }
+  }
+
+  /// Request code resend from Telegram servers (switches to SMS if in-app failed).
+  Future<bool> resendCode() async {
+    final phone = currentState.phoneNumber;
+    final hash = currentState.phoneCodeHash;
+    if (phone == null || hash == null) {
+      stateNotifier.value = currentState.copyWith(
+        errorMessage: 'Unable to resend: missing phone number or session hash',
+      );
+      return false;
+    }
+
+    stateNotifier.value = currentState.copyWith(
+      isLoading: true,
+      errorMessage: null,
+    );
+
+    if (TelegramSecrets.apiId == 0 || TelegramSecrets.apiHash.isEmpty) {
+      final mockHash = 'valtsky_hash_resend_${DateTime.now().millisecondsSinceEpoch}';
+      stateNotifier.value = currentState.copyWith(
+        step: AuthStep.enterCode,
+        phoneCodeHash: mockHash,
+        deliveryDescription: 'A new verification code was resent via SMS to $phone.',
+        timeoutSeconds: 60,
+        isLoading: false,
+      );
+      return true;
+    }
+
+    try {
+      final client = _client ?? await _connectToDc(_currentDcId);
+      debugPrint('[TelegramMTProto] Calling auth.resendCode for $phone (hash: $hash)...');
+
+      final resendResponse = await client.auth.resendCode(
+        phoneNumber: phone,
+        phoneCodeHash: hash,
+      );
+
+      if (resendResponse.error != null) {
+        throw Exception(_friendlyErrorMessage(resendResponse.error!.errorMessage));
+      }
+
+      final sentCode = resendResponse.result as t.AuthSentCode;
+      debugPrint('[TelegramMTProto] Resent code successfully! Hash: ${sentCode.phoneCodeHash}, Type: ${sentCode.type.runtimeType}, Timeout: ${sentCode.timeout}');
+
+      final delivery = _describeDelivery(sentCode.type, phone);
+      final len = _extractCodeLength(sentCode.type);
+
+      stateNotifier.value = currentState.copyWith(
+        step: AuthStep.enterCode,
+        phoneCodeHash: sentCode.phoneCodeHash,
+        deliveryDescription: delivery,
+        codeLength: len,
+        timeoutSeconds: sentCode.timeout ?? 60,
+        isLoading: false,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('[TelegramMTProto] resendCode error: $e');
+      stateNotifier.value = currentState.copyWith(
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+        isLoading: false,
+      );
+      return false;
+    }
+  }
+
+  String _describeDelivery(t.AuthSentCodeTypeBase type, String phone) {
+    if (type is t.AuthSentCodeTypeApp) {
+      return 'Telegram delivered a ${type.length}-digit login code to your Telegram app. Check your official "Telegram" chat (with the blue verified badge).';
+    } else if (type is t.AuthSentCodeTypeSms) {
+      return 'Telegram sent a ${type.length}-digit code via SMS to $phone.';
+    } else if (type is t.AuthSentCodeTypeCall) {
+      return 'Telegram will place a phone call to $phone with your code.';
+    } else if (type is t.AuthSentCodeTypeFlashCall) {
+      return 'Telegram is sending a flash call to $phone.';
+    } else if (type is t.AuthSentCodeTypeMissedCall) {
+      return 'Telegram is sending a missed call to $phone.';
+    } else if (type is t.AuthSentCodeTypeEmailCode) {
+      return 'A verification code was sent to your registered Telegram recovery email.';
+    }
+    return 'Check your Telegram app or SMS messages for your verification code.';
+  }
+
+  int _extractCodeLength(t.AuthSentCodeTypeBase type) {
+    if (type is t.AuthSentCodeTypeApp) return type.length;
+    if (type is t.AuthSentCodeTypeSms) return type.length;
+    return 5;
   }
 
   Future<bool> verifyCode(String code) async {
