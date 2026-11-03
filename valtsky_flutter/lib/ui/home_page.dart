@@ -149,34 +149,70 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                   const SizedBox(width: 10),
-                  if (isMonitoring)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: (isPaused ? ValtSkyTheme.warning : ValtSkyTheme.success)
-                            .withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AmbientRadarDot(
-                            color: isPaused ? ValtSkyTheme.warning : ValtSkyTheme.success,
-                            size: 6,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            isPaused ? 'PAUSED' : 'ONLINE',
-                            style: TextStyle(
-                              color: isPaused ? ValtSkyTheme.warning : ValtSkyTheme.success,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
+                  ValueListenableBuilder<SyncEngineStatus>(
+                    valueListenable: SyncEngine.engineStatusNotifier,
+                    builder: (context, engineStatus, _) {
+                      if (!isMonitoring &&
+                          engineStatus != SyncEngineStatus.offline &&
+                          engineStatus != SyncEngineStatus.sessionExpired &&
+                          engineStatus != SyncEngineStatus.restarting) {
+                        return const SizedBox.shrink();
+                      }
+
+                      Color badgeColor;
+                      String badgeText;
+
+                      if (engineStatus == SyncEngineStatus.offline) {
+                        badgeColor = ValtSkyTheme.warning;
+                        badgeText = 'OFFLINE';
+                      } else if (engineStatus == SyncEngineStatus.rateLimited) {
+                        badgeColor = Colors.indigoAccent;
+                        badgeText = 'COOLDOWN';
+                      } else if (engineStatus == SyncEngineStatus.sessionExpired) {
+                        badgeColor = ValtSkyTheme.error;
+                        badgeText = 'AUTH EXPIRED';
+                      } else if (engineStatus == SyncEngineStatus.permissionDenied) {
+                        badgeColor = ValtSkyTheme.warning;
+                        badgeText = 'NO ACCESS';
+                      } else if (engineStatus == SyncEngineStatus.restarting) {
+                        badgeColor = Colors.cyan;
+                        badgeText = 'RESTARTING';
+                      } else if (isPaused) {
+                        badgeColor = ValtSkyTheme.warning;
+                        badgeText = 'PAUSED';
+                      } else {
+                        badgeColor = ValtSkyTheme.success;
+                        badgeText = 'ONLINE';
+                      }
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AmbientRadarDot(
+                              color: badgeColor,
+                              size: 6,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+                            const SizedBox(width: 5),
+                            Text(
+                              badgeText,
+                              style: TextStyle(
+                                color: badgeColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
               actions: [

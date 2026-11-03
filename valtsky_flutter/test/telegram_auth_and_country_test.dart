@@ -165,6 +165,37 @@ void main() {
       expect(updatedStats.uploading, equals(0));
       expect(updatedStats.inQueue, greaterThanOrEqualTo(1));
     });
+
+    test('Resilience and Failure Classifier Tests', () {
+      expect(SyncEngine.isNetworkError('SocketException: OS Error: Connection refused'), isTrue);
+      expect(SyncEngine.isNetworkError('HandshakeException: Handshake error in client'), isTrue);
+      expect(SyncEngine.isNetworkError('TimeoutException after 0:00:15.000000'), isTrue);
+      expect(SyncEngine.isNetworkError('Random business logic error'), isFalse);
+
+      expect(SyncEngine.isSessionExpiredError(401, 'Unauthorized'), isTrue);
+      expect(SyncEngine.isSessionExpiredError(null, 'RPCError: 401 AUTH_KEY_UNREGISTERED'), isTrue);
+      expect(SyncEngine.isSessionExpiredError(null, 'SESSION_REVOKED'), isTrue);
+      expect(SyncEngine.isSessionExpiredError(200, 'OK'), isFalse);
+
+      expect(SyncEngine.isRateLimitError(429, 'Too Many Requests'), isTrue);
+      expect(SyncEngine.isRateLimitError(null, 'FLOOD_WAIT_35'), isTrue);
+      expect(SyncEngine.extractFloodWaitSeconds('FLOOD_WAIT_45'), equals(45));
+      expect(SyncEngine.extractFloodWaitSeconds('Unknown error', 30), equals(30));
+
+      expect(SyncEngine.isChannelPermissionError(403, 'Forbidden'), isTrue);
+      expect(SyncEngine.isChannelPermissionError(400, 'CHAT_WRITE_FORBIDDEN'), isTrue);
+      expect(SyncEngine.isChannelPermissionError(200, 'OK'), isFalse);
+    });
+
+    test('Engine Global Rate Limit and Self-Restart Execution', () async {
+      SyncEngine.triggerGlobalRateLimit(2);
+      expect(SyncEngine.engineStatusNotifier.value, equals(SyncEngineStatus.rateLimited));
+      expect(SyncEngine.rateLimitSecondsRemainingNotifier.value, greaterThan(0));
+
+      // Test self-restart sequence
+      await SyncEngine.instance.restartEngine();
+      expect(SyncEngine.engineStatusNotifier.value, isNot(equals(SyncEngineStatus.restarting)));
+    });
   });
 
   group('TelegramPhoneLoginWidget Interactive Tests', () {

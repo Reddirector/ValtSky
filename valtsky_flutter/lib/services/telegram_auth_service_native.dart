@@ -179,6 +179,16 @@ class TelegramAuthService {
     if (workerIndex == 0) _client = null;
   }
 
+  /// Close and flush all pooled TCP sockets and clients across all workers
+  void resetClientPool() {
+    for (final workerIndex in _clientPool.keys.toList()) {
+      invalidateClient(workerIndex);
+    }
+    _clientPool.clear();
+    _connectingClients.clear();
+    _client = null;
+  }
+
   /// Get active MTProto client or reconnect using persistent session authKey
   Future<tg.Client?> getClient([int workerIndex = 0]) async {
     if (_clientPool.containsKey(workerIndex)) {

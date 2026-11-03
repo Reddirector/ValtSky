@@ -366,6 +366,10 @@ class TelegramAuthService {
     return Failure('Direct MTProto message from web requires desktop/mobile app or bridge');
   }
 
+  void invalidateClient([int workerIndex = 0]) {}
+
+  void resetClientPool() {}
+
   void reset() {
     stateNotifier.value = AuthState.initial();
   }

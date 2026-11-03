@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:photo_manager/photo_manager.dart';
 import '../../data/prefs.dart';
 import '../../data/db/database_helper.dart';
 import '../../data/models/media_item.dart';
@@ -31,6 +32,7 @@ class DashboardViewState extends State<DashboardView> {
   int _pendingCount = 0;
   int _failedCount = 0;
   bool _isRefreshing = false;
+  bool _isRestarting = false;
   Timer? _liveUiTimer;
 
   @override
@@ -109,6 +111,37 @@ class DashboardViewState extends State<DashboardView> {
     }
   }
 
+  /// Self-healing full restart of upload workers, socket pool, and queue state
+  Future<void> _handleRestartEngine() async {
+    if (_isRestarting) return;
+    setState(() => _isRestarting = true);
+    try {
+      await SyncEngine.instance.restartEngine();
+      await refreshStats();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: ValtSkyTheme.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text('Engine restarted: Sockets flushed & queue reset'),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRestarting = false);
+    }
+  }
+
   Future<void> _toggleMonitoring() async {
     if (!Prefs.isConfigured()) {
       widget.onNavigateToSettings();
@@ -161,6 +194,9 @@ class DashboardViewState extends State<DashboardView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // ─── ACTIVE ENGINE STATUS BANNER (IF ANY ISSUE) ───
+            _buildEngineStatusBanner(isDark),
+
             // ─── 2X2 METRIC GRID ──────────────────────────────
             StaggeredFadeSlide(
               delayMs: 0,
@@ -614,7 +650,471 @@ class DashboardViewState extends State<DashboardView> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+
+        // Tertiary Row of Controls (Self-Healing Restart & Diagnostics)
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: _isRestarting ? null : _handleRestartEngine,
+                  icon: _isRestarting
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.restart_alt_rounded, size: 18),
+                  label: const Text(
+                    'Restart Engine',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white : Colors.black,
+                    side: BorderSide(color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showDiagnosticsSheet(context, isDark),
+                  icon: const Icon(Icons.health_and_safety_outlined, size: 18),
+                  label: const Text(
+                    'Diagnostics',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white : Colors.black,
+                    side: BorderSide(color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
+    );
+  }
+
+  Widget _buildEngineStatusBanner(bool isDark) {
+    return ValueListenableBuilder<SyncEngineStatus>(
+      valueListenable: SyncEngine.engineStatusNotifier,
+      builder: (context, status, _) {
+        if (status == SyncEngineStatus.idle ||
+            status == SyncEngineStatus.active ||
+            status == SyncEngineStatus.paused) {
+          return const SizedBox.shrink();
+        }
+
+        switch (status) {
+          case SyncEngineStatus.offline:
+            return Container(
+              margin: const EdgeInsets.only(bottom: 18),
+              child: GlassCard(
+                borderRadius: 20,
+                border: Border.all(color: ValtSkyTheme.warning.withValues(alpha: 0.5)),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: ValtSkyTheme.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.wifi_off_rounded, color: ValtSkyTheme.warning, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'No Internet Connection',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: ValtSkyTheme.warning),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Uploads paused safely. Will auto-resume when online.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFFD4D4D8) : const Color(0xFF52525B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        backgroundColor: ValtSkyTheme.warning.withValues(alpha: 0.15),
+                        foregroundColor: ValtSkyTheme.warning,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      ),
+                      onPressed: () async {
+                        final reconnected = await SyncEngine.instance.checkNetworkAndResume();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: reconnected ? ValtSkyTheme.success : ValtSkyTheme.warning,
+                              content: Text(reconnected ? 'Connected! Resuming uploads...' : 'Still offline. Check your network.'),
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Check', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+          case SyncEngineStatus.rateLimited:
+            return ValueListenableBuilder<int>(
+              valueListenable: SyncEngine.rateLimitSecondsRemainingNotifier,
+              builder: (context, secondsRemaining, _) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 18),
+                  child: GlassCard(
+                    borderRadius: 20,
+                    border: Border.all(color: Colors.indigoAccent.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.indigoAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.hourglass_bottom_rounded, color: Colors.indigoAccent, size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Telegram Cooldown Active',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.indigoAccent),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'Flood wait detected. Auto-resuming in ${secondsRemaining}s...',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? const Color(0xFFD4D4D8) : const Color(0xFF52525B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.indigoAccent.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${secondsRemaining}s',
+                            style: const TextStyle(
+                              color: Colors.indigoAccent,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+
+          case SyncEngineStatus.sessionExpired:
+            return Container(
+              margin: const EdgeInsets.only(bottom: 18),
+              child: GlassCard(
+                borderRadius: 20,
+                border: Border.all(color: ValtSkyTheme.error.withValues(alpha: 0.5)),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: ValtSkyTheme.error.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.lock_reset_rounded, color: ValtSkyTheme.error, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Telegram Session Expired',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: ValtSkyTheme.error),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Authentication key was revoked. Tap to re-login.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFFD4D4D8) : const Color(0xFF52525B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ValtSkyTheme.error,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: widget.onNavigateToSettings,
+                      child: const Text('Login', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+          case SyncEngineStatus.permissionDenied:
+            return Container(
+              margin: const EdgeInsets.only(bottom: 18),
+              child: GlassCard(
+                borderRadius: 20,
+                border: Border.all(color: ValtSkyTheme.warning.withValues(alpha: 0.5)),
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: ValtSkyTheme.warning.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.no_photography_rounded, color: ValtSkyTheme.warning, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Gallery Access Needed',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: ValtSkyTheme.warning),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Permission required to scan & back up your photos.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFFD4D4D8) : const Color(0xFF52525B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ValtSkyTheme.warning,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => PhotoManager.openSetting(),
+                      child: const Text('Grant', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+          case SyncEngineStatus.restarting:
+            return Container(
+              margin: const EdgeInsets.only(bottom: 18),
+              child: GlassCard(
+                borderRadius: 20,
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Restarting Sync Engine...',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'Flushing socket pool & cleaning upload queue...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFFD4D4D8) : const Color(0xFF52525B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+          default:
+            return const SizedBox.shrink();
+        }
+      },
+    );
+  }
+
+  void _showDiagnosticsSheet(BuildContext context, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF121215) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final engineStatus = SyncEngine.engineStatusNotifier.value;
+            final phone = Prefs.userPhoneNumber.isNotEmpty ? Prefs.userPhoneNumber : (Prefs.botToken.isNotEmpty ? 'Bot Token' : 'Not configured');
+            final channel = Prefs.channelName.isNotEmpty ? Prefs.channelName : (Prefs.channelId.isNotEmpty ? Prefs.channelId : 'None');
+            final dcId = Prefs.telegramDcId;
+
+            return SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white24 : Colors.black12,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    const Row(
+                      children: [
+                        Icon(Icons.health_and_safety_rounded, color: ValtSkyTheme.primaryAccent, size: 24),
+                        SizedBox(width: 10),
+                        Text(
+                          'Engine Diagnostics & Repair',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildDiagRow('Engine Status', engineStatus.name.toUpperCase(), isDark, highlight: true),
+                    _buildDiagRow('Active Workers', '4 Parallel Turbo Workers', isDark),
+                    _buildDiagRow('Telegram Target', '$channel (DC $dcId)', isDark),
+                    _buildDiagRow('Auth Account', phone, isDark),
+                    _buildDiagRow('Total Gallery Items', '$_totalCount', isDark),
+                    _buildDiagRow('Synced to Telegram', '$_uploadedCount', isDark),
+                    _buildDiagRow('Pending in Queue', '$_pendingCount', isDark),
+                    _buildDiagRow('Failed Uploads', '$_failedCount', isDark),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ValtSkyTheme.primaryAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context);
+                          await _handleRestartEngine();
+                        },
+                        icon: const Icon(Icons.restart_alt_rounded, size: 20),
+                        label: const Text('Restart Engine & Flush Sockets', style: TextStyle(fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                    if (_failedCount > 0) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () async {
+                                Navigator.pop(context);
+                                await DatabaseHelper.instance.retryAllFailed();
+                                await refreshStats();
+                                if (Prefs.monitoringEnabled) {
+                                  SyncEngine().startSync();
+                                }
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 16),
+                              label: const Text('Retry All Failed', style: TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: () async {
+                                Navigator.pop(context);
+                                await DatabaseHelper.instance.stashAllFailed();
+                                await refreshStats();
+                              },
+                              icon: const Icon(Icons.archive_outlined, size: 16),
+                              label: const Text('Stash All Failed', style: TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDiagRow(String title, String value, bool isDark, {bool highlight = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(title, style: TextStyle(fontSize: 13, color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B), fontWeight: FontWeight.w500)),
+          Text(value, style: TextStyle(fontSize: 13, fontWeight: highlight ? FontWeight.w900 : FontWeight.w700, color: highlight ? ValtSkyTheme.primaryAccent : (isDark ? Colors.white : Colors.black))),
+        ],
+      ),
     );
   }
 }
