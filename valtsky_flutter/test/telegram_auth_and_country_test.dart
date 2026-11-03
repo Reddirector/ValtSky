@@ -5,6 +5,7 @@ import 'package:valtsky_flutter/data/country_data.dart';
 import 'package:valtsky_flutter/data/prefs.dart';
 import 'package:valtsky_flutter/data/db/database_helper.dart';
 import 'package:valtsky_flutter/data/models/media_item.dart';
+import 'package:valtsky_flutter/services/sync_engine.dart';
 import 'package:valtsky_flutter/services/telegram_auth_service.dart';
 import 'package:valtsky_flutter/ui/widgets/telegram_phone_login_widget.dart';
 import 'package:valtsky_flutter/ui/widgets/telegram_profile_card.dart';
@@ -133,6 +134,36 @@ void main() {
       expect(await DatabaseHelper.instance.getFailedCount(), equals(0));
       expect(await DatabaseHelper.instance.getPendingCount(), equals(2));
       expect(await DatabaseHelper.instance.getStashedCount(), equals(0));
+    });
+
+    test('Claim Next Pending and Real-Time Stats Updates', () async {
+      DatabaseHelper.enableMemoryStoreForTesting();
+      DatabaseHelper.clearMemoryStoreForTesting();
+      final item = MediaItem(
+        filePath: '/test/pending_atomic.jpg',
+        mimeType: 'image/jpeg',
+        dateTaken: 5000,
+        fileSize: 4096,
+        status: MediaItem.statusPending,
+        updatedAt: 5000,
+      );
+      await DatabaseHelper.instance.insert(item);
+
+      final claimed = await DatabaseHelper.instance.claimNextPending();
+      expect(claimed, isNotNull);
+      expect(claimed!.filePath, equals('/test/pending_atomic.jpg'));
+      expect(claimed.status, equals(MediaItem.statusUploading));
+
+      final stats = await SyncEngine.fetchCurrentStats();
+      expect(stats.uploading, equals(1));
+      expect(SyncEngine.statsNotifier.value, isNotNull);
+      expect(SyncEngine.statsNotifier.value!.uploading, equals(1));
+
+      // Reset uploading back to pending
+      await DatabaseHelper.instance.resetUploadingToPending();
+      final updatedStats = await SyncEngine.fetchCurrentStats();
+      expect(updatedStats.uploading, equals(0));
+      expect(updatedStats.inQueue, greaterThanOrEqualTo(1));
     });
   });
 

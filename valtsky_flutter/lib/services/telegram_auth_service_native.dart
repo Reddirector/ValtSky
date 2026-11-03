@@ -166,17 +166,46 @@ class TelegramAuthService {
     return client;
   }
 
+  final Map<int, tg.Client> _clientPool = {};
+  final Map<int, Completer<tg.Client?>> _connectingClients = {};
+
+  void invalidateClient(int workerIndex) {
+    final client = _clientPool.remove(workerIndex);
+    if (client != null) {
+      try {
+        TelegramTransport.closeSocket(client.socket);
+      } catch (_) {}
+    }
+    if (workerIndex == 0) _client = null;
+  }
+
   /// Get active MTProto client or reconnect using persistent session authKey
-  Future<tg.Client?> getClient() async {
-    if (_client != null) return _client;
+  Future<tg.Client?> getClient([int workerIndex = 0]) async {
+    if (_clientPool.containsKey(workerIndex)) {
+      return _clientPool[workerIndex];
+    }
+    if (workerIndex == 0 && _client != null) {
+      _clientPool[0] = _client!;
+      return _client!;
+    }
+    if (_connectingClients.containsKey(workerIndex)) {
+      return await _connectingClients[workerIndex]!.future;
+    }
+    final completer = Completer<tg.Client?>();
+    _connectingClients[workerIndex] = completer;
+
     final savedAuthKey = Prefs.telegramAuthKey;
-    if (savedAuthKey == null || savedAuthKey.isEmpty) return null;
+    if (savedAuthKey == null || savedAuthKey.isEmpty) {
+      completer.complete(null);
+      _connectingClients.remove(workerIndex);
+      return null;
+    }
     try {
       final authMap = jsonDecode(savedAuthKey) as Map<String, dynamic>;
       final authKey = tg.AuthorizationKey.fromJson(authMap);
       final dcId = Prefs.telegramDcId;
       final dcIp = Prefs.telegramDcIp ?? defaultDcIps[dcId] ?? '149.154.175.50';
-      debugPrint('[TelegramMTProto] Reconnecting with persistent authKey to DC $dcId ($dcIp)...');
+      debugPrint('[TelegramMTProto] Connecting client #$workerIndex with persistent authKey to DC $dcId ($dcIp)...');
       final socket = await TelegramTransport.connect(dcIp, 443);
       final obfuscation = tg.Obfuscation.random(false, dcId);
       final idGenerator = tg.MessageIdGenerator();
@@ -187,12 +216,19 @@ class TelegramAuthService {
         authorizationKey: authKey,
         idGenerator: idGenerator,
       );
-      _currentDcId = dcId;
-      _client = client;
+      _clientPool[workerIndex] = client;
+      if (workerIndex == 0) {
+        _currentDcId = dcId;
+        _client = client;
+      }
+      completer.complete(client);
       return client;
     } catch (e) {
-      debugPrint('[TelegramMTProto] Failed to reconnect client: $e');
+      debugPrint('[TelegramMTProto] Failed to reconnect client #$workerIndex: $e');
+      completer.complete(null);
       return null;
+    } finally {
+      _connectingClients.remove(workerIndex);
     }
   }
 
@@ -638,12 +674,13 @@ class TelegramAuthService {
     required bool asDocument,
     String? caption,
     void Function(int sent, int total)? onProgress,
+    int workerIndex = 0,
   }) async {
     if (TelegramSecrets.apiId == 0) {
       return Success(DateTime.now().millisecondsSinceEpoch);
     }
 
-    final client = await getClient();
+    final client = await getClient(workerIndex);
     if (client == null) {
       return Failure('Telegram client not connected or session expired. Please connect Telegram in Settings.');
     }
@@ -675,9 +712,14 @@ class TelegramAuthService {
     final isBigFile = fileSize > 10 * 1024 * 1024;
     final fileId = (Random().nextInt(0x7fffffff) << 16) | Random().nextInt(0xffff);
 
+    Uint8List? preloadedBytes;
     RandomAccessFile? raf;
     try {
-      raf = await file.open(mode: FileMode.read);
+      if (fileSize <= 25 * 1024 * 1024) {
+        preloadedBytes = await file.readAsBytes();
+      } else {
+        raf = await file.open(mode: FileMode.read);
+      }
       int bytesSent = 0;
 
       for (int part = 0; part < totalParts; part++) {
@@ -690,7 +732,14 @@ class TelegramAuthService {
         final bytesToRead = (part == totalParts - 1)
             ? (fileSize - part * chunkSize)
             : chunkSize;
-        final buffer = await raf.read(bytesToRead);
+
+        final Uint8List buffer;
+        if (preloadedBytes != null) {
+          final offset = part * chunkSize;
+          buffer = Uint8List.sublistView(preloadedBytes, offset, offset + bytesToRead);
+        } else {
+          buffer = Uint8List.fromList(await raf!.read(bytesToRead));
+        }
 
         t.Result<t.Boolean> partResult;
         if (isBigFile) {
@@ -698,13 +747,13 @@ class TelegramAuthService {
             fileId: fileId,
             filePart: part,
             fileTotalParts: totalParts,
-            bytes: Uint8List.fromList(buffer),
+            bytes: buffer,
           );
         } else {
           partResult = await client.upload.saveFilePart(
             fileId: fileId,
             filePart: part,
-            bytes: Uint8List.fromList(buffer),
+            bytes: buffer,
           );
         }
 
@@ -778,6 +827,7 @@ class TelegramAuthService {
 
       return Success(msgId);
     } catch (e) {
+      invalidateClient(workerIndex);
       return Failure('MTProto upload error: $e');
     } finally {
       await raf?.close();

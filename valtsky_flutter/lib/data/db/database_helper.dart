@@ -11,6 +11,7 @@ class DatabaseHelper {
   static bool _inMemoryOverride = false;
 
   static void enableMemoryStoreForTesting() => _inMemoryOverride = true;
+  static void clearMemoryStoreForTesting() => _webItems.clear();
 
   static bool get _useMemoryStore {
     if (kIsWeb || _inMemoryOverride) return true;
@@ -187,6 +188,61 @@ class DatabaseHelper {
       return MediaItem.fromMap(maps.first);
     }
     return null;
+  }
+
+  /// Atomically claims the next pending media item and marks it as UPLOADING
+  Future<MediaItem?> claimNextPending() async {
+    const int twoGigabytes = 2147483648;
+    if (_useMemoryStore) {
+      final pending = _webItems.values
+          .where((e) => e.status == MediaItem.statusPending && e.fileSize < twoGigabytes)
+          .toList();
+      pending.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      final item = pending.firstOrNull;
+      if (item != null) {
+        final updated = item.copyWith(
+          status: MediaItem.statusUploading,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        _webItems[item.filePath] = updated;
+        return updated;
+      }
+      return null;
+    }
+    final db = await instance.database;
+    return await db.transaction((txn) async {
+      final maps = await txn.query(
+        'media_items',
+        where: 'status = ? AND fileSize < ?',
+        whereArgs: [MediaItem.statusPending, twoGigabytes],
+        orderBy: 'dateTaken ASC',
+        limit: 1,
+      );
+      if (maps.isEmpty) return null;
+      final item = MediaItem.fromMap(maps.first);
+      final updated = item.copyWith(
+        status: MediaItem.statusUploading,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+      await txn.update(
+        'media_items',
+        {
+          'status': MediaItem.statusUploading,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'filePath = ?',
+        whereArgs: [item.filePath],
+      );
+      return updated;
+    });
+  }
+
+  Future<int> getUploadingCount() async {
+    if (_useMemoryStore) {
+      return _webItems.values.where((e) => e.status == MediaItem.statusUploading).length;
+    }
+    final db = await instance.database;
+    return Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM media_items WHERE status = 'UPLOADING'")) ?? 0;
   }
 
   Future<List<MediaItem>> getAllPending() async {

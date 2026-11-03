@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/prefs.dart';
@@ -6,7 +7,6 @@ import '../../data/models/media_item.dart';
 import '../../services/background_service.dart';
 import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
-import '../../util/media_scanner.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/failed_item_card.dart';
 import '../widgets/animated_stagger.dart';
@@ -31,11 +31,38 @@ class DashboardViewState extends State<DashboardView> {
   int _pendingCount = 0;
   int _failedCount = 0;
   bool _isRefreshing = false;
+  Timer? _liveUiTimer;
 
   @override
   void initState() {
     super.initState();
     refreshStats();
+    SyncEngine.statsNotifier.addListener(_onStatsChanged);
+    // Real-time live polling ticker ensuring dashboard stats update smoothly during active sync
+    _liveUiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+        refreshStats();
+      }
+    });
+  }
+
+  void _onStatsChanged() {
+    final stats = SyncEngine.statsNotifier.value;
+    if (stats != null && mounted) {
+      setState(() {
+        _totalCount = stats.total;
+        _uploadedCount = stats.synced;
+        _pendingCount = stats.inQueue;
+        _failedCount = stats.failed;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _liveUiTimer?.cancel();
+    SyncEngine.statsNotifier.removeListener(_onStatsChanged);
+    super.dispose();
   }
 
   Future<void> refreshStats() async {
@@ -54,11 +81,11 @@ class DashboardViewState extends State<DashboardView> {
     }
   }
 
-  Future<void> _handleScan() async {
+  /// Instant, zero-lag count refresh without heavy filesystem gallery scanning
+  Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
     try {
-      await MediaScanner.scanForNewMedia();
       await refreshStats();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -70,10 +97,10 @@ class DashboardViewState extends State<DashboardView> {
               children: [
                 Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
                 SizedBox(width: 10),
-                Text('Gallery scan complete'),
+                Text('Live counts refreshed'),
               ],
             ),
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -126,7 +153,7 @@ class DashboardViewState extends State<DashboardView> {
     final progress = _totalCount == 0 ? 0.0 : (_uploadedCount / _totalCount).clamp(0.0, 1.0);
 
     return RefreshIndicator(
-      onRefresh: _handleScan,
+      onRefresh: _handleRefresh,
       color: ValtSkyTheme.primaryAccent,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -569,12 +596,12 @@ class DashboardViewState extends State<DashboardView> {
               child: SizedBox(
                 height: 48,
                 child: OutlinedButton.icon(
-                  onPressed: _isRefreshing ? null : _handleScan,
+                  onPressed: _isRefreshing ? null : _handleRefresh,
                   icon: _isRefreshing
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.refresh_rounded, size: 18),
                   label: const Text(
-                    'Scan Gallery',
+                    'Refresh Counts',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   style: OutlinedButton.styleFrom(

@@ -131,7 +131,7 @@ Because iOS restricts unsigned IPAs outside the App Store, you have two simple o
 To verify the integrity of the downloaded universal APK:
 ```bash
 sha256sum valtsky-v2.0-release.apk
-# Expected: ee3e4c9e86b6da57b40be3c463d83b45dd7001df005778ede7e1fbdac1768c2a
+# Expected: 27ecc1bf1ab5c0b18bcd760e9b8c472502d69cb369093def55382df42b3e657f
 ```
 
 On Windows PowerShell:

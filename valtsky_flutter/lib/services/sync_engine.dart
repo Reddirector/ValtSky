@@ -7,50 +7,130 @@ import '../data/models/media_item.dart';
 import '../data/prefs.dart';
 import 'telegram_api.dart';
 import 'telegram_auth_service.dart';
-import '../util/file_utils.dart';
+import 'telegram_auth_service_native.dart';
 import '../util/file_security_guard.dart';
 
+class SyncStats {
+  final int total;
+  final int synced;
+  final int inQueue;
+  final int failed;
+  final int uploading;
+  final double progress;
+
+  const SyncStats({
+    required this.total,
+    required this.synced,
+    required this.inQueue,
+    required this.failed,
+    this.uploading = 0,
+    required this.progress,
+  });
+}
+
 class SyncEngine {
+  static final SyncEngine instance = SyncEngine._internal();
+  SyncEngine._internal();
+  factory SyncEngine() => instance;
+
   bool _isSyncing = false;
+  bool get isSyncing => _isSyncing;
   Completer<void>? _syncCompleter;
+
+  // 4 concurrent turbo upload workers targeting 60+ images/minute (~1 image/sec)
+  static const int _workerCount = 4;
 
   // Real-time speed and status notifier for the UI
   static final ValueNotifier<String> uploadSpeedNotifier = ValueNotifier<String>('');
   static final ValueNotifier<String> currentItemNotifier = ValueNotifier<String>('');
+  static final ValueNotifier<SyncStats?> statsNotifier = ValueNotifier<SyncStats?>(null);
+  Timer? _liveStatsTimer;
+
+  static int _totalBytesAccumulator = 0;
+  static int _lastSampleBytes = 0;
+  static DateTime _lastSampleTime = DateTime.now();
+
+  /// Query SQLite and notify all UI listeners with fresh live counts (< 1ms)
+  static Future<SyncStats> fetchCurrentStats() async {
+    final total = await DatabaseHelper.instance.getTotalCount();
+    final synced = await DatabaseHelper.instance.getUploadedCount();
+    final inQueue = await DatabaseHelper.instance.getPendingCount();
+    final failed = await DatabaseHelper.instance.getFailedCount();
+    final uploading = await DatabaseHelper.instance.getUploadingCount();
+    final progress = total == 0 ? 0.0 : (synced / total).clamp(0.0, 1.0);
+    final stats = SyncStats(
+      total: total,
+      synced: synced,
+      inQueue: inQueue,
+      failed: failed,
+      uploading: uploading,
+      progress: progress,
+    );
+    statsNotifier.value = stats;
+    return stats;
+  }
 
   Future<void> startSync() async {
     if (_isSyncing) return;
     _isSyncing = true;
     _syncCompleter = Completer<void>();
-    _processQueue();
+
+    // Reset any interrupted uploading state from abrupt app closes
+    await DatabaseHelper.instance.resetUploadingToPending();
+    await fetchCurrentStats();
+
+    // Start live 500ms reactive ticker while actively syncing
+    _liveStatsTimer?.cancel();
+    _liveStatsTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (_isSyncing) {
+        fetchCurrentStats();
+      }
+    });
+
+    _runWorkerPool();
   }
 
   void stopSync() {
     _isSyncing = false;
+    _liveStatsTimer?.cancel();
+    _liveStatsTimer = null;
     uploadSpeedNotifier.value = '';
     currentItemNotifier.value = '';
+    fetchCurrentStats();
     _syncCompleter?.complete();
   }
 
-  Future<void> _processQueue() async {
+  Future<void> _runWorkerPool() async {
+    final workers = List.generate(_workerCount, (index) => _workerLoop(index));
+    await Future.wait(workers);
+
+    _isSyncing = false;
+    _liveStatsTimer?.cancel();
+    _liveStatsTimer = null;
+    uploadSpeedNotifier.value = '';
+    currentItemNotifier.value = '';
+    await fetchCurrentStats();
+    _syncCompleter?.complete();
+  }
+
+  Future<void> _workerLoop(int workerIndex) async {
     while (_isSyncing) {
       if (Prefs.uploadPaused) {
         uploadSpeedNotifier.value = 'Paused';
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 2));
         continue;
       }
 
-      // CRITICAL: Strictly fetch the OLDEST media first (dateTaken ASC)
-      // This guarantees older photos/videos are posted first, appearing at the top of the Telegram channel.
-      final item = await DatabaseHelper.instance.getNextPending();
+      // Atomically claim the next pending item in strict chronological order (dateTaken ASC)
+      final item = await DatabaseHelper.instance.claimNextPending();
       if (item == null) {
-        _isSyncing = false;
-        uploadSpeedNotifier.value = '';
-        currentItemNotifier.value = '';
+        // Queue is drained
         break;
       }
 
-      currentItemNotifier.value = item.filePath.split('/').last;
+      final fileName = item.filePath.split('/').last;
+      currentItemNotifier.value = fileName;
+      fetchCurrentStats();
 
       final file = File(item.filePath);
       if (!await file.exists()) {
@@ -59,10 +139,11 @@ class SyncEngine {
           errorReason: 'File not found on storage',
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
+        fetchCurrentStats();
         continue;
       }
 
-      // 🛡️ Senior Cybersecurity Guard: Inspect magic bytes and verify file integrity
+      // Fast security verification (reads initial 512 bytes header)
       final validation = await FileSecurityGuard.validateFile(file);
       if (!validation.isValid) {
         await DatabaseHelper.instance.update(item.copyWith(
@@ -70,32 +151,11 @@ class SyncEngine {
           errorReason: '🛡️ Security Guard: ${validation.error}',
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
+        fetchCurrentStats();
         continue;
       }
 
-      // Mark status as uploading
-      await DatabaseHelper.instance.update(item.copyWith(status: MediaItem.statusUploading));
-
-      // Compute hash for deduplication
-      if (item.fileHash == null) {
-        final hash = await FileUtils.getFileHash(file);
-        if (hash != null) {
-          final existing = await DatabaseHelper.instance.getItemByHash(hash);
-          if (existing != null && existing.status == MediaItem.statusDone) {
-            await DatabaseHelper.instance.update(item.copyWith(
-              status: MediaItem.statusDone,
-              fileHash: hash,
-              telegramMessageId: existing.telegramMessageId,
-              errorReason: 'Deduplicated (Identical Checksum)',
-              updatedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
-            continue;
-          }
-          item.fileHash = hash;
-        }
-      }
-
-      final result = await _uploadWithSpeedOptimization(item, file);
+      final result = await _uploadWithSpeedOptimization(item, file, workerIndex: workerIndex);
 
       if (result is Success) {
         await DatabaseHelper.instance.update(item.copyWith(
@@ -105,18 +165,24 @@ class SyncEngine {
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
         Prefs.lastSyncedTs = DateTime.now().millisecondsSinceEpoch;
+        _accumulateFinishedBytes(await file.length());
+        fetchCurrentStats();
       } else if (result is TelegramError) {
         if (result.code == 429) {
-          // Rate limited: cooldown
           uploadSpeedNotifier.value = 'Cooldown (${result.retryAfterSeconds ?? 30}s)';
+          await DatabaseHelper.instance.update(item.copyWith(
+            status: MediaItem.statusPending,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          ));
+          fetchCurrentStats();
           await Future.delayed(Duration(seconds: result.retryAfterSeconds ?? 30));
-          await DatabaseHelper.instance.update(item.copyWith(status: MediaItem.statusPending));
         } else {
           await DatabaseHelper.instance.update(item.copyWith(
             status: MediaItem.statusFailed,
             errorReason: result.description,
             updatedAt: DateTime.now().millisecondsSinceEpoch,
           ));
+          fetchCurrentStats();
         }
       } else if (result is Failure) {
         await DatabaseHelper.instance.update(item.copyWith(
@@ -124,16 +190,38 @@ class SyncEngine {
           errorReason: result.message,
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
+        fetchCurrentStats();
       }
     }
+  }
 
-    _isSyncing = false;
-    uploadSpeedNotifier.value = '';
-    currentItemNotifier.value = '';
+  static void _accumulateFinishedBytes(int bytes) {
+    _totalBytesAccumulator += bytes;
+  }
+
+  static void _recordProgress(int sent, int total) {
+    final now = DateTime.now();
+    final ms = now.difference(_lastSampleTime).inMilliseconds;
+    if (ms >= 400) {
+      final currentBytes = _totalBytesAccumulator + sent;
+      final bytesDelta = currentBytes - _lastSampleBytes;
+      if (bytesDelta > 0) {
+        final speedMBps = (bytesDelta / (1024 * 1024)) / (ms / 1000);
+        if (speedMBps > 0.05) {
+          uploadSpeedNotifier.value = '⚡ ${speedMBps.toStringAsFixed(1)} MB/s';
+        }
+      }
+      _lastSampleBytes = currentBytes;
+      _lastSampleTime = now;
+    }
   }
 
   /// High-speed upload with live speed meter and in-memory chunk streaming
-  Future<UploadResult> _uploadWithSpeedOptimization(MediaItem item, File file) async {
+  Future<UploadResult> _uploadWithSpeedOptimization(
+    MediaItem item,
+    File file, {
+    int workerIndex = 0,
+  }) async {
     final rawName = file.path.split('/').last;
     final fileName = FileSecurityGuard.sanitizeFileName(rawName);
     final fileSize = await file.length();
@@ -141,21 +229,6 @@ class SyncEngine {
     final dateStr = DateFormat('dd/MM/yyyy HH:mm:ss').format(
       DateTime.fromMillisecondsSinceEpoch(item.dateTaken),
     );
-
-    int lastBytes = 0;
-    DateTime lastTime = DateTime.now();
-
-    void updateSpeed(int sent, int total) {
-      final now = DateTime.now();
-      final ms = now.difference(lastTime).inMilliseconds;
-      if (ms >= 400 && sent > lastBytes) {
-        final bytesDelta = sent - lastBytes;
-        final speedMBps = (bytesDelta / (1024 * 1024)) / (ms / 1000);
-        uploadSpeedNotifier.value = '⚡ ${speedMBps.toStringAsFixed(1)} MB/s';
-        lastBytes = sent;
-        lastTime = now;
-      }
-    }
 
     // Direct upload if within limit (Bot API 50MB, or MTProto native up to 2000MB)
     final isBotApi = Prefs.botToken.contains(':');
@@ -170,7 +243,7 @@ class SyncEngine {
           file,
           Prefs.useOriginalQuality,
           caption,
-          onProgress: updateSpeed,
+          onProgress: _recordProgress,
         );
       } else {
         return await TelegramAuthService.instance.uploadMedia(
@@ -178,13 +251,14 @@ class SyncEngine {
           channelId: Prefs.channelId,
           asDocument: Prefs.useOriginalQuality,
           caption: caption,
-          onProgress: updateSpeed,
+          onProgress: _recordProgress,
+          workerIndex: workerIndex,
         );
       }
     }
 
     // Large file: Stream raw chunks in-memory for maximum speed
-    return await _streamChunkedFile(file, fileName, fileSize, maxSingleBytes, dateStr, item.fileHash, updateSpeed);
+    return await _streamChunkedFile(file, fileName, fileSize, maxSingleBytes, dateStr, item.fileHash, _recordProgress);
   }
 
   /// Zero-disk-bottleneck streaming: Reads directly from RAM and streams to Telegram

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/prefs.dart';
+import '../services/sync_engine.dart';
 import '../main.dart';
 import '../util/theme.dart';
 import '../util/media_scanner.dart';
@@ -48,7 +49,7 @@ class _HomePageState extends State<HomePage> {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
     try {
-      await MediaScanner.scanForNewMedia();
+      await SyncEngine.fetchCurrentStats();
       _onDataChanged();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,8 +57,8 @@ class _HomePageState extends State<HomePage> {
             backgroundColor: ValtSkyTheme.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            content: const Text('Media scan complete — all counts updated'),
-            duration: const Duration(seconds: 2),
+            content: const Text('Live counts refreshed'),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -180,7 +181,7 @@ class _HomePageState extends State<HomePage> {
               ),
               actions: [
                 IconButton(
-                  tooltip: 'Scan Gallery',
+                  tooltip: 'Refresh Live Counts',
                   icon: _isRefreshing
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.sync_rounded),

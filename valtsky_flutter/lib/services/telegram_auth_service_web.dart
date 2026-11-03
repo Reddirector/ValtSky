@@ -354,6 +354,7 @@ class TelegramAuthService {
     required bool asDocument,
     String? caption,
     void Function(int sent, int total)? onProgress,
+    int workerIndex = 0,
   }) async {
     return Failure('Direct MTProto upload from web requires desktop/mobile app or bridge');
   }
