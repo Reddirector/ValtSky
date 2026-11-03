@@ -434,15 +434,40 @@ class DashboardViewState extends State<DashboardView> {
                 ),
               ],
             ),
-            TextButton(
-              onPressed: () async {
-                await DatabaseHelper.instance.retryAllFailed();
-                await refreshStats();
-                if (Prefs.monitoringEnabled) {
-                  SyncEngine().startSync();
-                }
-              },
-              child: const Text('Retry All', style: TextStyle(fontWeight: FontWeight.w700)),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton.icon(
+                  onPressed: () async {
+                    await DatabaseHelper.instance.stashAllFailed();
+                    await refreshStats();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('All failed uploads stashed'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.archive_outlined, size: 16),
+                  label: const Text('Stash All', style: TextStyle(fontWeight: FontWeight.w700)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    await DatabaseHelper.instance.retryAllFailed();
+                    await refreshStats();
+                    if (Prefs.monitoringEnabled) {
+                      SyncEngine().startSync();
+                    }
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Retry All', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ],
             ),
           ],
         ),

@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:valtsky_flutter/data/country_data.dart';
 import 'package:valtsky_flutter/data/prefs.dart';
+import 'package:valtsky_flutter/data/db/database_helper.dart';
+import 'package:valtsky_flutter/data/models/media_item.dart';
 import 'package:valtsky_flutter/services/telegram_auth_service.dart';
 import 'package:valtsky_flutter/ui/widgets/telegram_phone_login_widget.dart';
 import 'package:valtsky_flutter/ui/widgets/telegram_profile_card.dart';
@@ -95,6 +97,42 @@ void main() {
         text: 'Test message',
       );
       expect(result, isNotNull);
+    });
+
+    test('Stash and Restore Failed Items Workflow', () async {
+      DatabaseHelper.enableMemoryStoreForTesting();
+      final item1 = MediaItem(
+        filePath: '/test/failed1.jpg',
+        mimeType: 'image/jpeg',
+        dateTaken: 1000,
+        fileSize: 1024,
+        status: MediaItem.statusFailed,
+        updatedAt: 1000,
+      );
+      final item2 = MediaItem(
+        filePath: '/test/failed2.jpg',
+        mimeType: 'image/jpeg',
+        dateTaken: 2000,
+        fileSize: 2048,
+        status: MediaItem.statusFailed,
+        updatedAt: 2000,
+      );
+      await DatabaseHelper.instance.insert(item1);
+      await DatabaseHelper.instance.insert(item2);
+
+      expect(await DatabaseHelper.instance.getFailedCount(), equals(2));
+      expect(await DatabaseHelper.instance.getStashedCount(), equals(0));
+
+      final stashed = await DatabaseHelper.instance.stashAllFailed();
+      expect(stashed, equals(2));
+      expect(await DatabaseHelper.instance.getFailedCount(), equals(0));
+      expect(await DatabaseHelper.instance.getStashedCount(), equals(2));
+
+      final restored = await DatabaseHelper.instance.restoreAllStashed();
+      expect(restored, equals(2));
+      expect(await DatabaseHelper.instance.getFailedCount(), equals(0));
+      expect(await DatabaseHelper.instance.getPendingCount(), equals(2));
+      expect(await DatabaseHelper.instance.getStashedCount(), equals(0));
     });
   });
 

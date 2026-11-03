@@ -248,6 +248,18 @@ class FailedItemCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton(
+              tooltip: 'Stash file',
+              style: IconButton.styleFrom(
+                backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
+                foregroundColor: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+              ),
+              icon: const Icon(Icons.archive_outlined, size: 18),
+              onPressed: () async {
+                await DatabaseHelper.instance.stashSingle(item.filePath);
+                onRetry?.call();
+              },
+            ),
+            IconButton(
               tooltip: 'Retry upload',
               style: IconButton.styleFrom(
                 backgroundColor: ValtSkyTheme.primaryAccent.withValues(alpha: 0.1),

@@ -3,6 +3,7 @@ class MediaItem {
   static const String statusUploading = 'UPLOADING';
   static const String statusDone = 'DONE';
   static const String statusFailed = 'FAILED';
+  static const String statusStashed = 'STASHED';
 
   final String filePath;
   String? fileHash;

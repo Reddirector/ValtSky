@@ -199,6 +199,8 @@ class ActivityViewState extends State<ActivityView> {
                       _buildFilterChip('OVERSIZED', '> 2 GB', badgeCount: _oversizedCount),
                       const SizedBox(width: 8),
                       _buildFilterChip(MediaItem.statusFailed, 'Failed'),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(MediaItem.statusStashed, 'Stashed'),
                     ],
                   ),
                 ),
@@ -418,6 +420,44 @@ class ActivityViewState extends State<ActivityView> {
                       ),
                     ),
                   ],
+                ],
+              ),
+            ),
+
+          // ─── STASHED ACTION HEADER (IF IN STASHED TAB) ─────────────
+          if (_selectedFilter == MediaItem.statusStashed && _items.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF18181B) : const Color(0xFFFAFAFA),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.archive_outlined, size: 20, color: Colors.grey),
+                      const SizedBox(width: 10),
+                      Text(
+                        '${_items.length} Stashed Files',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await DatabaseHelper.instance.restoreAllStashed();
+                      await refreshItems();
+                      widget.onDataChanged();
+                    },
+                    icon: const Icon(Icons.unarchive_outlined, size: 16),
+                    label: const Text('Restore All to Queue', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
                 ],
               ),
             ),

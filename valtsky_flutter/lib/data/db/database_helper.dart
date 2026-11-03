@@ -313,6 +313,101 @@ class DatabaseHelper {
     );
   }
 
+  /// Stash all currently failed items to shelve them out of the error queue
+  Future<int> stashAllFailed() async {
+    if (_useMemoryStore) {
+      int count = 0;
+      for (final item in _webItems.values) {
+        if (item.status == MediaItem.statusFailed) {
+          _webItems[item.filePath] = item.copyWith(
+            status: MediaItem.statusStashed,
+            errorReason: 'Stashed by user',
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          );
+          count++;
+        }
+      }
+      return count;
+    }
+    final db = await instance.database;
+    return await db.update(
+      'media_items',
+      {
+        'status': MediaItem.statusStashed,
+        'errorReason': 'Stashed by user',
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'status = ?',
+      whereArgs: [MediaItem.statusFailed],
+    );
+  }
+
+  /// Stash a single failed item
+  Future<int> stashSingle(String path) async {
+    if (_useMemoryStore) {
+      final item = _webItems[path];
+      if (item != null) {
+        _webItems[path] = item.copyWith(
+          status: MediaItem.statusStashed,
+          errorReason: 'Stashed by user',
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        return 1;
+      }
+      return 0;
+    }
+    final db = await instance.database;
+    return await db.update(
+      'media_items',
+      {
+        'status': MediaItem.statusStashed,
+        'errorReason': 'Stashed by user',
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'filePath = ?',
+      whereArgs: [path],
+    );
+  }
+
+  /// Restore all stashed items back to pending queue
+  Future<int> restoreAllStashed() async {
+    if (_useMemoryStore) {
+      int count = 0;
+      for (final item in _webItems.values) {
+        if (item.status == MediaItem.statusStashed) {
+          _webItems[item.filePath] = item.copyWith(
+            status: MediaItem.statusPending,
+            errorReason: null,
+            retryCount: 0,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          );
+          count++;
+        }
+      }
+      return count;
+    }
+    final db = await instance.database;
+    return await db.update(
+      'media_items',
+      {
+        'status': MediaItem.statusPending,
+        'errorReason': null,
+        'retryCount': 0,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
+      where: 'status = ?',
+      whereArgs: [MediaItem.statusStashed],
+    );
+  }
+
+  Future<int> getStashedCount() async {
+    if (_useMemoryStore) {
+      return _webItems.values.where((e) => e.status == MediaItem.statusStashed).length;
+    }
+    final db = await instance.database;
+    return Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM media_items WHERE status = 'STASHED'")) ?? 0;
+  }
+
   Future<int> retrySingle(String path) async {
     if (_useMemoryStore) {
       final item = _webItems[path];
