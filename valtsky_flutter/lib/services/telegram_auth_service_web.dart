@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../data/prefs.dart';
+import 'telegram_api.dart';
 
 enum AuthStep {
   enterPhone,
@@ -344,6 +346,23 @@ class TelegramAuthService {
     );
 
     return true;
+  }
+
+  Future<UploadResult> uploadMedia({
+    required File file,
+    required String channelId,
+    required bool asDocument,
+    String? caption,
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    return Failure('Direct MTProto upload from web requires desktop/mobile app or bridge');
+  }
+
+  Future<UploadResult> sendMessage({
+    required String channelId,
+    required String text,
+  }) async {
+    return Failure('Direct MTProto message from web requires desktop/mobile app or bridge');
   }
 
   void reset() {

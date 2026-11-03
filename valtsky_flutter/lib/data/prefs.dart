@@ -24,6 +24,10 @@ class Prefs {
   static const String keyTelegramUserName = 'telegram_user_name';
   static const String keyTelegramUserHandle = 'telegram_user_handle';
   static const String keyTelegramIsPremium = 'telegram_is_premium';
+  static const String keyTelegramAuthKey = 'telegram_auth_key';
+  static const String keyTelegramDcId = 'telegram_dc_id';
+  static const String keyTelegramDcIp = 'telegram_dc_ip';
+  static const String keyChannelAccessHash = 'channel_access_hash';
 
   static SharedPreferences? _prefs;
 
@@ -49,12 +53,46 @@ class Prefs {
   static bool get telegramIsPremium => _prefs?.getBool(keyTelegramIsPremium) ?? false;
   static set telegramIsPremium(bool value) => _prefs?.setBool(keyTelegramIsPremium, value);
 
+  static String? get telegramAuthKey => _prefs?.getString(keyTelegramAuthKey);
+  static set telegramAuthKey(String? value) {
+    if (value == null) {
+      _prefs?.remove(keyTelegramAuthKey);
+    } else {
+      _prefs?.setString(keyTelegramAuthKey, value);
+    }
+  }
+
+  static int get telegramDcId => _prefs?.getInt(keyTelegramDcId) ?? 1;
+  static set telegramDcId(int value) => _prefs?.setInt(keyTelegramDcId, value);
+
+  static String? get telegramDcIp => _prefs?.getString(keyTelegramDcIp);
+  static set telegramDcIp(String? value) {
+    if (value == null) {
+      _prefs?.remove(keyTelegramDcIp);
+    } else {
+      _prefs?.setString(keyTelegramDcIp, value);
+    }
+  }
+
+  static String? get channelAccessHash => _prefs?.getString(keyChannelAccessHash);
+  static set channelAccessHash(String? value) {
+    if (value == null) {
+      _prefs?.remove(keyChannelAccessHash);
+    } else {
+      _prefs?.setString(keyChannelAccessHash, value);
+    }
+  }
+
   static Future<void> disconnectTelegram() async {
     await _prefs?.remove(keyUserPhoneNumber);
     await _prefs?.remove(keyTelegramUserId);
     await _prefs?.remove(keyTelegramUserName);
     await _prefs?.remove(keyTelegramUserHandle);
     await _prefs?.remove(keyTelegramIsPremium);
+    await _prefs?.remove(keyTelegramAuthKey);
+    await _prefs?.remove(keyTelegramDcId);
+    await _prefs?.remove(keyTelegramDcIp);
+    await _prefs?.remove(keyChannelAccessHash);
     await _prefs?.remove(keyChannelId);
     await _prefs?.remove(keyChannelName);
     await _prefs?.remove(keyBotToken);
@@ -117,7 +155,12 @@ class Prefs {
 
   static bool isConfigured() {
     if (channelId.isEmpty) return false;
-    return botToken.isNotEmpty || userPhoneNumber.isNotEmpty;
+    if (botToken.contains(':')) return true;
+    if (authMethod == 'phone') {
+      return (telegramAuthKey != null && telegramAuthKey!.isNotEmpty) ||
+          userPhoneNumber.isNotEmpty;
+    }
+    return botToken.isNotEmpty;
   }
 
   static Future<void> clearAllSyncState() async {

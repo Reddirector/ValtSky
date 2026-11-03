@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/telegram_auth_service.dart';
+import '../../data/prefs.dart';
 import '../../data/country_data.dart';
 import '../../util/telegram_launcher.dart';
 import '../../util/theme.dart';
@@ -32,6 +33,16 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
   @override
   void initState() {
     super.initState();
+    if (Prefs.userPhoneNumber.isNotEmpty) {
+      final savedPhone = Prefs.userPhoneNumber;
+      final c = CountryData.detectFromPhone(savedPhone);
+      if (c != null) {
+        _selectedCountry = c;
+        _phoneController.text = savedPhone.replaceFirst(c.dialCode, '').trim();
+      } else {
+        _phoneController.text = savedPhone;
+      }
+    }
     _phoneController.addListener(_onPhoneChanged);
     TelegramAuthService.instance.stateNotifier.addListener(_onAuthStateChanged);
   }

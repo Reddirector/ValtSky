@@ -6,6 +6,7 @@ import '../data/db/database_helper.dart';
 import '../data/models/media_item.dart';
 import '../data/prefs.dart';
 import 'telegram_api.dart';
+import 'telegram_auth_service.dart';
 import '../util/file_utils.dart';
 import '../util/file_security_guard.dart';
 
@@ -156,17 +157,30 @@ class SyncEngine {
       }
     }
 
-    // Direct upload if within limit
-    if (fileSize <= maxSingleBytes || !Prefs.enableChunking) {
+    // Direct upload if within limit (Bot API 50MB, or MTProto native up to 2000MB)
+    final isBotApi = Prefs.botToken.contains(':');
+    final limitBytes = isBotApi ? maxSingleBytes : (2000 * 1024 * 1024);
+
+    if (fileSize <= limitBytes || !Prefs.enableChunking) {
       final caption = '$fileName\nDate: $dateStr\nSize: ${_formatSize(fileSize)}';
-      return await TelegramApi.sendMedia(
-        Prefs.botToken,
-        Prefs.channelId,
-        file,
-        Prefs.useOriginalQuality,
-        caption,
-        onProgress: updateSpeed,
-      );
+      if (isBotApi) {
+        return await TelegramApi.sendMedia(
+          Prefs.botToken,
+          Prefs.channelId,
+          file,
+          Prefs.useOriginalQuality,
+          caption,
+          onProgress: updateSpeed,
+        );
+      } else {
+        return await TelegramAuthService.instance.uploadMedia(
+          file: file,
+          channelId: Prefs.channelId,
+          asDocument: Prefs.useOriginalQuality,
+          caption: caption,
+          onProgress: updateSpeed,
+        );
+      }
     }
 
     // Large file: Stream raw chunks in-memory for maximum speed
@@ -233,7 +247,15 @@ class SyncEngine {
           '🕒 Date: $dateStr\n'
           '${fileHash != null ? '🔐 SHA-256: `$fileHash`' : ''}\n'
           '💡 _Preserved in exact chronological order._';
-      await TelegramApi.sendMessage(Prefs.botToken, Prefs.channelId, manifestText);
+
+      if (Prefs.botToken.contains(':')) {
+        await TelegramApi.sendMessage(Prefs.botToken, Prefs.channelId, manifestText);
+      } else {
+        await TelegramAuthService.instance.sendMessage(
+          channelId: Prefs.channelId,
+          text: manifestText,
+        );
+      }
 
       return Success(lastMessageId);
     } catch (e) {

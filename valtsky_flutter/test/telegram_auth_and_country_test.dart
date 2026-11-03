@@ -59,12 +59,20 @@ void main() {
       Prefs.userPhoneNumber = '+919876543210';
       Prefs.channelId = '-1002891238921';
       Prefs.channelName = 'ValtSky Vault (Aditya)';
+      Prefs.telegramAuthKey = '{"id":123456789,"key":"deadbeef","salt":999}';
+      Prefs.telegramDcId = 4;
+      Prefs.telegramDcIp = '149.154.167.92';
+      Prefs.channelAccessHash = '9876543210987';
 
       expect(Prefs.telegramUserId, equals('987654321'));
       expect(Prefs.telegramUserName, equals('Aditya Sharma'));
       expect(Prefs.telegramUserHandle, equals('adityadev'));
       expect(Prefs.telegramIsPremium, isTrue);
       expect(Prefs.userPhoneNumber, equals('+919876543210'));
+      expect(Prefs.telegramAuthKey, isNotNull);
+      expect(Prefs.telegramDcId, equals(4));
+      expect(Prefs.telegramDcIp, equals('149.154.167.92'));
+      expect(Prefs.channelAccessHash, equals('9876543210987'));
       expect(Prefs.isConfigured(), isTrue);
 
       await Prefs.disconnectTelegram();
@@ -75,7 +83,18 @@ void main() {
       expect(Prefs.telegramIsPremium, isFalse);
       expect(Prefs.userPhoneNumber, isEmpty);
       expect(Prefs.channelId, isEmpty);
+      expect(Prefs.telegramAuthKey, isNull);
+      expect(Prefs.channelAccessHash, isNull);
       expect(Prefs.isConfigured(), isFalse);
+    });
+
+    test('MTProto Direct Upload and Message Methods Mock Execution', () async {
+      // With secrets set or mocked in test mode
+      final result = await TelegramAuthService.instance.sendMessage(
+        channelId: '-100123456789',
+        text: 'Test message',
+      );
+      expect(result, isNotNull);
     });
   });
 

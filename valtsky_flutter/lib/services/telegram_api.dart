@@ -63,7 +63,7 @@ class TelegramApi {
     String? overrideFileName,
     void Function(int sent, int total)? onProgress,
   }) async {
-    final mimeType = _getMimeType(file.path);
+    final mimeType = getMimeType(file.path);
     final isVideo = mimeType.startsWith('video');
     final isImage = mimeType.startsWith('image');
     final rawName = overrideFileName ?? file.path.split('/').last;
@@ -134,7 +134,7 @@ class TelegramApi {
     void Function(int sent, int total)? onProgress,
   }) async {
     final safeFileName = FileSecurityGuard.sanitizeFileName(fileName);
-    final mimeType = _getMimeType(safeFileName);
+    final mimeType = getMimeType(safeFileName);
     final isVideo = mimeType.startsWith('video');
     final isImage = mimeType.startsWith('image');
 
@@ -249,7 +249,7 @@ class TelegramApi {
     return null;
   }
 
-  static String _getMimeType(String path) {
+  static String getMimeType(String path) {
     final ext = path.split('.').last.toLowerCase();
     switch (ext) {
       case 'jpg':
@@ -257,6 +257,12 @@ class TelegramApi {
         return 'image/jpeg';
       case 'png':
         return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'gif':
+        return 'image/gif';
+      case 'heic':
+        return 'image/heic';
       case 'mp4':
         return 'video/mp4';
       case 'mov':

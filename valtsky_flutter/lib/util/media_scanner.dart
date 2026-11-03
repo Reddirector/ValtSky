@@ -46,9 +46,13 @@ class MediaScanner {
       return;
     }
 
-    // Request permission if needed
-    final PermissionState ps = await PhotoManager.requestPermissionExtend();
-    if (!ps.isAuth) return;
+    // Request permission if needed (safeguarded against background isolate)
+    try {
+      final PermissionState ps = await PhotoManager.requestPermissionExtend();
+      if (!ps.isAuth) return;
+    } catch (_) {
+      // Running in background isolate or permissions already established
+    }
 
     // Configure filter to sort strictly from OLDEST to NEWEST (asc: true)
     final filterOption = FilterOptionGroup(

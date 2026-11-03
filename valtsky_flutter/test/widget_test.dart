@@ -29,9 +29,9 @@ void main() {
     expect(find.text('Queue & Activity'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
 
-    // 3. Verify Dashboard components (Hero Card / Health Banner)
-    expect(find.text('Setup Required'), findsOneWidget);
-    expect(find.text('Telegram Bot Token Missing'), findsOneWidget);
+    // 3. Verify Dashboard components (Clean Metrics & Configure Backup CTA)
+    expect(find.text('TOTAL MEDIA'), findsOneWidget);
+    expect(find.text('CONFIGURE TELEGRAM BACKUP'), findsOneWidget);
 
     // 4. Switch to Activity Tab
     await tester.tap(find.text('Queue & Activity'));
@@ -61,7 +61,7 @@ void main() {
     // 6. Navigate back to Dashboard
     await tester.tap(find.text('Dashboard'));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Setup Required'), findsOneWidget);
+    expect(find.text('CONFIGURE TELEGRAM BACKUP'), findsOneWidget);
   });
 
   testWidgets('Oversized > 2GB 4-Click Manual Upload Flow Test', (WidgetTester tester) async {
