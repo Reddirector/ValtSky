@@ -72,6 +72,31 @@ class DatabaseHelper {
     return await db.insert('media_items', item.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
+  Future<int> insertBatch(List<MediaItem> items) async {
+    if (items.isEmpty) return 0;
+    if (_useMemoryStore) {
+      int inserted = 0;
+      for (final item in items) {
+        if (!_webItems.containsKey(item.filePath)) {
+          _webItems[item.filePath] = item;
+          inserted++;
+        }
+      }
+      return inserted;
+    }
+    final db = await instance.database;
+    int inserted = 0;
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final item in items) {
+        batch.insert('media_items', item.toMap(), conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+      final results = await batch.commit(noResult: false);
+      inserted = results.where((r) => r is int && r > 0).length;
+    });
+    return inserted;
+  }
+
   Future<int> update(MediaItem item) async {
     if (_useMemoryStore) {
       _webItems[item.filePath] = item;

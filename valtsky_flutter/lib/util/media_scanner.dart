@@ -4,7 +4,9 @@ import '../data/db/database_helper.dart';
 import '../data/models/media_item.dart';
 
 class MediaScanner {
-  static Future<void> scanForNewMedia() async {
+  /// Scans device storage for new photos & videos in strict chronological order.
+  /// Returns the number of newly discovered and queued items.
+  static Future<int> scanForNewMedia() async {
     if (kIsWeb) {
       if (await DatabaseHelper.instance.getTotalCount() == 0) {
         final now = DateTime.now();
@@ -42,16 +44,20 @@ class MediaScanner {
           status: MediaItem.statusPending,
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
+        return 4;
       }
-      return;
+      return 0;
     }
 
-    // Request permission if needed (safeguarded against background isolate)
+    // Request permission if needed (handles full access and Android 14 limited access)
     try {
       final PermissionState ps = await PhotoManager.requestPermissionExtend();
-      if (!ps.isAuth) return;
-    } catch (_) {
-      // Running in background isolate or permissions already established
+      if (!ps.hasAccess) {
+        debugPrint('[MediaScanner] Storage/Media permission not granted (state: $ps)');
+        return 0;
+      }
+    } catch (e) {
+      debugPrint('[MediaScanner] Permission check exception: $e');
     }
 
     // Configure filter to sort strictly from OLDEST to NEWEST (asc: true)
@@ -65,38 +71,73 @@ class MediaScanner {
       type: RequestType.common,
       filterOption: filterOption,
     );
-    
-    for (var path in paths) {
-      if (path.isAll) {
-        final totalCount = await path.assetCountAsync;
-        const pageSize = 150;
 
-        // Iterate through all assets in chronological blocks (oldest first)
-        for (int start = 0; start < totalCount; start += pageSize) {
-          final List<AssetEntity> entities = await path.getAssetListRange(
-            start: start,
-            end: (start + pageSize > totalCount) ? totalCount : (start + pageSize),
-          );
+    if (paths.isEmpty) {
+      debugPrint('[MediaScanner] No asset paths returned by PhotoManager');
+      return 0;
+    }
 
-          for (var entity in entities) {
-            final file = await entity.file;
-            if (file != null) {
-              final exists = await DatabaseHelper.instance.exists(file.path);
-              if (!exists) {
-                final item = MediaItem(
-                  filePath: file.path,
-                  mimeType: entity.mimeType ?? 'image/jpeg',
-                  dateTaken: entity.createDateTime.millisecondsSinceEpoch,
-                  fileSize: await file.length(),
-                  status: MediaItem.statusPending,
-                  updatedAt: DateTime.now().millisecondsSinceEpoch,
-                );
-                await DatabaseHelper.instance.insert(item);
+    // Determine target albums:
+    // If an album with isAll is present, scanning it covers the entire device gallery.
+    // If OEM returns discrete albums (Recent, Camera, WhatsApp, etc.), scan all of them.
+    AssetPathEntity? allAlbum;
+    for (final p in paths) {
+      if (p.isAll) {
+        allAlbum = p;
+        break;
+      }
+    }
+
+    final albumsToScan = allAlbum != null ? [allAlbum] : paths;
+    int newlyAddedCount = 0;
+    final Set<String> processedInThisRun = {};
+    final List<MediaItem> pendingBatch = [];
+
+    for (final path in albumsToScan) {
+      final totalCount = await path.assetCountAsync;
+      const pageSize = 150;
+
+      for (int start = 0; start < totalCount; start += pageSize) {
+        final List<AssetEntity> entities = await path.getAssetListRange(
+          start: start,
+          end: (start + pageSize > totalCount) ? totalCount : (start + pageSize),
+        );
+
+        for (final entity in entities) {
+          final file = await entity.file;
+          if (file != null) {
+            if (processedInThisRun.contains(file.path)) continue;
+            processedInThisRun.add(file.path);
+
+            final exists = await DatabaseHelper.instance.exists(file.path);
+            if (!exists) {
+              final item = MediaItem(
+                filePath: file.path,
+                mimeType: entity.mimeType ?? (entity.type == AssetType.video ? 'video/mp4' : 'image/jpeg'),
+                dateTaken: entity.createDateTime.millisecondsSinceEpoch,
+                fileSize: await file.length(),
+                status: MediaItem.statusPending,
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              );
+              pendingBatch.add(item);
+              newlyAddedCount++;
+
+              if (pendingBatch.length >= 100) {
+                await DatabaseHelper.instance.insertBatch(pendingBatch);
+                pendingBatch.clear();
               }
             }
           }
         }
       }
     }
+
+    if (pendingBatch.isNotEmpty) {
+      await DatabaseHelper.instance.insertBatch(pendingBatch);
+      pendingBatch.clear();
+    }
+
+    debugPrint('[MediaScanner] Scan complete. Added $newlyAddedCount new items to sync queue.');
+    return newlyAddedCount;
   }
 }

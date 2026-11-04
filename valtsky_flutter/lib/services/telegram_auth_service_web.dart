@@ -332,7 +332,8 @@ class TelegramAuthService {
     if (Prefs.botToken.isEmpty) {
       Prefs.botToken = 'mtproto_session_active';
     }
-    Prefs.monitoringEnabled = true;
+    // Do NOT auto-start monitoring on link. Remains idle until explicitly commanded.
+    Prefs.monitoringEnabled = false;
 
     stateNotifier.value = currentState.copyWith(
       step: AuthStep.completed,

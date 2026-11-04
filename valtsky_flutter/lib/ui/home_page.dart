@@ -49,16 +49,28 @@ class _HomePageState extends State<HomePage> {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
     try {
-      await SyncEngine.fetchCurrentStats();
+      final newCount = await MediaScanner.scanForNewMedia();
+      await SyncEngine.fetchCurrentStats(forceDb: true);
       _onDataChanged();
       if (mounted) {
+        final total = SyncEngine.statsNotifier.value?.total ?? 0;
+        final inQueue = SyncEngine.statsNotifier.value?.inQueue ?? 0;
+        final msg = newCount > 0
+            ? 'Gallery scanned: $newCount new captures queued ($total total)'
+            : 'Gallery up to date ($total total media, $inQueue queued)';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: ValtSkyTheme.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            content: const Text('Live counts refreshed'),
-            duration: const Duration(seconds: 1),
+            content: Row(
+              children: [
+                const Icon(Icons.sync_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(child: Text(msg)),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
           ),
         );
       }

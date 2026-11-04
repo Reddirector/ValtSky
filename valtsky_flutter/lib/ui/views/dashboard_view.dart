@@ -7,10 +7,12 @@ import '../../data/db/database_helper.dart';
 import '../../data/models/media_item.dart';
 import '../../services/background_service.dart';
 import '../../services/sync_engine.dart';
+import '../../util/media_scanner.dart';
 import '../../util/theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/failed_item_card.dart';
 import '../widgets/animated_stagger.dart';
+import '../widgets/passive_elements.dart';
 
 class DashboardView extends StatefulWidget {
   final VoidCallback onNavigateToSettings;
@@ -32,6 +34,7 @@ class DashboardViewState extends State<DashboardView> {
   int _pendingCount = 0;
   int _failedCount = 0;
   bool _isRefreshing = false;
+  bool _isScanning = false;
   bool _isRestarting = false;
   List<MediaItem> _cachedFailedItems = [];
 
@@ -124,6 +127,50 @@ class DashboardViewState extends State<DashboardView> {
     }
   }
 
+  /// Scans device gallery in strict chronological order and queues any newly discovered media
+  Future<void> _handleScanGallery() async {
+    if (_isScanning) return;
+    setState(() => _isScanning = true);
+    try {
+      final newCount = await MediaScanner.scanForNewMedia();
+      await refreshStats();
+      if (mounted) {
+        final total = _totalCount;
+        final msg = newCount > 0
+            ? 'Scan complete: $newCount new captures queued ($total total)'
+            : 'Gallery up to date ($total media items indexed)';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: ValtSkyTheme.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: Row(
+              children: [
+                const Icon(Icons.photo_library_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(child: Text(msg)),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: ValtSkyTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: Text('Gallery scan error: $e'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isScanning = false);
+    }
+  }
+
   /// Self-healing full restart of upload workers, socket pool, and queue state
   Future<void> _handleRestartEngine() async {
     if (_isRestarting) return;
@@ -175,8 +222,18 @@ class DashboardViewState extends State<DashboardView> {
       if (newStatus) {
         await BackgroundService.start();
         SyncEngine().startSync();
+        // Immediately scan for any new captures taken while monitoring was off
+        MediaScanner.scanForNewMedia().then((_) {
+          if (mounted) refreshStats();
+        });
       } else {
         await BackgroundService.stop();
+        SyncEngine().stopSync();
+      }
+    } else {
+      if (newStatus) {
+        SyncEngine().startSync();
+      } else {
         SyncEngine().stopSync();
       }
     }
@@ -583,144 +640,432 @@ class DashboardViewState extends State<DashboardView> {
 
   Widget _buildQuickControls(bool isConfigured, bool isMonitoring, bool isPaused) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Primary Start/Stop Master Button
-        SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: isConfigured ? _toggleMonitoring : widget.onNavigateToSettings,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: !isConfigured
-                  ? (isDark ? Colors.white : Colors.black)
-                  : isMonitoring
-                      ? ValtSkyTheme.error
-                      : (isDark ? Colors.white : Colors.black),
-              foregroundColor: isMonitoring ? Colors.white : (isDark ? Colors.black : Colors.white),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              elevation: 0,
+        // ─── MASTER BACKUP HERO CARD ────────────────────────
+        _buildMasterMonitoringCard(isConfigured, isMonitoring, isPaused, isDark),
+        const SizedBox(height: 14),
+
+        // ─── 2X2 SYSTEM CONTROL MATRIX ──────────────────────
+        Row(
+          children: [
+            // Control 1: Pause / Resume Uploads
+            Expanded(
+              child: _buildActionTile(
+                title: isPaused ? 'Resume' : 'Pause',
+                subtitle: isPaused
+                    ? 'Uploads on hold'
+                    : (isMonitoring ? 'Hold transfer queue' : 'Start backup first'),
+                icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                accentColor: isPaused
+                    ? ValtSkyTheme.warning
+                    : (isMonitoring ? Colors.amber : (isDark ? Colors.grey[600]! : Colors.grey[400]!)),
+                isDark: isDark,
+                isHighlighted: isPaused,
+                badgeText: isPaused ? 'PAUSED' : null,
+                onTap: isMonitoring ? _togglePauseUpload : null,
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  !isConfigured
-                      ? Icons.arrow_forward_rounded
-                      : isMonitoring
-                          ? Icons.stop_rounded
-                          : Icons.play_arrow_rounded,
-                  size: 22,
+            const SizedBox(width: 12),
+
+            // Control 2: Scan Device Gallery (Chronological)
+            Expanded(
+              child: _buildActionTile(
+                title: 'Scan Gallery',
+                subtitle: _isScanning ? 'Reading storage...' : 'Detect new captures',
+                icon: Icons.photo_library_rounded,
+                accentColor: const Color(0xFF00B4D8),
+                isDark: isDark,
+                isLoading: _isScanning,
+                onTap: _isScanning ? null : _handleScanGallery,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        Row(
+          children: [
+            // Control 3: Refresh Counts
+            Expanded(
+              child: _buildActionTile(
+                title: 'Refresh Counts',
+                subtitle: _isRefreshing ? 'Querying database...' : 'Instant stats sync',
+                icon: Icons.sync_rounded,
+                accentColor: const Color(0xFF8B5CF6),
+                isDark: isDark,
+                isLoading: _isRefreshing,
+                onTap: _isRefreshing ? null : _handleRefresh,
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Control 4: Restart Engine (Self-Healing)
+            Expanded(
+              child: _buildActionTile(
+                title: 'Restart Engine',
+                subtitle: _isRestarting ? 'Flushing sockets...' : 'Reset sockets & queue',
+                icon: Icons.restart_alt_rounded,
+                accentColor: const Color(0xFF06D6A0),
+                isDark: isDark,
+                isLoading: _isRestarting,
+                onTap: _isRestarting ? null : _handleRestartEngine,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // ─── SYSTEM HEALTH & DIAGNOSTICS CARD ────────────────
+        _buildDiagnosticsControlTile(isDark),
+      ],
+    );
+  }
+
+  Widget _buildMasterMonitoringCard(bool isConfigured, bool isMonitoring, bool isPaused, bool isDark) {
+    Color cardBorderColor;
+    if (!isConfigured) {
+      cardBorderColor = isDark ? Colors.white12 : Colors.black12;
+    } else if (isMonitoring) {
+      cardBorderColor = isPaused ? ValtSkyTheme.warning.withValues(alpha: 0.5) : ValtSkyTheme.success.withValues(alpha: 0.5);
+    } else {
+      cardBorderColor = isDark ? Colors.white24 : Colors.black26;
+    }
+
+    return GlassCard(
+      padding: const EdgeInsets.all(18),
+      border: Border.all(color: cardBorderColor, width: 1.2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  AmbientRadarDot(
+                    color: !isConfigured
+                        ? Colors.grey
+                        : isMonitoring
+                            ? (isPaused ? ValtSkyTheme.warning : ValtSkyTheme.success)
+                            : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                    size: 8,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    !isConfigured
+                        ? 'SETUP REQUIRED'
+                        : isMonitoring
+                            ? (isPaused ? 'ENGINE PAUSED' : 'MONITORING ACTIVE')
+                            : 'STANDBY (OFF)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                      color: !isConfigured
+                          ? Colors.grey
+                          : isMonitoring
+                              ? (isPaused ? ValtSkyTheme.warning : ValtSkyTheme.success)
+                              : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                    ),
+                  ),
+                ],
+              ),
+              if (isMonitoring && !isPaused)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: ValtSkyTheme.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    '4x MTProto Turbo',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: ValtSkyTheme.success,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 10),
-                Text(
-                  !isConfigured
-                      ? 'CONFIGURE TELEGRAM BACKUP'
-                      : isMonitoring
-                          ? 'STOP MONITORING'
-                          : 'START BACKGROUND MONITORING',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, letterSpacing: 0.5),
-                ),
-              ],
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Primary Master CTA Button
+          TactilePress(
+            scaleDown: 0.98,
+            onTap: isConfigured ? _toggleMonitoring : widget.onNavigateToSettings,
+            child: Container(
+              height: 54,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                color: !isConfigured
+                    ? (isDark ? Colors.white : Colors.black)
+                    : isMonitoring
+                        ? ValtSkyTheme.error
+                        : (isDark ? Colors.white : Colors.black),
+                boxShadow: [
+                  if (isMonitoring)
+                    BoxShadow(
+                      color: ValtSkyTheme.error.withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    !isConfigured
+                        ? Icons.link_rounded
+                        : isMonitoring
+                            ? Icons.stop_rounded
+                            : Icons.play_arrow_rounded,
+                    size: 22,
+                    color: !isConfigured
+                        ? (isDark ? Colors.black : Colors.white)
+                        : isMonitoring
+                            ? Colors.white
+                            : (isDark ? Colors.black : Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    !isConfigured
+                        ? 'CONFIGURE TELEGRAM BACKUP'
+                        : isMonitoring
+                            ? 'STOP MONITORING'
+                            : 'START CLOUD BACKUP',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
+                      color: !isConfigured
+                          ? (isDark ? Colors.black : Colors.white)
+                          : isMonitoring
+                              ? Colors.white
+                              : (isDark ? Colors.black : Colors.white),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              !isConfigured
+                  ? 'Connect Telegram to activate zero-loss storage'
+                  : isMonitoring
+                      ? 'Camera roll is actively syncing to your private Telegram channel'
+                      : 'Monitoring is off. Backups will not run until started.',
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-        // Secondary Row of Controls
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: isMonitoring ? _togglePauseUpload : null,
-                  icon: Icon(
-                    isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                    size: 18,
-                  ),
-                  label: Text(
-                    isPaused ? 'Resume Upload' : 'Pause Upload',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : Colors.black,
-                    side: BorderSide(color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
+  Widget _buildActionTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required bool isDark,
+    required VoidCallback? onTap,
+    bool isLoading = false,
+    bool isHighlighted = false,
+    String? badgeText,
+  }) {
+    final isEnabled = onTap != null;
+
+    return TactilePress(
+      onTap: onTap,
+      scaleDown: isEnabled ? 0.96 : 1.0,
+      child: GlassCard(
+        borderRadius: 18,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: Border.all(
+          color: isHighlighted
+              ? accentColor.withValues(alpha: 0.6)
+              : (isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06)),
+          width: isHighlighted ? 1.4 : 1.0,
+        ),
+        child: Opacity(
+          opacity: isEnabled ? 1.0 : 0.45,
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                child: Center(
+                  child: isLoading
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: accentColor,
+                          ),
+                        )
+                      : Icon(icon, color: accentColor, size: 20),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: isDark ? Colors.white : Colors.black,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (badgeText != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: accentColor.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              badgeText,
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: accentColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiagnosticsControlTile(bool isDark) {
+    return TactilePress(
+      onTap: () => _showDiagnosticsSheet(context, isDark),
+      scaleDown: 0.98,
+      child: GlassCard(
+        borderRadius: 18,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: Border.all(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: ValtSkyTheme.primaryAccent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.monitor_heart_rounded,
+                color: ValtSkyTheme.primaryAccent,
+                size: 20,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
-              child: SizedBox(
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: _isRefreshing ? null : _handleRefresh,
-                  icon: _isRefreshing
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.refresh_rounded, size: 18),
-                  label: const Text(
-                    'Refresh Counts',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Engine Diagnostics',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: ValtSkyTheme.primaryAccent.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'SYSTEM HEALTH',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: ValtSkyTheme.primaryAccent,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : Colors.black,
-                    side: BorderSide(color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'MTProto DC socket health, queue telemetry & connection repair',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
+                ],
               ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              size: 20,
             ),
           ],
         ),
-        const SizedBox(height: 12),
-
-        // Tertiary Row of Controls (Self-Healing Restart & Diagnostics)
-        Row(
-          children: [
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: _isRestarting ? null : _handleRestartEngine,
-                  icon: _isRestarting
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.restart_alt_rounded, size: 18),
-                  label: const Text(
-                    'Restart Engine',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : Colors.black,
-                    side: BorderSide(color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: SizedBox(
-                height: 48,
-                child: OutlinedButton.icon(
-                  onPressed: () => _showDiagnosticsSheet(context, isDark),
-                  icon: const Icon(Icons.health_and_safety_outlined, size: 18),
-                  label: const Text(
-                    'Diagnostics',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: isDark ? Colors.white : Colors.black,
-                    side: BorderSide(color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
   }
 

@@ -324,22 +324,17 @@ class SyncEngine {
     );
     statsNotifier.value = _cachedStats;
 
-    // 2. Scan camera roll cleanly into fresh database
+    // 2. Monitoring stays OFF by default until the user explicitly commands it
+    Prefs.monitoringEnabled = false;
+    Prefs.uploadPaused = false;
+    engineStatusNotifier.value = SyncEngineStatus.idle;
+    engineStatusMessageNotifier.value = 'Telegram linked. Ready to start backup when commanded.';
+
+    // 3. Scan camera roll cleanly into fresh database
     await MediaScanner.scanForNewMedia();
 
-    // 3. Populate live stats from database
+    // 4. Populate live stats from database
     await fetchCurrentStats(forceDb: true);
-
-    // 4. Start background service and auto-sync if monitoring is active
-    if (!kIsWeb) {
-      try {
-        await BackgroundService.start();
-      } catch (_) {}
-    }
-
-    if (Prefs.monitoringEnabled && !Prefs.uploadPaused) {
-      startSync();
-    }
   }
 
   // ──────────────────────────────────────────────────────────────────────────
