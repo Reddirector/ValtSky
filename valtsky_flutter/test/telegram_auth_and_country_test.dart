@@ -318,6 +318,7 @@ void main() {
       Prefs.userPhoneNumber = '+919876543210';
       Prefs.channelId = '-1009876543210';
       Prefs.channelName = 'ValtSky Vault (Jane)';
+      DatabaseHelper.enableMemoryStoreForTesting();
 
       bool disconnected = false;
 

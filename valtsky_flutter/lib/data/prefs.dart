@@ -97,6 +97,9 @@ class Prefs {
     await _prefs?.remove(keyChannelName);
     await _prefs?.remove(keyBotToken);
     await _prefs?.remove(keyBotName);
+    await _prefs?.remove(keyEnabled);
+    await _prefs?.remove(keyLastSynced);
+    await _prefs?.remove(keyUploadPaused);
   }
 
   static String get botToken => _prefs?.getString(keyBotToken) ?? '';

@@ -725,7 +725,7 @@ class TelegramAuthService {
     Uint8List? preloadedBytes;
     RandomAccessFile? raf;
     try {
-      if (fileSize <= 25 * 1024 * 1024) {
+      if (fileSize <= 8 * 1024 * 1024) {
         preloadedBytes = await file.readAsBytes();
       } else {
         raf = await file.open(mode: FileMode.read);
@@ -748,7 +748,7 @@ class TelegramAuthService {
           final offset = part * chunkSize;
           buffer = Uint8List.sublistView(preloadedBytes, offset, offset + bytesToRead);
         } else {
-          buffer = Uint8List.fromList(await raf!.read(bytesToRead));
+          buffer = await raf!.read(bytesToRead);
         }
 
         t.Result<t.Boolean> partResult;

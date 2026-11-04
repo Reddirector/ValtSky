@@ -33,52 +33,65 @@ class DashboardViewState extends State<DashboardView> {
   int _failedCount = 0;
   bool _isRefreshing = false;
   bool _isRestarting = false;
-  Timer? _liveUiTimer;
+  List<MediaItem> _cachedFailedItems = [];
 
   @override
   void initState() {
     super.initState();
     refreshStats();
     SyncEngine.statsNotifier.addListener(_onStatsChanged);
-    // Real-time live polling ticker ensuring dashboard stats update smoothly during active sync
-    _liveUiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && Prefs.monitoringEnabled && !Prefs.uploadPaused) {
-        refreshStats();
-      }
-    });
   }
 
   void _onStatsChanged() {
     final stats = SyncEngine.statsNotifier.value;
     if (stats != null && mounted) {
+      final prevFailed = _failedCount;
+      _totalCount = stats.total;
+      _uploadedCount = stats.synced;
+      _pendingCount = stats.inQueue;
+      _failedCount = stats.failed;
+
+      // Only trigger targeted setState if failed status changed so UI doesn't rebuild on every photo
+      if ((prevFailed > 0) != (_failedCount > 0)) {
+        if (_failedCount > 0) {
+          _loadFailedItems();
+        } else {
+          setState(() {
+            _cachedFailedItems = [];
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _loadFailedItems() async {
+    final items = await DatabaseHelper.instance.getFailedItems(limit: 2);
+    if (mounted) {
       setState(() {
-        _totalCount = stats.total;
-        _uploadedCount = stats.synced;
-        _pendingCount = stats.inQueue;
-        _failedCount = stats.failed;
+        _cachedFailedItems = items;
       });
     }
   }
 
   @override
   void dispose() {
-    _liveUiTimer?.cancel();
     SyncEngine.statsNotifier.removeListener(_onStatsChanged);
     super.dispose();
   }
 
   Future<void> refreshStats() async {
-    final total = await DatabaseHelper.instance.getTotalCount();
-    final uploaded = await DatabaseHelper.instance.getUploadedCount();
-    final pending = await DatabaseHelper.instance.getPendingCount();
-    final failed = await DatabaseHelper.instance.getFailedCount();
-
+    final stats = await SyncEngine.fetchCurrentStats(forceDb: true);
+    List<MediaItem> failedItems = [];
+    if (stats.failed > 0) {
+      failedItems = await DatabaseHelper.instance.getFailedItems(limit: 2);
+    }
     if (mounted) {
       setState(() {
-        _totalCount = total;
-        _uploadedCount = uploaded;
-        _pendingCount = pending;
-        _failedCount = failed;
+        _totalCount = stats.total;
+        _uploadedCount = stats.synced;
+        _pendingCount = stats.inQueue;
+        _failedCount = stats.failed;
+        _cachedFailedItems = failedItems;
       });
     }
   }
@@ -183,7 +196,6 @@ class DashboardViewState extends State<DashboardView> {
     final isConfigured = Prefs.isConfigured();
     final isMonitoring = Prefs.monitoringEnabled;
     final isPaused = Prefs.uploadPaused;
-    final progress = _totalCount == 0 ? 0.0 : (_uploadedCount / _totalCount).clamp(0.0, 1.0);
 
     return RefreshIndicator(
       onRefresh: _handleRefresh,
@@ -207,12 +219,12 @@ class DashboardViewState extends State<DashboardView> {
             // ─── SYNC PROGRESS & SPEED ────────────────────────
             StaggeredFadeSlide(
               delayMs: 40,
-              child: _buildProgressSection(progress, isDark, isMonitoring, isPaused),
+              child: _buildProgressSection(isDark, isMonitoring, isPaused),
             ),
             const SizedBox(height: 18),
 
             // ─── FAILED ITEMS ALERT (IF ANY) ─────────────────
-            if (_failedCount > 0) ...[
+            if (_failedCount > 0 || _cachedFailedItems.isNotEmpty) ...[
               StaggeredFadeSlide(
                 delayMs: 80,
                 child: _buildFailedItemsAlert(isDark),
@@ -233,47 +245,57 @@ class DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildMetricsGrid(bool isDark) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.55,
-      children: [
-        _buildMetricTile(
-          title: 'TOTAL MEDIA',
-          count: '$_totalCount',
-          icon: Icons.photo_library_rounded,
-          color: isDark ? Colors.white : Colors.black,
-          isDark: isDark,
-          onTap: () => widget.onNavigateToActivity?.call('ALL'),
-        ),
-        _buildMetricTile(
-          title: 'SYNCED',
-          count: '$_uploadedCount',
-          icon: Icons.cloud_done_rounded,
-          color: ValtSkyTheme.success,
-          isDark: isDark,
-          onTap: () => widget.onNavigateToActivity?.call('SYNCED'),
-        ),
-        _buildMetricTile(
-          title: 'IN QUEUE',
-          count: '$_pendingCount',
-          icon: Icons.hourglass_top_rounded,
-          color: ValtSkyTheme.warning,
-          isDark: isDark,
-          onTap: () => widget.onNavigateToActivity?.call('QUEUED'),
-        ),
-        _buildMetricTile(
-          title: 'FAILED',
-          count: '$_failedCount',
-          icon: Icons.error_outline_rounded,
-          color: _failedCount > 0 ? ValtSkyTheme.error : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-          isDark: isDark,
-          onTap: () => widget.onNavigateToActivity?.call('FAILED'),
-        ),
-      ],
+    return ValueListenableBuilder<SyncStats?>(
+      valueListenable: SyncEngine.statsNotifier,
+      builder: (context, stats, _) {
+        final total = stats?.total ?? _totalCount;
+        final synced = stats?.synced ?? _uploadedCount;
+        final inQueue = stats?.inQueue ?? _pendingCount;
+        final failed = stats?.failed ?? _failedCount;
+
+        return GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.55,
+          children: [
+            _buildMetricTile(
+              title: 'TOTAL MEDIA',
+              count: '$total',
+              icon: Icons.photo_library_rounded,
+              color: isDark ? Colors.white : Colors.black,
+              isDark: isDark,
+              onTap: () => widget.onNavigateToActivity?.call('ALL'),
+            ),
+            _buildMetricTile(
+              title: 'SYNCED',
+              count: '$synced',
+              icon: Icons.cloud_done_rounded,
+              color: ValtSkyTheme.success,
+              isDark: isDark,
+              onTap: () => widget.onNavigateToActivity?.call('SYNCED'),
+            ),
+            _buildMetricTile(
+              title: 'IN QUEUE',
+              count: '$inQueue',
+              icon: Icons.hourglass_top_rounded,
+              color: ValtSkyTheme.warning,
+              isDark: isDark,
+              onTap: () => widget.onNavigateToActivity?.call('QUEUED'),
+            ),
+            _buildMetricTile(
+              title: 'FAILED',
+              count: '$failed',
+              icon: Icons.error_outline_rounded,
+              color: failed > 0 ? ValtSkyTheme.error : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+              isDark: isDark,
+              onTap: () => widget.onNavigateToActivity?.call('FAILED'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -332,62 +354,137 @@ class DashboardViewState extends State<DashboardView> {
     );
   }
 
-  Widget _buildProgressSection(double progress, bool isDark, bool isMonitoring, bool isPaused) {
-    final percentage = (progress * 100).toInt();
+  Widget _buildProgressSection(bool isDark, bool isMonitoring, bool isPaused) {
+    return ValueListenableBuilder<SyncStats?>(
+      valueListenable: SyncEngine.statsNotifier,
+      builder: (context, stats, child) {
+        final total = stats?.total ?? _totalCount;
+        final synced = stats?.synced ?? _uploadedCount;
+        final progress = total == 0 ? 0.0 : (synced / total).clamp(0.0, 1.0);
+        final percentage = (progress * 100).toInt();
 
-    return GlassCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return GlassCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.bolt_rounded, size: 20, color: isDark ? Colors.white : Colors.black),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Backup Progress',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                  Row(
+                    children: [
+                      Icon(Icons.bolt_rounded, size: 20, color: isDark ? Colors.white : Colors.black),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Backup Progress',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      ValueListenableBuilder<String>(
+                        valueListenable: SyncEngine.uploadSpeedNotifier,
+                        builder: (context, speed, child) {
+                          if (speed.isEmpty) return const SizedBox();
+                          return Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: ValtSkyTheme.success.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              speed,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: ValtSkyTheme.success,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$percentage%',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 10,
+                  backgroundColor: isDark 
+                      ? Colors.white.withValues(alpha: 0.06) 
+                      : const Color(0xFFE2E8F0),
+                  valueColor: AlwaysStoppedAnimation<Color>(isDark ? Colors.white : Colors.black),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '$synced of $total files backed up',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                    ),
+                  ),
+                  if (Prefs.lastSyncedTs > 0)
+                    Text(
+                      'Updated ${_formatRelativeTime(Prefs.lastSyncedTs)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
               Row(
                 children: [
-                  ValueListenableBuilder<String>(
-                    valueListenable: SyncEngine.uploadSpeedNotifier,
-                    builder: (context, speed, child) {
-                      if (speed.isEmpty) return const SizedBox();
-                      return Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: ValtSkyTheme.success.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          speed,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: ValtSkyTheme.success,
-                          ),
-                        ),
-                      );
-                    },
+                  Icon(Icons.schedule_rounded, size: 14, color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Oldest captures sync first (chronological order)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
+                      color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '$percentage%',
+                      '100% EXIF',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
                         color: isDark ? Colors.white : Colors.black,
                       ),
                     ),
@@ -396,75 +493,8 @@ class DashboardViewState extends State<DashboardView> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 10,
-              backgroundColor: isDark 
-                  ? Colors.white.withValues(alpha: 0.06) 
-                  : const Color(0xFFE2E8F0),
-              valueColor: AlwaysStoppedAnimation<Color>(isDark ? Colors.white : Colors.black),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '$_uploadedCount of $_totalCount files backed up',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                ),
-              ),
-              if (Prefs.lastSyncedTs > 0)
-                Text(
-                  'Updated ${_formatRelativeTime(Prefs.lastSyncedTs)}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Icon(Icons.schedule_rounded, size: 14, color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'Oldest captures sync first (chronological order)',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '100% EXIF',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : Colors.black,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -535,24 +565,18 @@ class DashboardViewState extends State<DashboardView> {
           ],
         ),
         const SizedBox(height: 8),
-        StreamBuilder<List<MediaItem>>(
-          stream: DatabaseHelper.instance.getFailedItemsStream(),
-          builder: (context, snapshot) {
-            final items = snapshot.data ?? [];
-            if (items.isEmpty) return const SizedBox();
-            return Column(
-              children: items.take(2).map((item) => FailedItemCard(
-                item: item,
-                onRetry: () async {
-                  await refreshStats();
-                  if (Prefs.monitoringEnabled) {
-                    SyncEngine().startSync();
-                  }
-                },
-              )).toList(),
-            );
-          },
-        ),
+        if (_cachedFailedItems.isNotEmpty)
+          Column(
+            children: _cachedFailedItems.take(2).map((item) => FailedItemCard(
+              item: item,
+              onRetry: () async {
+                await refreshStats();
+                if (Prefs.monitoringEnabled) {
+                  SyncEngine().startSync();
+                }
+              },
+            )).toList(),
+          ),
       ],
     );
   }

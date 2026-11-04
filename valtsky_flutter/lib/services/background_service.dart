@@ -77,6 +77,10 @@ class BackgroundService {
   }
 
   static Future<bool> stop() async {
-    return FlutterForegroundTask.stopService();
+    try {
+      return await FlutterForegroundTask.stopService().timeout(const Duration(milliseconds: 300));
+    } catch (_) {
+      return false;
+    }
   }
 }

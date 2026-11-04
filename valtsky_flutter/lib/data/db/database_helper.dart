@@ -316,6 +316,23 @@ class DatabaseHelper {
     return Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM media_items WHERE status = 'FAILED'")) ?? 0;
   }
 
+  Future<List<MediaItem>> getFailedItems({int limit = 10}) async {
+    if (_useMemoryStore) {
+      final items = _webItems.values.where((e) => e.status == MediaItem.statusFailed).toList();
+      items.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return items.take(limit).toList();
+    }
+    final db = await instance.database;
+    final maps = await db.query(
+      'media_items',
+      where: 'status = ?',
+      whereArgs: [MediaItem.statusFailed],
+      orderBy: 'updatedAt DESC',
+      limit: limit,
+    );
+    return maps.map((e) => MediaItem.fromMap(e)).toList();
+  }
+
   Stream<List<MediaItem>> getFailedItemsStream() async* {
     if (_useMemoryStore) {
       while (true) {
@@ -508,7 +525,11 @@ class DatabaseHelper {
       _webItems.clear();
       return count;
     }
-    final db = await instance.database;
-    return await db.delete('media_items');
+    try {
+      final db = await instance.database;
+      return await db.delete('media_items');
+    } catch (_) {
+      return 0;
+    }
   }
 }

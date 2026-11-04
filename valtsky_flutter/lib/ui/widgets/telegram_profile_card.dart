@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/prefs.dart';
-import '../../services/telegram_auth_service.dart';
+import '../../services/sync_engine.dart';
 import '../../util/telegram_launcher.dart';
 import '../../util/theme.dart';
 import 'glass_card.dart';
@@ -49,8 +49,7 @@ class TelegramProfileCard extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
-              await Prefs.disconnectTelegram();
-              TelegramAuthService.instance.reset();
+              await SyncEngine.instance.fullLogoutAndReset();
               onDisconnect();
             },
             style: ElevatedButton.styleFrom(
