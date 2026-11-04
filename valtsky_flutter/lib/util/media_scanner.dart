@@ -5,8 +5,10 @@ import '../data/models/media_item.dart';
 
 class MediaScanner {
   /// Scans device storage for new photos & videos in strict chronological order.
+  /// If [forceFull] is false and items already exist in the database, performs a blazing-fast
+  /// incremental scan using [DatabaseHelper.getLatestDateTaken].
   /// Returns the number of newly discovered and queued items.
-  static Future<int> scanForNewMedia() async {
+  static Future<int> scanForNewMedia({bool forceFull = false}) async {
     if (kIsWeb) {
       if (await DatabaseHelper.instance.getTotalCount() == 0) {
         final now = DateTime.now();
@@ -49,23 +51,44 @@ class MediaScanner {
       return 0;
     }
 
-    // Request permission if needed (handles full access and Android 14 limited access)
+    // Request permission safely without crashing if called from background service isolate
     try {
-      final PermissionState ps = await PhotoManager.requestPermissionExtend();
+      final PermissionState ps = await PhotoManager.getPermissionState(
+        requestOption: const PermissionRequestOption(),
+      );
       if (!ps.hasAccess) {
-        debugPrint('[MediaScanner] Storage/Media permission not granted (state: $ps)');
-        return 0;
+        final PermissionState requested = await PhotoManager.requestPermissionExtend();
+        if (!requested.hasAccess) {
+          debugPrint('[MediaScanner] Storage/Media permission not granted (state: $requested)');
+          return 0;
+        }
       }
     } catch (e) {
       debugPrint('[MediaScanner] Permission check exception: $e');
     }
 
+    // Incremental scan support: only query assets newer than our newest indexed item
+    final int latestDateTaken = forceFull ? 0 : await DatabaseHelper.instance.getLatestDateTaken();
+
     // Configure filter to sort strictly from OLDEST to NEWEST (asc: true)
-    final filterOption = FilterOptionGroup(
-      orders: [
-        const OrderOption(type: OrderOptionType.createDate, asc: true),
-      ],
-    );
+    final FilterOptionGroup filterOption;
+    if (latestDateTaken > 0) {
+      filterOption = FilterOptionGroup(
+        orders: const [
+          OrderOption(type: OrderOptionType.createDate, asc: true),
+        ],
+        createTimeCond: DateTimeCond(
+          min: DateTime.fromMillisecondsSinceEpoch(latestDateTaken - 60000),
+          max: DateTime.now().add(const Duration(days: 1)),
+        ),
+      );
+    } else {
+      filterOption = FilterOptionGroup(
+        orders: const [
+          OrderOption(type: OrderOptionType.createDate, asc: true),
+        ],
+      );
+    }
 
     final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
       type: RequestType.common,
@@ -93,8 +116,13 @@ class MediaScanner {
     final Set<String> processedInThisRun = {};
     final List<MediaItem> pendingBatch = [];
 
+    // Pre-fetch all indexed paths into an in-memory set (0ms O(1) existence checks)
+    final existingPaths = await DatabaseHelper.instance.getAllFilePathsSet();
+    int processedItemsCounter = 0;
+
     for (final path in albumsToScan) {
       final totalCount = await path.assetCountAsync;
+      if (totalCount == 0) continue;
       const pageSize = 150;
 
       for (int start = 0; start < totalCount; start += pageSize) {
@@ -104,28 +132,35 @@ class MediaScanner {
         );
 
         for (final entity in entities) {
-          final file = await entity.file;
+          processedItemsCounter++;
+          // Periodically yield to event loop so Flutter frame animations and touches remain fluid
+          if (processedItemsCounter % 25 == 0) {
+            await Future.delayed(Duration.zero);
+          }
+
+          final file = await entity.originFile ?? await entity.file;
           if (file != null) {
-            if (processedInThisRun.contains(file.path)) continue;
-            processedInThisRun.add(file.path);
+            final pathStr = file.path;
+            if (processedInThisRun.contains(pathStr) || existingPaths.contains(pathStr)) {
+              continue;
+            }
+            processedInThisRun.add(pathStr);
+            existingPaths.add(pathStr);
 
-            final exists = await DatabaseHelper.instance.exists(file.path);
-            if (!exists) {
-              final item = MediaItem(
-                filePath: file.path,
-                mimeType: entity.mimeType ?? (entity.type == AssetType.video ? 'video/mp4' : 'image/jpeg'),
-                dateTaken: entity.createDateTime.millisecondsSinceEpoch,
-                fileSize: await file.length(),
-                status: MediaItem.statusPending,
-                updatedAt: DateTime.now().millisecondsSinceEpoch,
-              );
-              pendingBatch.add(item);
-              newlyAddedCount++;
+            final item = MediaItem(
+              filePath: pathStr,
+              mimeType: entity.mimeType ?? (entity.type == AssetType.video ? 'video/mp4' : 'image/jpeg'),
+              dateTaken: entity.createDateTime.millisecondsSinceEpoch,
+              fileSize: await file.length(),
+              status: MediaItem.statusPending,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            );
+            pendingBatch.add(item);
+            newlyAddedCount++;
 
-              if (pendingBatch.length >= 100) {
-                await DatabaseHelper.instance.insertBatch(pendingBatch);
-                pendingBatch.clear();
-              }
+            if (pendingBatch.length >= 100) {
+              await DatabaseHelper.instance.insertBatch(pendingBatch);
+              pendingBatch.clear();
             }
           }
         }

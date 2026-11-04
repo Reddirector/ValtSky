@@ -97,9 +97,27 @@ class SyncEngine {
     progress: 0.0,
   );
 
-  static int _totalBytesAccumulator = 0;
-  static int _lastSampleBytes = 0;
-  static DateTime _lastSampleTime = DateTime.now();
+  static int _totalBytesSent = 0;
+  static int _prevBytesSent = 0;
+  static Timer? _speedMeterTimer;
+
+  static DateTime _lastStatsNotify = DateTime.fromMillisecondsSinceEpoch(0);
+  static bool _statsNotifyScheduled = false;
+
+  static void _scheduleStatsNotification() {
+    final now = DateTime.now();
+    if (now.difference(_lastStatsNotify).inMilliseconds >= 250) {
+      _lastStatsNotify = now;
+      statsNotifier.value = _cachedStats;
+    } else if (!_statsNotifyScheduled) {
+      _statsNotifyScheduled = true;
+      Future.delayed(const Duration(milliseconds: 250), () {
+        _statsNotifyScheduled = false;
+        _lastStatsNotify = DateTime.now();
+        statsNotifier.value = _cachedStats;
+      });
+    }
+  }
 
   static DateTime? _rateLimitUntil;
   static Timer? _rateLimitTimer;
@@ -217,7 +235,7 @@ class SyncEngine {
       inQueue: (_cachedStats.inQueue - 1).clamp(0, 9999999),
       uploading: _cachedStats.uploading + 1,
     );
-    statsNotifier.value = _cachedStats;
+    _scheduleStatsNotification();
   }
 
   static void _updateInFlightSuccess() {
@@ -225,7 +243,7 @@ class SyncEngine {
       uploading: (_cachedStats.uploading - 1).clamp(0, 9999999),
       synced: _cachedStats.synced + 1,
     );
-    statsNotifier.value = _cachedStats;
+    _scheduleStatsNotification();
   }
 
   static void _updateInFlightFailure() {
@@ -233,7 +251,7 @@ class SyncEngine {
       uploading: (_cachedStats.uploading - 1).clamp(0, 9999999),
       failed: _cachedStats.failed + 1,
     );
-    statsNotifier.value = _cachedStats;
+    _scheduleStatsNotification();
   }
 
   static void _updateInFlightRetry() {
@@ -241,7 +259,7 @@ class SyncEngine {
       uploading: (_cachedStats.uploading - 1).clamp(0, 9999999),
       inQueue: _cachedStats.inQueue + 1,
     );
-    statsNotifier.value = _cachedStats;
+    _scheduleStatsNotification();
   }
 
   /// Query SQLite and notify all UI listeners with fresh baseline counts
@@ -298,6 +316,10 @@ class SyncEngine {
     statsNotifier.value = _cachedStats;
 
     // Reset notifiers
+    _speedMeterTimer?.cancel();
+    _speedMeterTimer = null;
+    _totalBytesSent = 0;
+    _prevBytesSent = 0;
     engineStatusNotifier.value = SyncEngineStatus.idle;
     engineStatusMessageNotifier.value = '';
     uploadSpeedNotifier.value = '';
@@ -365,6 +387,26 @@ class SyncEngine {
       engineStatusMessageNotifier.value = 'Turbo upload workers active (4x parallel).';
     }
 
+    _totalBytesSent = 0;
+    _prevBytesSent = 0;
+    _speedMeterTimer?.cancel();
+    _speedMeterTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!_isSyncing) return;
+      final current = _totalBytesSent;
+      final delta = current - _prevBytesSent;
+      _prevBytesSent = current;
+      if (delta > 0) {
+        final speedMBps = delta / (1024 * 1024);
+        if (speedMBps >= 0.05) {
+          uploadSpeedNotifier.value = '⚡ ${speedMBps.toStringAsFixed(1)} MB/s';
+          return;
+        }
+      }
+      if (_rateLimitUntil == null && !Prefs.uploadPaused && uploadSpeedNotifier.value.startsWith('⚡')) {
+        uploadSpeedNotifier.value = '';
+      }
+    });
+
     // Light periodic consistency check every 3 seconds (reduces DB contention by 90%)
     _liveStatsTimer?.cancel();
     _liveStatsTimer = Timer.periodic(const Duration(seconds: 3), (_) {
@@ -380,6 +422,10 @@ class SyncEngine {
     _isSyncing = false;
     _liveStatsTimer?.cancel();
     _liveStatsTimer = null;
+    _speedMeterTimer?.cancel();
+    _speedMeterTimer = null;
+    _totalBytesSent = 0;
+    _prevBytesSent = 0;
     uploadSpeedNotifier.value = '';
     currentItemNotifier.value = '';
     if (engineStatusNotifier.value == SyncEngineStatus.active) {
@@ -400,6 +446,8 @@ class SyncEngine {
     _isSyncing = false;
     _liveStatsTimer?.cancel();
     _liveStatsTimer = null;
+    _speedMeterTimer?.cancel();
+    _speedMeterTimer = null;
     _rateLimitTimer?.cancel();
     _rateLimitTimer = null;
     _rateLimitUntil = null;
@@ -412,9 +460,8 @@ class SyncEngine {
     await DatabaseHelper.instance.resetUploadingToPending();
 
     // 4. Reset speed meters & metrics
-    _totalBytesAccumulator = 0;
-    _lastSampleBytes = 0;
-    _lastSampleTime = DateTime.now();
+    _totalBytesSent = 0;
+    _prevBytesSent = 0;
     uploadSpeedNotifier.value = '';
     currentItemNotifier.value = '';
 
@@ -562,14 +609,33 @@ class SyncEngine {
         continue;
       }
 
+      int workerItemBytesSent = 0;
+      void handleProgress(int sent, int total) {
+        final delta = sent - workerItemBytesSent;
+        if (delta > 0) {
+          _totalBytesSent += delta;
+          workerItemBytesSent = sent;
+        }
+      }
+
       UploadResult result;
       try {
-        result = await _uploadWithSpeedOptimization(item, file, workerIndex: workerIndex);
+        result = await _uploadWithSpeedOptimization(
+          item,
+          file,
+          workerIndex: workerIndex,
+          onProgress: handleProgress,
+        );
       } catch (e) {
         result = Failure(e.toString());
       }
 
       if (result is Success) {
+        final fileLen = await file.length();
+        if (workerItemBytesSent < fileLen) {
+          _totalBytesSent += (fileLen - workerItemBytesSent);
+          workerItemBytesSent = fileLen;
+        }
         await DatabaseHelper.instance.update(item.copyWith(
           status: MediaItem.statusDone,
           telegramMessageId: result.telegramMessageId,
@@ -578,7 +644,6 @@ class SyncEngine {
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
         Prefs.lastSyncedTs = DateTime.now().millisecondsSinceEpoch;
-        _accumulateFinishedBytes(await file.length());
         _updateInFlightSuccess();
       } else if (result is TelegramError) {
         final isAuthExpired = isSessionExpiredError(result.code, result.description);
@@ -705,32 +770,12 @@ class SyncEngine {
     }
   }
 
-  static void _accumulateFinishedBytes(int bytes) {
-    _totalBytesAccumulator += bytes;
-  }
-
-  static void _recordProgress(int sent, int total) {
-    final now = DateTime.now();
-    final ms = now.difference(_lastSampleTime).inMilliseconds;
-    if (ms >= 400) {
-      final currentBytes = _totalBytesAccumulator + sent;
-      final bytesDelta = currentBytes - _lastSampleBytes;
-      if (bytesDelta > 0) {
-        final speedMBps = (bytesDelta / (1024 * 1024)) / (ms / 1000);
-        if (speedMBps > 0.05) {
-          uploadSpeedNotifier.value = '⚡ ${speedMBps.toStringAsFixed(1)} MB/s';
-        }
-      }
-      _lastSampleBytes = currentBytes;
-      _lastSampleTime = now;
-    }
-  }
-
   /// High-speed upload with live speed meter and in-memory chunk streaming
   Future<UploadResult> _uploadWithSpeedOptimization(
     MediaItem item,
     File file, {
     int workerIndex = 0,
+    void Function(int sent, int total)? onProgress,
   }) async {
     final rawName = file.path.split('/').last;
     final fileName = FileSecurityGuard.sanitizeFileName(rawName);
@@ -753,7 +798,7 @@ class SyncEngine {
           file,
           Prefs.useOriginalQuality,
           caption,
-          onProgress: _recordProgress,
+          onProgress: onProgress,
         );
       } else {
         return await TelegramAuthService.instance.uploadMedia(
@@ -761,14 +806,22 @@ class SyncEngine {
           channelId: Prefs.channelId,
           asDocument: Prefs.useOriginalQuality,
           caption: caption,
-          onProgress: _recordProgress,
+          onProgress: onProgress,
           workerIndex: workerIndex,
         );
       }
     }
 
     // Large file: Stream raw chunks in-memory for maximum speed
-    return await _streamChunkedFile(file, fileName, fileSize, maxSingleBytes, dateStr, item.fileHash, _recordProgress);
+    return await _streamChunkedFile(
+      file,
+      fileName,
+      fileSize,
+      maxSingleBytes,
+      dateStr,
+      item.fileHash,
+      onProgress ?? (sent, total) {},
+    );
   }
 
   /// Zero-disk-bottleneck streaming: Reads directly from RAM and streams to Telegram

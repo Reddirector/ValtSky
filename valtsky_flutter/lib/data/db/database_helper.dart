@@ -270,6 +270,34 @@ class DatabaseHelper {
     return Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM media_items WHERE status = 'UPLOADING'")) ?? 0;
   }
 
+  Future<Set<String>> getAllFilePathsSet() async {
+    if (_useMemoryStore) {
+      return _webItems.keys.toSet();
+    }
+    try {
+      final db = await instance.database;
+      final rows = await db.rawQuery('SELECT filePath FROM media_items');
+      return rows.map((r) => r['filePath'] as String).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<int> getLatestDateTaken() async {
+    if (_useMemoryStore) {
+      if (_webItems.isEmpty) return 0;
+      return _webItems.values.map((e) => e.dateTaken).reduce((a, b) => a > b ? a : b);
+    }
+    try {
+      final db = await instance.database;
+      final result = await db.rawQuery('SELECT MAX(dateTaken) as latest FROM media_items');
+      if (result.isNotEmpty && result.first['latest'] != null) {
+        return result.first['latest'] as int;
+      }
+    } catch (_) {}
+    return 0;
+  }
+
   Future<List<MediaItem>> getAllPending() async {
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
