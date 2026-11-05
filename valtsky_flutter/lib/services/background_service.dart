@@ -2,8 +2,6 @@ import 'dart:isolate';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:photo_manager/photo_manager.dart';
 import '../data/prefs.dart';
-import '../util/media_scanner.dart';
-import 'sync_engine.dart';
 
 @pragma('vm:entry-point')
 void startCallback() {
@@ -11,31 +9,19 @@ void startCallback() {
 }
 
 class MyTaskHandler extends TaskHandler {
-  final SyncEngine _syncEngine = SyncEngine();
-  DateTime? _lastScan;
-
   @override
   Future<void> onStart(DateTime timestamp, SendPort? sendPort) async {
     await Prefs.init();
     PhotoManager.setIgnorePermissionCheck(true);
-    _syncEngine.startSync();
   }
 
   @override
   Future<void> onRepeatEvent(DateTime timestamp, SendPort? sendPort) async {
-    // Check for new media every minute
-    if (_lastScan == null || timestamp.difference(_lastScan!) > const Duration(minutes: 1)) {
-      PhotoManager.setIgnorePermissionCheck(true);
-      await MediaScanner.scanForNewMedia();
-      _lastScan = timestamp;
-      _syncEngine.startSync(); // Ensure sync engine is running
-    }
+    // Keep alive tick for the foreground service
   }
 
   @override
-  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {
-    _syncEngine.stopSync();
-  }
+  Future<void> onDestroy(DateTime timestamp, SendPort? sendPort) async {}
 }
 
 class BackgroundService {

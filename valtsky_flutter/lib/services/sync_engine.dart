@@ -262,13 +262,14 @@ class SyncEngine {
     _scheduleStatsNotification();
   }
 
-  /// Query SQLite and notify all UI listeners with fresh baseline counts
+  /// Query SQLite and notify all UI listeners with fresh baseline counts in 1 fast query
   static Future<SyncStats> fetchCurrentStats({bool forceDb = true}) async {
-    final total = await DatabaseHelper.instance.getTotalCount();
-    final synced = await DatabaseHelper.instance.getUploadedCount();
-    final inQueue = await DatabaseHelper.instance.getPendingCount();
-    final failed = await DatabaseHelper.instance.getFailedCount();
-    final uploading = await DatabaseHelper.instance.getUploadingCount();
+    final counts = await DatabaseHelper.instance.getAggregatedCounts();
+    final total = counts['total'] ?? 0;
+    final synced = counts['synced'] ?? 0;
+    final inQueue = counts['inQueue'] ?? 0;
+    final failed = counts['failed'] ?? 0;
+    final uploading = counts['uploading'] ?? 0;
     final progress = total == 0 ? 0.0 : (synced / total).clamp(0.0, 1.0);
     _cachedStats = SyncStats(
       total: total,
@@ -316,6 +317,7 @@ class SyncEngine {
     statsNotifier.value = _cachedStats;
 
     // Reset notifiers
+    _claimedBatchQueue.clear();
     _speedMeterTimer?.cancel();
     _speedMeterTimer = null;
     _totalBytesSent = 0;
@@ -407,9 +409,9 @@ class SyncEngine {
       }
     });
 
-    // Light periodic consistency check every 3 seconds (reduces DB contention by 90%)
+    // Light periodic consistency check every 10 seconds (in WAL mode, 1 fast query)
     _liveStatsTimer?.cancel();
-    _liveStatsTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _liveStatsTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (_isSyncing) {
         fetchCurrentStats(forceDb: true);
       }
@@ -420,6 +422,7 @@ class SyncEngine {
 
   void stopSync() {
     _isSyncing = false;
+    _claimedBatchQueue.clear();
     _liveStatsTimer?.cancel();
     _liveStatsTimer = null;
     _speedMeterTimer?.cancel();
@@ -444,6 +447,7 @@ class SyncEngine {
 
     // 1. Halt workers
     _isSyncing = false;
+    _claimedBatchQueue.clear();
     _liveStatsTimer?.cancel();
     _liveStatsTimer = null;
     _speedMeterTimer?.cancel();
@@ -552,6 +556,37 @@ class SyncEngine {
     _syncCompleter?.complete();
   }
 
+  static final List<MediaItem> _claimedBatchQueue = [];
+  static Completer<void>? _batchRefillCompleter;
+
+  Future<MediaItem?> _getNextPendingItem() async {
+    while (_isSyncing) {
+      if (_claimedBatchQueue.isNotEmpty) {
+        return _claimedBatchQueue.removeAt(0);
+      }
+      if (_batchRefillCompleter != null) {
+        await _batchRefillCompleter!.future;
+        if (_claimedBatchQueue.isNotEmpty) {
+          return _claimedBatchQueue.removeAt(0);
+        }
+        continue;
+      }
+      _batchRefillCompleter = Completer<void>();
+      try {
+        final batch = await DatabaseHelper.instance.claimPendingBatch(limit: 32);
+        if (batch.isEmpty) {
+          return null; // Database has no more pending items!
+        }
+        _claimedBatchQueue.addAll(batch);
+        return _claimedBatchQueue.removeAt(0);
+      } finally {
+        _batchRefillCompleter?.complete();
+        _batchRefillCompleter = null;
+      }
+    }
+    return null;
+  }
+
   Future<void> _workerLoop(int workerIndex) async {
     while (_isSyncing) {
       // 1. Check global rate limit cooldown
@@ -575,8 +610,8 @@ class SyncEngine {
         continue;
       }
 
-      // 4. Atomically claim the next pending item in strict chronological order (dateTaken ASC)
-      final item = await DatabaseHelper.instance.claimNextPending();
+      // 4. Atomically claim next item from RAM buffer (0ms, zero SQLite lock contention)
+      final item = await _getNextPendingItem();
       if (item == null) {
         // Queue is drained
         break;
@@ -872,6 +907,7 @@ class SyncEngine {
 
         if (result is Success) {
           lastMessageId = result.telegramMessageId;
+          await Future.delayed(Duration.zero);
         } else {
           return result;
         }

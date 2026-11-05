@@ -39,6 +39,10 @@ class DatabaseHelper {
       path,
       version: 1,
       onCreate: _createDB,
+      onConfigure: (db) async {
+        await db.execute('PRAGMA journal_mode = WAL;');
+        await db.execute('PRAGMA synchronous = NORMAL;');
+      },
     );
   }
 
@@ -215,51 +219,102 @@ class DatabaseHelper {
     return null;
   }
 
-  /// Atomically claims the next pending media item and marks it as UPLOADING
-  Future<MediaItem?> claimNextPending() async {
+  Future<List<MediaItem>> claimPendingBatch({int limit = 32}) async {
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
-      final pending = _webItems.values
+      final items = _webItems.values
           .where((e) => e.status == MediaItem.statusPending && e.fileSize < twoGigabytes)
           .toList();
-      pending.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
-      final item = pending.firstOrNull;
-      if (item != null) {
+      items.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      final updatedBatch = <MediaItem>[];
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final item in items.take(limit)) {
         final updated = item.copyWith(
           status: MediaItem.statusUploading,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
+          updatedAt: now,
         );
         _webItems[item.filePath] = updated;
-        return updated;
+        updatedBatch.add(updated);
       }
-      return null;
+      return updatedBatch;
     }
     final db = await instance.database;
-    return await db.transaction((txn) async {
-      final maps = await txn.query(
-        'media_items',
-        where: 'status = ? AND fileSize < ?',
-        whereArgs: [MediaItem.statusPending, twoGigabytes],
-        orderBy: 'dateTaken ASC',
-        limit: 1,
-      );
-      if (maps.isEmpty) return null;
-      final item = MediaItem.fromMap(maps.first);
+    final maps = await db.query(
+      'media_items',
+      where: 'status = ? AND fileSize < ?',
+      whereArgs: [MediaItem.statusPending, twoGigabytes],
+      orderBy: 'dateTaken ASC',
+      limit: limit,
+    );
+    if (maps.isEmpty) return [];
+    final items = maps.map((m) => MediaItem.fromMap(m)).toList();
+    final batch = db.batch();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final updatedItems = <MediaItem>[];
+    for (final item in items) {
       final updated = item.copyWith(
         status: MediaItem.statusUploading,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
+        updatedAt: now,
       );
-      await txn.update(
+      updatedItems.add(updated);
+      batch.update(
         'media_items',
         {
           'status': MediaItem.statusUploading,
-          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+          'updatedAt': now,
         },
         where: 'filePath = ?',
         whereArgs: [item.filePath],
       );
-      return updated;
-    });
+    }
+    await batch.commit(noResult: true);
+    return updatedItems;
+  }
+
+  /// Atomically claims the next pending media item and marks it as UPLOADING
+  Future<MediaItem?> claimNextPending() async {
+    final batch = await claimPendingBatch(limit: 1);
+    return batch.isNotEmpty ? batch.first : null;
+  }
+
+  Future<Map<String, int>> getAggregatedCounts() async {
+    if (_useMemoryStore) {
+      final total = _webItems.length;
+      final synced = _webItems.values.where((e) => e.status == MediaItem.statusDone).length;
+      final inQueue = _webItems.values.where((e) => e.status == MediaItem.statusPending).length;
+      final failed = _webItems.values.where((e) => e.status == MediaItem.statusFailed).length;
+      final uploading = _webItems.values.where((e) => e.status == MediaItem.statusUploading).length;
+      return {
+        'total': total,
+        'synced': synced,
+        'inQueue': inQueue,
+        'failed': failed,
+        'uploading': uploading,
+      };
+    }
+    try {
+      final db = await instance.database;
+      final rows = await db.rawQuery('''
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END) as synced,
+          SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as inQueue,
+          SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed,
+          SUM(CASE WHEN status = 'UPLOADING' THEN 1 ELSE 0 END) as uploading
+        FROM media_items
+      ''');
+      if (rows.isNotEmpty) {
+        final row = rows.first;
+        return {
+          'total': (row['total'] as int?) ?? 0,
+          'synced': (row['synced'] as int?) ?? 0,
+          'inQueue': (row['inQueue'] as int?) ?? 0,
+          'failed': (row['failed'] as int?) ?? 0,
+          'uploading': (row['uploading'] as int?) ?? 0,
+        };
+      }
+    } catch (_) {}
+    return {'total': 0, 'synced': 0, 'inQueue': 0, 'failed': 0, 'uploading': 0};
   }
 
   Future<int> getUploadingCount() async {

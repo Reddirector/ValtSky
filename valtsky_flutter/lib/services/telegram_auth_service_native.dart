@@ -717,20 +717,15 @@ class TelegramAuthService {
     final fileName = FileSecurityGuard.sanitizeFileName(rawName);
     final mimeType = TelegramApi.getMimeType(file.path);
 
-    // Standard MTProto chunk size: 512 KB (524288 bytes)
-    const chunkSize = 512 * 1024;
+    // Stream in lightweight chunks (128 KB for smooth non-blocking I/O, 512 KB for > 300 MB)
+    final int chunkSize = (fileSize > 300 * 1024 * 1024) ? (512 * 1024) : (128 * 1024);
     final totalParts = (fileSize / chunkSize).ceil();
     final isBigFile = fileSize > 10 * 1024 * 1024;
     final fileId = (Random().nextInt(0x7fffffff) << 16) | Random().nextInt(0xffff);
 
-    Uint8List? preloadedBytes;
     RandomAccessFile? raf;
     try {
-      if (fileSize <= 8 * 1024 * 1024) {
-        preloadedBytes = await file.readAsBytes();
-      } else {
-        raf = await file.open(mode: FileMode.read);
-      }
+      raf = await file.open(mode: FileMode.read);
       int bytesSent = 0;
 
       for (int part = 0; part < totalParts; part++) {
@@ -744,13 +739,7 @@ class TelegramAuthService {
             ? (fileSize - part * chunkSize)
             : chunkSize;
 
-        final Uint8List buffer;
-        if (preloadedBytes != null) {
-          final offset = part * chunkSize;
-          buffer = Uint8List.sublistView(preloadedBytes, offset, offset + bytesToRead);
-        } else {
-          buffer = await raf!.read(bytesToRead);
-        }
+        final buffer = await raf.read(bytesToRead);
 
         t.Result<t.Boolean> partResult;
         if (isBigFile) {
@@ -777,6 +766,9 @@ class TelegramAuthService {
 
         bytesSent += bytesToRead;
         onProgress?.call(bytesSent, fileSize);
+
+        // Cooperative event loop yield to keep UI frame rendering silky smooth (60/120 FPS)
+        await Future.delayed(Duration.zero);
       }
 
       final t.InputFileBase inputFile = isBigFile
