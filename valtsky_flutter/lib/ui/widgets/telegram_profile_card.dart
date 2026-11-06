@@ -4,6 +4,7 @@ import '../../services/sync_engine.dart';
 import '../../util/telegram_launcher.dart';
 import '../../util/theme.dart';
 import 'glass_card.dart';
+import 'animated_stagger.dart';
 
 class TelegramProfileCard extends StatelessWidget {
   final bool isDark;
@@ -38,7 +39,7 @@ class TelegramProfileCard extends StatelessWidget {
           ],
         ),
         content: const Text(
-          'This will unlink your Telegram session from ValtSky. Your files on Telegram will remain completely safe.',
+          'Unlinks your session. Files on Telegram are safe.',
           style: TextStyle(fontSize: 13, height: 1.4),
         ),
         actions: [
@@ -81,60 +82,7 @@ class TelegramProfileCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ─── 1. VERIFIED HEADER BADGE ──────────────────────
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Genuine Account Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: ValtSkyTheme.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: ValtSkyTheme.success.withValues(alpha: 0.25)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.verified_rounded, size: 14, color: ValtSkyTheme.success),
-                    SizedBox(width: 6),
-                    Text(
-                      'REAL TELEGRAM ACCOUNT LINKED',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: ValtSkyTheme.success,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Live DC Connection Indicator
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.circle, size: 7, color: Color(0xFF22C55E)),
-                    SizedBox(width: 5),
-                    Text(
-                      'DC 1 ACTIVE',
-                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.4, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // ─── 2. USER PROFILE HEADER ────────────────────────
+          // ─── 1. USER PROFILE HEADER ────────────────────────
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -296,52 +244,51 @@ class TelegramProfileCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          // ─── 4. ACTIONS: OPEN VAULT & DISCONNECT ──────────────
+          // ─── ACTIONS: OPEN VAULT & LOGOUT ──────────────
           Row(
             children: [
-              // Open in Telegram Button
               Expanded(
-                flex: 3,
-                child: SizedBox(
-                  height: 44,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      TelegramLauncher.openChannel(context);
-                    },
-                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                    label: const Text(
-                      'OPEN VAULT CHANNEL',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.5),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2AABEE),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
+                child: TactilePress(
+                  onTap: () => TelegramLauncher.openChannel(context),
+                  scaleDown: 0.96,
+                  child: SizedBox(
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      onPressed: () => TelegramLauncher.openChannel(context),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                      label: const Text(
+                        'Open Vault',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ValtSkyTheme.primary(isDark),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-
-              // Disconnect Button
+              const SizedBox(width: 12),
               Expanded(
-                flex: 2,
-                child: SizedBox(
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _confirmDisconnect(context),
-                    icon: const Icon(Icons.logout_rounded, size: 15),
-                    label: const Text(
-                      'LOGOUT',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: ValtSkyTheme.error,
-                      side: BorderSide(color: ValtSkyTheme.error.withValues(alpha: 0.4)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: TactilePress(
+                  onTap: () => _confirmDisconnect(context),
+                  scaleDown: 0.96,
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _confirmDisconnect(context),
+                      icon: const Icon(Icons.logout_rounded, size: 16),
+                      label: const Text(
+                        'Logout',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ValtSkyTheme.error,
+                        side: BorderSide(color: ValtSkyTheme.error.withValues(alpha: 0.4)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
                 ),

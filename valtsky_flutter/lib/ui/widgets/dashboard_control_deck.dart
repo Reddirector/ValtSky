@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../util/theme.dart';
+import 'animated_stagger.dart';
 
 class DashboardControlDeck extends StatelessWidget {
   final bool isConfigured;
   final bool isMonitoring;
   final bool isPaused;
   final bool isScanning;
-  final bool isRestarting;
   final VoidCallback onTogglePause;
   final VoidCallback onScanGallery;
-  final VoidCallback onRestartEngine;
+  final VoidCallback onStopProcess;
   final VoidCallback onShowDiagnostics;
 
   const DashboardControlDeck({
@@ -18,176 +18,171 @@ class DashboardControlDeck extends StatelessWidget {
     required this.isMonitoring,
     required this.isPaused,
     required this.isScanning,
-    required this.isRestarting,
     required this.onTogglePause,
     required this.onScanGallery,
-    required this.onRestartEngine,
+    required this.onStopProcess,
     required this.onShowDiagnostics,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = ValtSkyTheme.primary(isDark);
+    final secondaryColor = ValtSkyTheme.secondary(isDark);
+    final mutedText = ValtSkyTheme.tertiaryText(isDark);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            'QUICK CONTROLS',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.0,
-              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-            ),
-          ),
-        ),
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 360;
+        final spacing = isNarrow ? 8.0 : 12.0;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _buildActionCard(
-                title: isPaused ? 'Resume' : 'Pause',
-                subtitle: isPaused ? 'Continue upload' : 'Halt workers',
-                icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                accentColor: isPaused ? ValtSkyTheme.success : ValtSkyTheme.warning,
-                isDark: isDark,
-                isEnabled: isMonitoring,
-                onTap: isMonitoring ? onTogglePause : null,
+            Padding(
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'QUICK CONTROLS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                  color: mutedText,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                title: 'Scan Gallery',
-                subtitle: isScanning ? 'Indexing...' : 'Check captures',
-                icon: Icons.photo_camera_back_outlined,
-                accentColor: const Color(0xFF06B6D4),
-                isDark: isDark,
-                isLoading: isScanning,
-                onTap: isScanning ? null : onScanGallery,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    title: isPaused ? 'Resume' : 'Pause',
+                    icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                    accentColor: isPaused ? secondaryColor : ValtSkyTheme.warning,
+                    isDark: isDark,
+                    isNarrow: isNarrow,
+                    isEnabled: isMonitoring,
+                    onTap: isMonitoring ? onTogglePause : null,
+                  ),
+                ),
+                SizedBox(width: spacing),
+                Expanded(
+                  child: _buildActionCard(
+                    title: 'Scan Gallery',
+                    icon: Icons.photo_camera_back_outlined,
+                    accentColor: primaryColor,
+                    isDark: isDark,
+                    isNarrow: isNarrow,
+                    isLoading: isScanning,
+                    onTap: isScanning ? null : onScanGallery,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: spacing),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionCard(
+                    title: 'Stop Process',
+                    icon: Icons.stop_circle_outlined,
+                    accentColor: ValtSkyTheme.error,
+                    isDark: isDark,
+                    isNarrow: isNarrow,
+                    onTap: onStopProcess,
+                  ),
+                ),
+                SizedBox(width: spacing),
+                Expanded(
+                  child: _buildActionCard(
+                    title: 'Diagnostics',
+                    icon: Icons.terminal_rounded,
+                    accentColor: primaryColor.withAlpha(210),
+                    isDark: isDark,
+                    isNarrow: isNarrow,
+                    onTap: onShowDiagnostics,
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionCard(
-                title: 'Restart Engine',
-                subtitle: isRestarting ? 'Healing...' : 'Reset sockets',
-                icon: Icons.sync_problem_rounded,
-                accentColor: const Color(0xFF8B5CF6),
-                isDark: isDark,
-                isLoading: isRestarting,
-                onTap: isRestarting ? null : onRestartEngine,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildActionCard(
-                title: 'Diagnostics',
-                subtitle: 'Health & state',
-                icon: Icons.terminal_rounded,
-                accentColor: const Color(0xFF10B981),
-                isDark: isDark,
-                onTap: onShowDiagnostics,
-              ),
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 
   Widget _buildActionCard({
     required String title,
-    required String subtitle,
     required IconData icon,
     required Color accentColor,
     required bool isDark,
+    required bool isNarrow,
     required VoidCallback? onTap,
     bool isLoading = false,
     bool isEnabled = true,
   }) {
-    final bg = isDark ? const Color(0xFF131B2E) : Colors.white;
-    final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final bg = ValtSkyTheme.tertiaryCard(isDark);
+    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
     final opacity = isEnabled ? 1.0 : 0.45;
 
     return Opacity(
       opacity: opacity,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: borderColor),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(isDark ? 30 : 6),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
+      child: TactilePress(
+        onTap: onTap,
+        scaleDown: 0.96,
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isNarrow ? 12 : 16,
+            vertical: isNarrow ? 14 : 16,
+          ),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(isDark ? 28 : 6),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(isNarrow ? 8 : 10),
+                decoration: BoxDecoration(
+                  color: accentColor.withAlpha(22),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(9),
-                  decoration: BoxDecoration(
-                    color: accentColor.withAlpha(25),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: isLoading
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(accentColor),
-                          ),
-                        )
-                      : Icon(icon, size: 20, color: accentColor),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: isDark ? Colors.white : Colors.black87,
+                child: isLoading
+                    ? SizedBox(
+                        width: isNarrow ? 18 : 20,
+                        height: isNarrow ? 18 : 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                         ),
+                      )
+                    : Icon(
+                        icon,
+                        size: isNarrow ? 20 : 22,
+                        color: accentColor,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
+              ),
+              SizedBox(width: isNarrow ? 10 : 14),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: isNarrow ? 13 : 14,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

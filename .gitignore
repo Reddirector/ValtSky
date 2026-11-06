@@ -10,6 +10,7 @@ build/
 # IDE files
 .idea/
 *.iml
+.agents/
 
 # Kotlin cache
 .kotlin/

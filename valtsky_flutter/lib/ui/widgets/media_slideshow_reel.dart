@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../data/db/database_helper.dart';
@@ -17,50 +14,18 @@ class MediaSlideshowReel extends StatefulWidget {
   State<MediaSlideshowReel> createState() => MediaSlideshowReelState();
 }
 
-class MediaSlideshowReelState extends State<MediaSlideshowReel> with SingleTickerProviderStateMixin {
+class MediaSlideshowReelState extends State<MediaSlideshowReel> {
   List<MediaItem> _items = [];
   int _currentIndex = 0;
-  Timer? _slideshowTimer;
-  bool _isPausedByUser = false;
-  late AnimationController _kenBurnsController;
 
   @override
   void initState() {
     super.initState();
-    _kenBurnsController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    );
     _loadItems();
-    _startTimer();
-  }
-
-  @override
-  void dispose() {
-    _slideshowTimer?.cancel();
-    _kenBurnsController.dispose();
-    super.dispose();
-  }
-
-  void _startTimer() {
-    bool isTest = false;
-    if (!kIsWeb) {
-      try {
-        isTest = Platform.environment.containsKey('FLUTTER_TEST');
-      } catch (_) {}
-    }
-    if (!isTest) {
-      _slideshowTimer?.cancel();
-      _slideshowTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
-        if (!mounted || _items.length <= 1 || _isPausedByUser) return;
-        _nextSlide();
-      });
-      _kenBurnsController.forward(from: 0.0);
-    }
   }
 
   Future<void> _loadItems() async {
-    final allItems = await DatabaseHelper.instance.getAllItems();
+    final allItems = await DatabaseHelper.instance.getAllItems(limit: 6);
     if (mounted) {
       setState(() {
         _items = allItems.take(6).toList();
@@ -80,7 +45,6 @@ class MediaSlideshowReelState extends State<MediaSlideshowReel> with SingleTicke
     setState(() {
       _currentIndex = (_currentIndex + 1) % _items.length;
     });
-    _kenBurnsController.forward(from: 0.0);
   }
 
   void _prevSlide() {
@@ -88,7 +52,6 @@ class MediaSlideshowReelState extends State<MediaSlideshowReel> with SingleTicke
     setState(() {
       _currentIndex = (_currentIndex - 1 + _items.length) % _items.length;
     });
-    _kenBurnsController.forward(from: 0.0);
   }
 
   String _formatSize(int bytes) {
@@ -115,71 +78,43 @@ class MediaSlideshowReelState extends State<MediaSlideshowReel> with SingleTicke
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section Header with Passive Live Ticker
+        // Section Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               children: [
                 Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 16,
-                  color: isDark ? Colors.white : Colors.black,
+                  Icons.photo_library_outlined,
+                  size: 15,
+                  color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  'RECENT MEDIA REEL',
+                  'RECENT CAPTURES',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
-                    color: isDark ? const Color(0xFFD4D4D8) : const Color(0xFF27272A),
+                    color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
                   ),
                 ),
               ],
             ),
-            // Live Pulse Pill
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: ValtSkyTheme.success,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '${_currentIndex + 1}/${_items.length}',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: isDark ? Colors.white : Colors.black,
-                    ),
-                  ),
-                ],
+            Text(
+              '${_currentIndex + 1} of ${_items.length}',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isDark ? const Color(0xFF71717A) : const Color(0xFFA1A1AA),
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
 
-        // Interactive Slideshow Card
+        // Interactive Media Card
         GestureDetector(
-          onTapDown: (_) => setState(() => _isPausedByUser = true),
-          onTapUp: (_) => setState(() => _isPausedByUser = false),
-          onTapCancel: () => setState(() => _isPausedByUser = false),
           onTap: () {
             // Show item details sheet
             showModalBottomSheet(
@@ -224,10 +159,7 @@ class MediaSlideshowReelState extends State<MediaSlideshowReel> with SingleTicke
                       transitionBuilder: (child, animation) {
                         return FadeTransition(
                           opacity: animation,
-                          child: ScaleTransition(
-                            scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
-                            child: child,
-                          ),
+                          child: child,
                         );
                       },
                       child: Container(
@@ -294,10 +226,10 @@ class MediaSlideshowReelState extends State<MediaSlideshowReel> with SingleTicke
                                             ),
                                             const SizedBox(width: 5),
                                             Text(
-                                              isVideo ? 'LOSSLESS 4K' : 'RAW EXIF',
+                                              isVideo ? 'VIDEO' : 'PHOTO',
                                               style: TextStyle(
                                                 fontSize: 10,
-                                                fontWeight: FontWeight.w900,
+                                                fontWeight: FontWeight.w700,
                                                 letterSpacing: 0.5,
                                                 color: isDark ? Colors.white : Colors.black,
                                               ),

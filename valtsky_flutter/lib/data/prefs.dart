@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum NetworkTypeChoice { wifi, mobile, both }
@@ -27,7 +29,11 @@ class Prefs {
   static const String keyTelegramAuthKey = 'telegram_auth_key';
   static const String keyTelegramDcId = 'telegram_dc_id';
   static const String keyTelegramDcIp = 'telegram_dc_ip';
+  static const String keyTutorialDismissed = 'tutorial_dismissed';
   static const String keyChannelAccessHash = 'channel_access_hash';
+  static const String keyPermissionsRequested = 'permissions_requested_v1';
+  static const String keyVaultPinEnabled = 'vault_pin_enabled';
+  static const String keyVaultPin = 'vault_pin';
 
   static SharedPreferences? _prefs;
 
@@ -83,6 +89,36 @@ class Prefs {
     }
   }
 
+  static const String _pinSalt = 'valtsky_secure_vault_salt_v1';
+
+  static String _hashPin(String rawPin) {
+    if (rawPin.isEmpty) return '';
+    final bytes = utf8.encode('$_pinSalt:$rawPin');
+    return sha256.convert(bytes).toString();
+  }
+
+  static bool get vaultPinEnabled => _prefs?.getBool(keyVaultPinEnabled) ?? false;
+  static set vaultPinEnabled(bool value) => _prefs?.setBool(keyVaultPinEnabled, value);
+
+  static void setVaultPin(String rawPin) {
+    if (rawPin.isEmpty) {
+      _prefs?.remove(keyVaultPin);
+    } else {
+      _prefs?.setString(keyVaultPin, _hashPin(rawPin));
+    }
+  }
+
+  static bool verifyVaultPin(String inputPin) {
+    final storedHash = _prefs?.getString(keyVaultPin) ?? '';
+    if (storedHash.isEmpty) return true;
+    return storedHash == _hashPin(inputPin);
+  }
+
+  static bool get hasVaultPin => (_prefs?.getString(keyVaultPin) ?? '').isNotEmpty;
+
+  static String get vaultPin => _prefs?.getString(keyVaultPin) ?? '';
+  static set vaultPin(String value) => setVaultPin(value);
+
   static Future<void> disconnectTelegram() async {
     await _prefs?.remove(keyUserPhoneNumber);
     await _prefs?.remove(keyTelegramUserId);
@@ -110,6 +146,12 @@ class Prefs {
 
   static bool get monitoringEnabled => _prefs?.getBool(keyEnabled) ?? false;
   static set monitoringEnabled(bool value) => _prefs?.setBool(keyEnabled, value);
+
+  static bool get tutorialDismissed => _prefs?.getBool(keyTutorialDismissed) ?? false;
+  static set tutorialDismissed(bool value) => _prefs?.setBool(keyTutorialDismissed, value);
+
+  static bool get permissionsRequested => _prefs?.getBool(keyPermissionsRequested) ?? false;
+  static set permissionsRequested(bool value) => _prefs?.setBool(keyPermissionsRequested, value);
 
   static int get lastSyncedTs => _prefs?.getInt(keyLastSynced) ?? 0;
   static set lastSyncedTs(int value) => _prefs?.setInt(keyLastSynced, value);

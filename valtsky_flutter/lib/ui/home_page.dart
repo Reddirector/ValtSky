@@ -1,16 +1,20 @@
+import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../data/prefs.dart';
 import '../services/sync_engine.dart';
 import '../main.dart';
 import '../util/theme.dart';
 import '../util/media_scanner.dart';
+import '../util/permission_manager.dart';
+import '../data/prefs.dart';
 import 'views/dashboard_view.dart';
 import 'views/activity_view.dart';
 import 'views/settings_view.dart';
-import 'widgets/passive_elements.dart';
 import 'widgets/valtsky_logo.dart';
+import 'widgets/interactive_spotlight_tutorial.dart';
+import 'widgets/app_walkthrough_guide.dart';
+import 'widgets/animated_stagger.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,16 +23,63 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  late final PageController _pageController;
   final GlobalKey<DashboardViewState> _dashboardKey = GlobalKey<DashboardViewState>();
   final GlobalKey<ActivityViewState> _activityKey = GlobalKey<ActivityViewState>();
   bool _isRefreshing = false;
+  bool _isTutorialActive = false;
+  int _tutorialStep = 1;
+  bool _isLocked = false;
+  final TextEditingController _unlockPinController = TextEditingController();
+  String? _unlockErrorMsg;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _pageController = PageController(initialPage: _currentIndex);
+    if (Prefs.vaultPinEnabled && Prefs.hasVaultPin && !_isTest) {
+      _isLocked = true;
+    }
     _initApp();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isLocked) {
+        _checkPermissionsOnFirstLaunch();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (Prefs.vaultPinEnabled && Prefs.hasVaultPin && !_isTest) {
+        if (!_isLocked) {
+          setState(() => _isLocked = true);
+        }
+      }
+    }
+  }
+
+  Future<void> _checkPermissionsOnFirstLaunch() async {
+    if (!mounted || _isTest) return;
+    if (!Prefs.permissionsRequested) {
+      await PermissionManager.showPermissionOnboardingModal(
+        context,
+        onComplete: () {
+          _onDataChanged();
+        },
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
+    _unlockPinController.dispose();
+    super.dispose();
   }
 
   Future<void> _initApp() async {
@@ -79,8 +130,49 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  bool get _isTest {
+    if (kIsWeb) return false;
+    try {
+      return Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _switchPage(int index) {
+    setState(() => _currentIndex = index);
+    if (_pageController.hasClients) {
+      if (_isTest) {
+        _pageController.jumpToPage(index);
+      } else {
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    }
+  }
+
+  void _openGuide() {
+    AppWalkthroughGuide.showWalkthroughSheet(
+      context,
+      isConfigured: Prefs.isConfigured(),
+      totalCount: SyncEngine.statsNotifier.value?.total ?? 0,
+      isMonitoring: Prefs.monitoringEnabled,
+      onNavigateToSettings: () => _switchPage(2),
+      onScanGallery: _handleGlobalRefresh,
+      onStartInteractiveTour: () {
+        setState(() {
+          _isTutorialActive = true;
+          _tutorialStep = 1;
+        });
+      },
+    );
+  }
+
   void _navigateToActivityWithFilter(String? filter) {
-    setState(() => _currentIndex = 1);
+    _switchPage(1);
     if (filter != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _activityKey.currentState?.setFilter(filter);
@@ -88,215 +180,322 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Widget _buildCurrentTab() {
-    switch (_currentIndex) {
-      case 0:
-        return DashboardView(
-          key: _dashboardKey,
-          onNavigateToSettings: () => setState(() => _currentIndex = 2),
-          onNavigateToActivity: _navigateToActivityWithFilter,
-        );
-      case 1:
-        return ActivityView(
-          key: _activityKey,
-          onDataChanged: _onDataChanged,
-        );
-      case 2:
-      default:
-        return SettingsView(
-          onDataChanged: _onDataChanged,
-        );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final isMonitoring = Prefs.monitoringEnabled;
-    final isPaused = Prefs.uploadPaused;
+    final secondaryColor = ValtSkyTheme.secondary(isDark);
+    final surfaceBg = ValtSkyTheme.tertiarySurface(isDark);
+    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
+    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
+    final trackBg = ValtSkyTheme.tertiaryTrack(isDark);
+    final mutedText = ValtSkyTheme.tertiaryText(isDark);
 
     return Scaffold(
+      backgroundColor: surfaceBg,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 680),
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              titleSpacing: 20,
-              title: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5),
-                      borderRadius: BorderRadius.circular(11),
-                      border: Border.all(
-                        color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const ValtSkyLogo(size: 30),
-                  ),
-                  const SizedBox(width: 12),
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+          child: Stack(
+            children: [
+              Scaffold(
+                backgroundColor: Colors.transparent,
+                appBar: AppBar(
+                  titleSpacing: 20,
+                  elevation: 0,
+                  scrolledUnderElevation: 0,
+                  backgroundColor: Colors.transparent,
+                  title: Row(
                     children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: trackBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: const ValtSkyLogo(size: 28),
+                      ),
+                      const SizedBox(width: 12),
                       Text(
                         'ValtSky',
                         style: TextStyle(
                           fontSize: 19,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(width: 10),
-                  ValueListenableBuilder<SyncEngineStatus>(
-                    valueListenable: SyncEngine.engineStatusNotifier,
-                    builder: (context, engineStatus, _) {
-                      if (!isMonitoring &&
-                          engineStatus != SyncEngineStatus.offline &&
-                          engineStatus != SyncEngineStatus.sessionExpired &&
-                          engineStatus != SyncEngineStatus.restarting) {
-                        return const SizedBox.shrink();
-                      }
-
-                      Color badgeColor;
-                      String badgeText;
-
-                      if (engineStatus == SyncEngineStatus.offline) {
-                        badgeColor = ValtSkyTheme.warning;
-                        badgeText = 'OFFLINE';
-                      } else if (engineStatus == SyncEngineStatus.rateLimited) {
-                        badgeColor = Colors.indigoAccent;
-                        badgeText = 'COOLDOWN';
-                      } else if (engineStatus == SyncEngineStatus.sessionExpired) {
-                        badgeColor = ValtSkyTheme.error;
-                        badgeText = 'AUTH EXPIRED';
-                      } else if (engineStatus == SyncEngineStatus.permissionDenied) {
-                        badgeColor = ValtSkyTheme.warning;
-                        badgeText = 'NO ACCESS';
-                      } else if (engineStatus == SyncEngineStatus.restarting) {
-                        badgeColor = Colors.cyan;
-                        badgeText = 'RESTARTING';
-                      } else if (isPaused) {
-                        badgeColor = ValtSkyTheme.warning;
-                        badgeText = 'PAUSED';
-                      } else {
-                        badgeColor = ValtSkyTheme.success;
-                        badgeText = 'ONLINE';
-                      }
-
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: badgeColor.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AmbientRadarDot(
-                              color: badgeColor,
-                              size: 6,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              badgeText,
-                              style: TextStyle(
-                                color: badgeColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
+                  actions: [
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      tooltip: 'Interactive Guide',
+                      icon: Icon(Icons.help_outline_rounded, color: secondaryColor, size: 21),
+                      onPressed: _openGuide,
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      tooltip: 'Refresh Live Counts',
+                      icon: _isRefreshing
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: secondaryColor),
+                            )
+                          : Icon(Icons.sync_rounded, color: secondaryColor, size: 21),
+                      onPressed: _handleGlobalRefresh,
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.all(6),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
+                      icon: Icon(
+                        isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                        color: secondaryColor,
+                        size: 21,
+                      ),
+                      onPressed: () => context.read<ThemeProvider>().toggleTheme(),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+                body: PageView(
+                  controller: _pageController,
+                  physics: const ClampingScrollPhysics(),
+                  onPageChanged: (index) {
+                    setState(() => _currentIndex = index);
+                    if (index == 0) _dashboardKey.currentState?.refreshStats();
+                    if (index == 1) _activityKey.currentState?.refreshItems();
+                  },
+                  children: [
+                    DashboardView(
+                      key: _dashboardKey,
+                      onNavigateToSettings: () => _switchPage(2),
+                      onNavigateToActivity: _navigateToActivityWithFilter,
+                    ),
+                    ActivityView(
+                      key: _activityKey,
+                      onDataChanged: _onDataChanged,
+                    ),
+                    SettingsView(
+                      onDataChanged: _onDataChanged,
+                    ),
+                  ],
+                ),
+                bottomNavigationBar: Container(
+                  decoration: BoxDecoration(
+                    color: cardBg,
+                    border: Border(
+                      top: BorderSide(
+                        color: borderColor,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: NavigationBar(
+                    selectedIndex: _currentIndex,
+                    onDestinationSelected: (index) {
+                      _switchPage(index);
+                      if (index == 0) _dashboardKey.currentState?.refreshStats();
+                      if (index == 1) _activityKey.currentState?.refreshItems();
                     },
-                  ),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  tooltip: 'Refresh Live Counts',
-                  icon: _isRefreshing
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.sync_rounded),
-                  onPressed: _handleGlobalRefresh,
-                ),
-                IconButton(
-                  tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
-                  icon: Icon(isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded),
-                  onPressed: () => context.read<ThemeProvider>().toggleTheme(),
-                ),
-                const SizedBox(width: 12),
-              ],
-            ),
-            body: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 240),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.025),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey<int>(_currentIndex),
-                child: _buildCurrentTab(),
-              ),
-            ),
-            bottomNavigationBar: Container(
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
-                    width: 1,
+                    backgroundColor: cardBg,
+                    indicatorColor: trackBg,
+                    destinations: [
+                      NavigationDestination(
+                        icon: Icon(Icons.cloud_outlined, color: mutedText),
+                        selectedIcon: Icon(Icons.cloud_rounded, color: secondaryColor),
+                        label: 'Dashboard',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.format_list_bulleted_rounded, color: mutedText),
+                        selectedIcon: Icon(Icons.fact_check_rounded, color: secondaryColor),
+                        label: 'Queue & Activity',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.tune_outlined, color: mutedText),
+                        selectedIcon: Icon(Icons.tune_rounded, color: secondaryColor),
+                        label: 'Settings',
+                      ),
+                    ],
                   ),
                 ),
               ),
-              child: NavigationBar(
-                selectedIndex: _currentIndex,
-                onDestinationSelected: (index) {
-                  setState(() => _currentIndex = index);
-                  if (index == 0) _dashboardKey.currentState?.refreshStats();
-                  if (index == 1) _activityKey.currentState?.refreshItems();
-                },
-                backgroundColor: isDark ? const Color(0xFF09090B) : Colors.white,
-                indicatorColor: isDark ? Colors.white : Colors.black,
-                destinations: [
-                  NavigationDestination(
-                    icon: Icon(Icons.cloud_outlined, color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                    selectedIcon: Icon(Icons.cloud_rounded, color: isDark ? Colors.black : Colors.white),
-                    label: 'Dashboard',
+              if (_isTutorialActive && !_isLocked)
+                InteractiveSpotlightTutorial(
+                  currentStep: _tutorialStep,
+                  onNext: () {
+                    setState(() {
+                      if (_tutorialStep < 3) {
+                        _tutorialStep++;
+                      } else {
+                        _isTutorialActive = false;
+                        Prefs.tutorialDismissed = true;
+                      }
+                    });
+                  },
+                  onSkip: () {
+                    setState(() {
+                      _isTutorialActive = false;
+                      Prefs.tutorialDismissed = true;
+                    });
+                  },
+                  onGoToSettings: () {
+                    _switchPage(2);
+                  },
+                  onTriggerScan: () {
+                    _switchPage(0);
+                    _handleGlobalRefresh();
+                  },
+                  onToggleMonitoring: () {
+                    _switchPage(0);
+                    _dashboardKey.currentState?.refreshStats();
+                  },
+                ),
+              if (_isLocked) _buildLockScreen(isDark),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleUnlockAttempt(String pin) {
+    if (Prefs.verifyVaultPin(pin)) {
+      _unlockPinController.clear();
+      setState(() {
+        _isLocked = false;
+        _unlockErrorMsg = null;
+      });
+      _checkPermissionsOnFirstLaunch();
+    } else {
+      _unlockPinController.clear();
+      setState(() {
+        _unlockErrorMsg = 'Incorrect PIN. Please try again.';
+      });
+    }
+  }
+
+  Widget _buildLockScreen(bool isDark) {
+    final bg = isDark ? const Color(0xFF050811) : Colors.white;
+    final primaryColor = ValtSkyTheme.primary(isDark);
+    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
+    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
+
+    return Positioned.fill(
+      child: Container(
+        color: bg,
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: isDark ? 0.16 : 0.10),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: primaryColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Icon(Icons.lock_rounded, size: 36, color: primaryColor),
                   ),
-                  NavigationDestination(
-                    icon: Icon(Icons.format_list_bulleted_rounded, color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                    selectedIcon: Icon(Icons.fact_check_rounded, color: isDark ? Colors.black : Colors.white),
-                    label: 'Queue & Activity',
+                  const SizedBox(height: 24),
+                  Text(
+                    'Vault Privacy Lock',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
                   ),
-                  NavigationDestination(
-                    icon: Icon(Icons.tune_outlined, color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A)),
-                    selectedIcon: Icon(Icons.tune_rounded, color: isDark ? Colors.black : Colors.white),
-                    label: 'Settings',
+                  const SizedBox(height: 8),
+                  Text(
+                    'Enter 4-digit security PIN to access cloud media',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 28),
+                  Container(
+                    width: 220,
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor, width: 1.2),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: TextField(
+                      controller: _unlockPinController,
+                      keyboardType: TextInputType.number,
+                      maxLength: 4,
+                      obscureText: true,
+                      autofocus: true,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 24, letterSpacing: 14, fontWeight: FontWeight.bold),
+                      decoration: const InputDecoration(
+                        counterText: '',
+                        border: InputBorder.none,
+                        hintText: '••••',
+                      ),
+                      onChanged: (val) {
+                        if (val.length == 4) {
+                          _handleUnlockAttempt(val);
+                        }
+                      },
+                    ),
+                  ),
+                  if (_unlockErrorMsg != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _unlockErrorMsg!,
+                      style: const TextStyle(color: ValtSkyTheme.error, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  TactilePress(
+                    onTap: () => _handleUnlockAttempt(_unlockPinController.text),
+                    child: Container(
+                      width: 220,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'UNLOCK VAULT',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

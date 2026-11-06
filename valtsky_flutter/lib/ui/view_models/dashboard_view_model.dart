@@ -21,6 +21,7 @@ class DashboardViewModel extends ChangeNotifier {
   bool isRefreshing = false;
   bool isRestarting = false;
   List<MediaItem> cachedFailedItems = [];
+  List<MediaItem> recentItems = [];
 
   DashboardViewModel() {
     _init();
@@ -85,6 +86,7 @@ class DashboardViewModel extends ChangeNotifier {
     } else {
       cachedFailedItems = [];
     }
+    recentItems = await DatabaseHelper.instance.getAllItems(limit: 4);
     notifyListeners();
   }
 
@@ -181,6 +183,48 @@ class DashboardViewModel extends ChangeNotifier {
       isScanning = false;
       notifyListeners();
     }
+  }
+
+  Future<void> handleStopProcess(BuildContext context) async {
+    try {
+      SyncEngine.instance.stopSync();
+      await DatabaseHelper.instance.resetUploadingToPending();
+      SyncEngine.uploadSpeedNotifier.value = 'Stopped';
+      SyncEngine.currentItemNotifier.value = '';
+      SyncEngine.engineStatusNotifier.value = SyncEngineStatus.idle;
+      SyncEngine.engineStatusMessageNotifier.value = 'Process stopped by user.';
+      await refreshStats();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: ValtSkyTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: const Row(
+              children: [
+                Icon(Icons.stop_circle_outlined, color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Expanded(child: Text('Process stopped: active workers halted.')),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: ValtSkyTheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            content: Text('Stop error: $e'),
+          ),
+        );
+      }
+    }
+    notifyListeners();
   }
 
   Future<void> handleRestartEngine(BuildContext context) async {

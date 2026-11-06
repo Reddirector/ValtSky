@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../data/models/media_item.dart';
 import '../../data/db/database_helper.dart';
 import '../../util/theme.dart';
+import '../../util/telegram_launcher.dart';
 import 'animated_stagger.dart';
 import 'passive_elements.dart';
 
@@ -11,12 +12,14 @@ class MediaItemCard extends StatelessWidget {
   final MediaItem item;
   final VoidCallback? onChanged;
   final VoidCallback? onManualUpload;
+  final VoidCallback? onRemove;
 
   const MediaItemCard({
     super.key,
     required this.item,
     this.onChanged,
     this.onManualUpload,
+    this.onRemove,
   });
 
   String _formatFileSize(int bytes) {
@@ -193,6 +196,44 @@ class MediaItemCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                   ],
+                  if (item.status == MediaItem.statusDone) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ValtSkyTheme.primary(isDark),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                        label: const Text('OPEN IN VAULT', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 11)),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          TelegramLauncher.openChannel(context);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  if (onRemove != null && item.status != MediaItem.statusDone) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: ValtSkyTheme.error,
+                          side: const BorderSide(color: ValtSkyTheme.error, width: 1.2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                        label: const Text('DELETE', style: TextStyle(fontWeight: FontWeight.w800)),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          onRemove?.call();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
@@ -259,150 +300,286 @@ class MediaItemCard extends StatelessWidget {
     final fileName = item.filePath.split('/').last;
     final statusColor = _getStatusColor();
     final dateStr = DateFormat('MMM d, h:mm a').format(DateTime.fromMillisecondsSinceEpoch(item.dateTaken));
+    final bool isOversized = item.fileSize >= 2147483648;
+    final bool hasActions = (isOversized && item.status != MediaItem.statusDone) ||
+        (item.status == MediaItem.statusFailed) ||
+        (onRemove != null && item.status != MediaItem.statusDone);
 
     return TactilePress(
       onTap: () => _showDetailsBottomSheet(context),
       scaleDown: 0.98,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(bottom: 11),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF18181B) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
-            width: 1,
+            width: 1.2,
           ),
         ),
-        padding: const EdgeInsets.all(12),
-        child: Row(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                isVideo ? Icons.videocam_rounded : Icons.photo_camera_rounded,
-                color: isDark ? Colors.white : Colors.black,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    fileName,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+            // Top Section: Media Icon + File Info (+ Status Badge if !hasActions)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(height: 3),
-                  Row(
+                  child: Icon(
+                    isVideo ? Icons.videocam_rounded : Icons.photo_camera_rounded,
+                    color: isDark ? Colors.white : Colors.black,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _formatFileSize(item.fileSize),
+                        fileName,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${_formatFileSize(item.fileSize)}  •  $dateStr',
+                        style: TextStyle(
+                          fontSize: 11.5,
                           color: isDark ? Colors.grey[400] : Colors.grey[600],
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Text('•', style: TextStyle(fontSize: 10, color: Colors.grey[500])),
-                      const SizedBox(width: 6),
-                      Text(
-                        dateStr,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      if (item.errorReason != null && item.status == MediaItem.statusFailed) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          item.errorReason!,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: ValtSkyTheme.error,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
+                      ],
                     ],
                   ),
-                  if (item.errorReason != null && item.status == MediaItem.statusFailed) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      item.errorReason!,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: ValtSkyTheme.error,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                ),
+                if (!hasActions) ...[
+                  const SizedBox(width: 8),
+                  _buildStatusBadge(item, statusColor, isDark),
                 ],
-              ),
+              ],
             ),
-            const SizedBox(width: 8),
-            if (item.fileSize >= 2147483648 && item.status != MediaItem.statusDone) ...[
-              TactilePress(
-                onTap: onManualUpload,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white : Colors.black,
-                    borderRadius: BorderRadius.circular(10),
+            // Dedicated Bottom Row for Action & Status Controls (Zero Collision with Date)
+            if (hasActions) ...[
+              const SizedBox(height: 11),
+              Row(
+                children: [
+                  // Left: Status Badge (scales down gracefully if needed)
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: _buildStatusBadge(item, statusColor, isDark),
+                    ),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.bolt_rounded, size: 14, color: isDark ? Colors.black : Colors.white),
-                      const SizedBox(width: 4),
-                      Text(
-                        'UPLOAD',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: isDark ? Colors.black : Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ] else ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (item.status == MediaItem.statusUploading) ...[
-                      PassiveTransferWave(color: statusColor, isLive: true),
-                      const SizedBox(width: 5),
-                    ] else ...[
-                      Icon(_getStatusIcon(), size: 12, color: statusColor),
-                      const SizedBox(width: 4),
-                    ],
-                    Text(
-                      item.status,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: statusColor,
-                        letterSpacing: 0.5,
+                  const SizedBox(width: 8),
+                  // Right: Action Deck (Upload, Retry, Delete)
+                  Flexible(
+                    flex: 2,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (item.fileSize >= 2147483648 && item.status != MediaItem.statusDone) ...[
+                            _buildUploadButton(isDark),
+                            const SizedBox(width: 6),
+                          ] else if (item.status == MediaItem.statusFailed) ...[
+                            _buildRetryButton(isDark, context),
+                            const SizedBox(width: 6),
+                          ],
+                          if (onRemove != null && item.status != MediaItem.statusDone) ...[
+                            _buildDeleteButton(isDark),
+                          ],
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildUploadButton(bool isDark) {
+    return TactilePress(
+      onTap: onManualUpload,
+      scaleDown: 0.95,
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: ValtSkyTheme.primary(isDark),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: ValtSkyTheme.primary(isDark).withAlpha(45),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bolt_rounded, size: 14, color: Colors.white),
+            SizedBox(width: 4),
+            Text(
+              'UPLOAD',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRetryButton(bool isDark, BuildContext context) {
+    return TactilePress(
+      onTap: () async {
+        await DatabaseHelper.instance.retrySingle(item.filePath);
+        onChanged?.call();
+      },
+      scaleDown: 0.95,
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: ValtSkyTheme.primary(isDark),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        alignment: Alignment.center,
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.refresh_rounded, size: 14, color: Colors.white),
+            SizedBox(width: 4),
+            Text(
+              'RETRY',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton(bool isDark) {
+    return TactilePress(
+      onTap: onRemove,
+      scaleDown: 0.95,
+      child: Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: ValtSkyTheme.error.withValues(alpha: isDark ? 0.16 : 0.10),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: ValtSkyTheme.error.withValues(alpha: isDark ? 0.35 : 0.22),
+            width: 1,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.delete_outline_rounded, size: 14, color: ValtSkyTheme.error),
+            SizedBox(width: 4),
+            Text(
+              'DELETE',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: ValtSkyTheme.error,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(MediaItem item, Color statusColor, bool isDark) {
+    final bool isOversized = item.fileSize >= 2147483648;
+    final badgeColor = isOversized ? ValtSkyTheme.warning : statusColor;
+    final label = isOversized ? '> 2 GB' : item.status;
+    final icon = isOversized ? Icons.bolt_rounded : _getStatusIcon();
+
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: isDark ? 0.16 : 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: badgeColor.withValues(alpha: isDark ? 0.35 : 0.22),
+          width: 1,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (item.status == MediaItem.statusUploading) ...[
+            PassiveTransferWave(color: badgeColor, isLive: true),
+            const SizedBox(width: 5),
+          ] else ...[
+            Icon(icon, size: 13, color: badgeColor),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              color: badgeColor,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }

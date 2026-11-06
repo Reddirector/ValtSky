@@ -150,7 +150,7 @@ class DatabaseHelper {
     return null;
   }
 
-  Future<List<MediaItem>> getAllItems({String? statusFilter}) async {
+  Future<List<MediaItem>> getAllItems({String? statusFilter, int? limit}) async {
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       var items = _webItems.values.toList();
@@ -160,6 +160,7 @@ class DatabaseHelper {
         items = items.where((e) => e.status == statusFilter).toList();
       }
       items.sort((a, b) => b.dateTaken.compareTo(a.dateTaken));
+      if (limit != null) items = items.take(limit).toList();
       return items;
     }
     final db = await instance.database;
@@ -170,6 +171,7 @@ class DatabaseHelper {
         where: 'fileSize >= ?',
         whereArgs: [twoGigabytes],
         orderBy: 'dateTaken DESC',
+        limit: limit,
       );
     } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
       maps = await db.query(
@@ -177,9 +179,10 @@ class DatabaseHelper {
         where: 'status = ?',
         whereArgs: [statusFilter],
         orderBy: 'dateTaken DESC',
+        limit: limit,
       );
     } else {
-      maps = await db.query('media_items', orderBy: 'dateTaken DESC');
+      maps = await db.query('media_items', orderBy: 'dateTaken DESC', limit: limit);
     }
     return maps.map((e) => MediaItem.fromMap(e)).toList();
   }
@@ -625,6 +628,45 @@ class DatabaseHelper {
       {'status': MediaItem.statusDone, 'errorReason': 'Manually Uploaded'},
       where: 'filePath IN (${paths.map((e) => "'$e'").join(',')})',
     );
+  }
+
+  /// Delete a single media item by its file path (removes it from queue/index)
+  Future<int> deleteItem(String path) async {
+    if (_useMemoryStore) {
+      return _webItems.remove(path) != null ? 1 : 0;
+    }
+    final db = await instance.database;
+    return await db.delete(
+      'media_items',
+      where: 'filePath = ?',
+      whereArgs: [path],
+    );
+  }
+
+  /// Batch delete media items by file paths
+  Future<int> deleteItems(List<String> paths) async {
+    if (paths.isEmpty) return 0;
+    if (_useMemoryStore) {
+      int count = 0;
+      for (final p in paths) {
+        if (_webItems.remove(p) != null) count++;
+      }
+      return count;
+    }
+    final db = await instance.database;
+    int totalDeleted = 0;
+    const chunkSize = 500;
+    for (int i = 0; i < paths.length; i += chunkSize) {
+      final end = (i + chunkSize < paths.length) ? i + chunkSize : paths.length;
+      final chunk = paths.sublist(i, end);
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      totalDeleted += await db.delete(
+        'media_items',
+        where: 'filePath IN ($placeholders)',
+        whereArgs: chunk,
+      );
+    }
+    return totalDeleted;
   }
 
   Future<int> deleteAll() async {

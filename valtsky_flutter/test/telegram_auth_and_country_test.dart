@@ -338,9 +338,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify badges and profile fields
-      expect(find.text('REAL TELEGRAM ACCOUNT LINKED'), findsOneWidget);
-      expect(find.text('DC 1 ACTIVE'), findsOneWidget);
+      // Verify profile fields and buttons
       expect(find.text('Jane Doe'), findsOneWidget);
       expect(find.text('★ PREMIUM'), findsOneWidget);
       expect(find.text('@janedoe'), findsOneWidget);
@@ -348,11 +346,11 @@ void main() {
       expect(find.text('+919876543210'), findsOneWidget);
       expect(find.text('ValtSky Vault (Jane)'), findsOneWidget);
       expect(find.text('-1009876543210'), findsOneWidget);
-      expect(find.text('OPEN VAULT CHANNEL'), findsOneWidget);
-      expect(find.text('LOGOUT'), findsOneWidget);
+      expect(find.text('Open Vault'), findsOneWidget);
+      expect(find.text('Logout'), findsOneWidget);
 
       // Tap Logout
-      await tester.tap(find.text('LOGOUT'));
+      await tester.tap(find.text('Logout'));
       await tester.pumpAndSettle();
 
       // Dialog opens

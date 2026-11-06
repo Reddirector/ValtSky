@@ -1,164 +1,219 @@
 import 'package:flutter/material.dart';
 
-/// ValtSky Noir Monochrome Theme Engine
-/// Enforces a sleek Black & White minimalist UI form, while reserving
-/// vibrant high-contrast colors strictly for alerts, popups, and diagnostic states.
+/// ValtSky Unified Azure/Sapphire Theme Engine with Black Midnight Base & Light Royal Blue Buttons
+/// Enforces a strict 3-color family hierarchy (Primary, Secondary, Tertiary shades of Blue/Midnight):
+/// - Primary: Light Royal Blue (Action CTAs, dominant switches, active states)
+/// - Secondary: Electric Cerulean / Sky Blue (Telemetry, speed meters, progress fills, active accents)
+/// - Tertiary: Pure Black Midnight / Slate (Card surfaces, boundaries, neutral tracks, muted text)
 class ValtSkyTheme {
-  // ─── MONOCHROME PRIMARY PALETTE (BLACK & WHITE UI) ────────────────
-  static const Color monoBlack = Color(0xFF000000);
-  static const Color monoNearBlack = Color(0xFF09090B);
-  static const Color monoDarkSurface = Color(0xFF121214);
-  static const Color monoDarkCard = Color(0xFF18181B);
-  static const Color monoDarkBorder = Color(0xFF27272A);
-  static const Color monoDarkTextSecondary = Color(0xFFA1A1AA);
-  static const Color monoDarkTextMuted = Color(0xFF71717A);
+  // ─── THREE-COLOR SINGLE FAMILY HIERARCHY (ROYAL BLUE / MIDNIGHT FAMILY) ───
 
-  static const Color monoWhite = Color(0xFFFFFFFF);
-  static const Color monoOffWhite = Color(0xFFFAFAFA);
-  static const Color monoLightSurface = Color(0xFFF4F4F5);
-  static const Color monoLightCard = Color(0xFFFFFFFF);
-  static const Color monoLightBorder = Color(0xFFE4E4E7);
-  static const Color monoLightTextSecondary = Color(0xFF71717A);
-  static const Color monoLightTextMuted = Color(0xFFA1A1AA);
+  // 1. PRIMARY SHADE: Simple Light Royal Blue (Buttons & Primary CTAs)
+  static const Color lightRoyalBlue = Color(0xFF4169E1); // Classic Light Royal Blue (4169E1)
+  static const Color lightRoyalBlueHover = Color(0xFF4F75F5); // Hover / Highlight Light Royal Blue
+  static const Color primaryLight = Color(0xFF3B64DE); // Light Royal Blue (Light Mode)
+  static const Color primaryDark = Color(0xFF4169E1);  // Vivid Light Royal Blue (Dark Mode)
 
-  // Standard UI accents in Black & White form
-  static const Color primaryAccent = Color(0xFFFFFFFF); // High-contrast White in Dark
-  static const Color primaryAccentLight = Color(0xFF000000); // Pitch Black in Light
+  // 2. SECONDARY SHADE: Electric Cerulean / Sky Blue
+  static const Color secondaryLight = Color(0xFF0284C7); // Vivid Sky Blue (Sky 600)
+  static const Color secondaryDark = Color(0xFF38BDF8);  // Electric Sky Blue (Sky 400)
 
-  // ─── VIBRANT SEMANTIC COLORS (FOR ALERTS, POPUPS & STATUS BADGES) ──
-  static const Color error = Color(0xFFEF4444); // Crimson Alert
+  // 3. TERTIARY SHADE: Black Midnight / Ice Mist (Surfaces, Borders, Tracks)
+  static const Color tertiaryLightSurface = Color(0xFFF0F7FF); // Soft Ice Sky Blue Tint
+  static const Color tertiaryLightCard = Color(0xFFFFFFFF);    // Clean Card Surface
+  static const Color tertiaryLightBorder = Color(0xFFBAE6FD);  // Powder Sky Border (Sky 200)
+  static const Color tertiaryLightTrack = Color(0xFFE0F2FE);   // Subtle Telemetry Track
+  static const Color tertiaryLightMuted = Color(0xFF64748B);   // Slate Tertiary Muted Text
+
+  // Black Midnight Base & Surface Hierarchy
+  static const Color blackMidnight = Color(0xFF050811);        // Deep Pure Black Midnight
+  static const Color tertiaryDarkSurface = Color(0xFF050811);  // Black Midnight Scaffold Surface
+  static const Color tertiaryDarkCard = Color(0xFF0C1322);     // Midnight Surface Card
+  static const Color tertiaryDarkBorder = Color(0xFF162540);   // Midnight Slate Boundary
+  static const Color tertiaryDarkTrack = Color(0xFF0E1626);    // Midnight Telemetry Track
+  static const Color tertiaryDarkMuted = Color(0xFF8899AC);    // Slate Tertiary Muted Text
+
+  // Backward-compatible semantic and telegram accents
+  static const Color primaryAccent = primaryDark;
+  static const Color primaryAccentLight = primaryLight;
+  static const Color telegramBlue = secondaryLight;
+
+  // Semantic Alerts (Preserved for system safety and notifications)
+  static const Color error = Color(0xFFEF4444);
   static const Color errorGlow = Color(0xFFDC2626);
-  static const Color success = Color(0xFF10B981); // Emerald Green
-  static const Color warning = Color(0xFFF59E0B); // Amber Warning
-  static const Color info = Color(0xFF0EA5E9); // Electric Blue Alert
-  static const Color telegramBlue = Color(0xFF2AABEE); // Official Telegram Sky Blue
+  static const Color success = Color(0xFF10B981);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color info = secondaryLight;
 
-  // Light Theme (Clean Crisp Minimalist Black & White)
+  // Helpers for contextual palette resolution
+  static Color primary(bool isDark) => isDark ? primaryDark : primaryLight;
+  static Color secondary(bool isDark) => isDark ? secondaryDark : secondaryLight;
+  static Color tertiarySurface(bool isDark) => isDark ? tertiaryDarkSurface : tertiaryLightSurface;
+  static Color tertiaryCard(bool isDark) => isDark ? tertiaryDarkCard : tertiaryLightCard;
+  static Color tertiaryBorder(bool isDark) => isDark ? tertiaryDarkBorder : tertiaryLightBorder;
+  static Color tertiaryTrack(bool isDark) => isDark ? tertiaryDarkTrack : tertiaryLightTrack;
+  static Color tertiaryText(bool isDark) => isDark ? tertiaryDarkMuted : tertiaryLightMuted;
+
+  // ─── LIGHT THEME ──────────────────────────────────────────────────────────
   static ThemeData light() {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       colorScheme: const ColorScheme(
         brightness: Brightness.light,
-        primary: monoBlack,
-        onPrimary: monoWhite,
-        secondary: Color(0xFF27272A),
-        onSecondary: monoWhite,
+        primary: primaryLight,
+        onPrimary: Colors.white,
+        secondary: secondaryLight,
+        onSecondary: Colors.white,
+        tertiary: tertiaryLightBorder,
+        onTertiary: primaryLight,
         error: error,
-        onError: monoWhite,
-        surface: monoLightCard,
-        onSurface: monoBlack,
+        onError: Colors.white,
+        surface: tertiaryLightCard,
+        onSurface: Color(0xFF0F172A),
       ),
-      scaffoldBackgroundColor: monoWhite,
+      scaffoldBackgroundColor: tertiaryLightSurface,
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: monoLightBorder, width: 1),
+          side: const BorderSide(color: tertiaryLightBorder, width: 1),
         ),
-        color: monoLightCard,
+        color: tertiaryLightCard,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: monoBlack),
+        iconTheme: IconThemeData(color: primaryLight),
         titleTextStyle: TextStyle(
-          color: monoBlack,
+          color: primaryLight,
           fontSize: 22,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.5,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: monoWhite,
-        indicatorColor: monoBlack,
+        backgroundColor: tertiaryLightCard,
+        indicatorColor: tertiaryLightTrack,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: monoWhite);
+            return const IconThemeData(color: primaryLight);
           }
-          return const IconThemeData(color: monoBlack);
+          return const IconThemeData(color: tertiaryLightMuted);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: monoBlack, fontSize: 12, fontWeight: FontWeight.w800);
+            return const TextStyle(color: primaryLight, fontSize: 12, fontWeight: FontWeight.w800);
           }
-          return const TextStyle(color: monoLightTextSecondary, fontSize: 12, fontWeight: FontWeight.w600);
+          return const TextStyle(color: tertiaryLightMuted, fontSize: 12, fontWeight: FontWeight.w600);
         }),
       ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryLight,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryLight,
+          side: const BorderSide(color: primaryLight, width: 1.2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontWeight: FontWeight.w900, color: monoBlack, letterSpacing: -0.5),
-        headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: monoBlack, letterSpacing: -0.4),
-        titleLarge: TextStyle(fontWeight: FontWeight.w800, color: monoBlack),
-        titleMedium: TextStyle(fontWeight: FontWeight.w700, color: monoBlack),
-        bodyLarge: TextStyle(color: Color(0xFF27272A), fontWeight: FontWeight.w500),
-        bodyMedium: TextStyle(color: monoLightTextSecondary),
-        bodySmall: TextStyle(color: monoLightTextMuted),
+        headlineLarge: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: -0.5),
+        headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.4),
+        titleLarge: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+        titleMedium: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+        bodyLarge: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
+        bodyMedium: TextStyle(color: tertiaryLightMuted),
+        bodySmall: TextStyle(color: Color(0xFF94A3B8)),
       ),
     );
   }
 
-  // Dark Theme (Pure Noir Obsidian Black & White)
+  // ─── DARK THEME ───────────────────────────────────────────────────────────
   static ThemeData dark() {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       colorScheme: const ColorScheme(
         brightness: Brightness.dark,
-        primary: monoWhite,
-        onPrimary: monoBlack,
-        secondary: Color(0xFFE4E4E7),
-        onSecondary: monoBlack,
+        primary: primaryDark,
+        onPrimary: Colors.white,
+        secondary: secondaryDark,
+        onSecondary: Colors.black,
+        tertiary: tertiaryDarkBorder,
+        onTertiary: secondaryDark,
         error: error,
-        onError: monoWhite,
-        surface: monoDarkSurface,
-        onSurface: monoWhite,
+        onError: Colors.white,
+        surface: tertiaryDarkCard,
+        onSurface: Colors.white,
       ),
-      scaffoldBackgroundColor: monoNearBlack,
+      scaffoldBackgroundColor: tertiaryDarkSurface,
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: monoDarkBorder, width: 1),
+          side: const BorderSide(color: tertiaryDarkBorder, width: 1),
         ),
-        color: monoDarkCard,
+        color: tertiaryDarkCard,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: monoWhite),
+        iconTheme: IconThemeData(color: secondaryDark),
         titleTextStyle: TextStyle(
-          color: monoWhite,
+          color: Colors.white,
           fontSize: 22,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.5,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: monoNearBlack,
-        indicatorColor: monoWhite,
+        backgroundColor: const Color(0xFF04060E),
+        indicatorColor: const Color(0xFF101C33),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: monoBlack);
+            return const IconThemeData(color: primaryDark);
           }
-          return const IconThemeData(color: monoDarkTextSecondary);
+          return const IconThemeData(color: tertiaryDarkMuted);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: monoWhite, fontSize: 12, fontWeight: FontWeight.w800);
+            return const TextStyle(color: primaryDark, fontSize: 12, fontWeight: FontWeight.w800);
           }
-          return const TextStyle(color: monoDarkTextMuted, fontSize: 12, fontWeight: FontWeight.w600);
+          return const TextStyle(color: tertiaryDarkMuted, fontSize: 12, fontWeight: FontWeight.w600);
         }),
       ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryDark,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryDark,
+          side: const BorderSide(color: primaryDark, width: 1.2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontWeight: FontWeight.w900, color: monoWhite, letterSpacing: -0.5),
-        headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: monoWhite, letterSpacing: -0.4),
-        titleLarge: TextStyle(fontWeight: FontWeight.w800, color: monoWhite),
-        titleMedium: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFFAFAFA)),
-        bodyLarge: TextStyle(color: Color(0xFFE4E4E7), fontWeight: FontWeight.w500),
-        bodyMedium: TextStyle(color: monoDarkTextSecondary),
-        bodySmall: TextStyle(color: monoDarkTextMuted),
+        headlineLarge: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5),
+        headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.4),
+        titleLarge: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+        titleMedium: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFF1F5F9)),
+        bodyLarge: TextStyle(color: Color(0xFFE2E8F0), fontWeight: FontWeight.w500),
+        bodyMedium: TextStyle(color: tertiaryDarkMuted),
+        bodySmall: TextStyle(color: Color(0xFF64748B)),
       ),
     );
   }

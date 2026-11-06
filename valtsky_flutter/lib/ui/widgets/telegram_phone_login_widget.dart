@@ -305,7 +305,7 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Instant setup: zero BotFather setup required',
+                          'Instant setup via Telegram code',
                           style: TextStyle(fontSize: 11, color: Colors.grey),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -431,26 +431,32 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white : Colors.black,
+                      color: ValtSkyTheme.primary(isDark),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
                       child: _isLoading
-                          ? SizedBox(
+                          ? const SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: isDark ? Colors.black : Colors.white,
+                                color: Colors.white,
                               ),
                             )
-                          : Text(
-                              'SEND TELEGRAM VERIFICATION CODE',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                                color: isDark ? Colors.black : Colors.white,
+                          : const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'SEND TELEGRAM VERIFICATION CODE',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
                     ),
@@ -574,12 +580,12 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white : Colors.black,
+                      color: ValtSkyTheme.primary(isDark),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
                       child: _isLoading
-                          ? Row(
+                          ? const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 SizedBox(
@@ -587,28 +593,39 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                                   height: 16,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: isDark ? Colors.black : Colors.white,
+                                    color: Colors.white,
                                   ),
                                 ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'CONNECTING & SYNCING PROFILE...',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5,
-                                    color: isDark ? Colors.black : Colors.white,
+                                SizedBox(width: 10),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      'CONNECTING & SYNCING PROFILE...',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
                             )
-                          : Text(
-                              'VERIFY & LINK TELEGRAM ACCOUNT',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 0.5,
-                                color: isDark ? Colors.black : Colors.white,
+                          : const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  'VERIFY & LINK TELEGRAM ACCOUNT',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                             ),
                     ),

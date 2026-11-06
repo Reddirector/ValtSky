@@ -529,21 +529,21 @@ class _ManualUploadAssistantSheetState extends State<ManualUploadAssistantSheet>
                 child: Container(
                   height: 54,
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white : Colors.black,
+                    color: ValtSkyTheme.primary(isDark),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.bolt_rounded, size: 20, color: isDark ? Colors.black : Colors.white),
+                      const Icon(Icons.bolt_rounded, size: 20, color: Colors.white),
                       const SizedBox(width: 8),
                       Text(
                         'START 2GB+ LOSSLESS UPLOAD (${_formatSize(_totalBytes)})',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.4,
-                          color: isDark ? Colors.black : Colors.white,
+                          color: Colors.white,
                         ),
                       ),
                     ],

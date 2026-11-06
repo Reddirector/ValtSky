@@ -77,16 +77,17 @@ class DashboardStatusBanner extends StatelessWidget {
         break;
 
       case SyncEngineStatus.restarting:
-        bg = const Color(0xFF8B5CF6).withAlpha(20);
-        border = const Color(0xFF8B5CF6).withAlpha(120);
-        text = const Color(0xFF8B5CF6);
+        final restartColor = ValtSkyTheme.secondary(isDark);
+        bg = restartColor.withAlpha(20);
+        border = restartColor.withAlpha(120);
+        text = restartColor;
         icon = Icons.autorenew_rounded;
         break;
 
       default:
-        bg = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
-        border = Colors.transparent;
-        text = isDark ? Colors.white : Colors.black;
+        bg = ValtSkyTheme.tertiaryCard(isDark);
+        border = ValtSkyTheme.tertiaryBorder(isDark);
+        text = isDark ? Colors.white : const Color(0xFF0F172A);
         icon = Icons.info_outline_rounded;
     }
 

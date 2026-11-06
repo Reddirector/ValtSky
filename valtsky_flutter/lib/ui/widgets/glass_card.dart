@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../util/theme.dart';
 
 class GlassCard extends StatelessWidget {
   final Widget child;
@@ -24,16 +25,16 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
+    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
+
     return Container(
       margin: margin,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
           BoxShadow(
-            color: isDark 
-                ? Colors.black.withValues(alpha: 0.5) 
-                : Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withAlpha(isDark ? 50 : 8),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -51,20 +52,18 @@ class GlassCard extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: isDark 
                     ? [
-                        const Color(0xFF18181B).withValues(alpha: 0.90),
-                        const Color(0xFF09090B).withValues(alpha: 0.95),
+                        cardBg.withAlpha(240),
+                        const Color(0xFF0B1120).withAlpha(245),
                       ] 
                     : [
                         Colors.white,
-                        const Color(0xFFFAFAFA),
+                        ValtSkyTheme.tertiaryLightSurface,
                       ],
               ),
               borderRadius: BorderRadius.circular(borderRadius),
               border: border ?? Border.all(
-                color: isDark 
-                    ? const Color(0xFF27272A) 
-                    : const Color(0xFFE4E4E7),
-                width: 1,
+                color: borderColor,
+                width: 1.2,
               ),
             ),
             child: Material(

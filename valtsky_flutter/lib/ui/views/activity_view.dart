@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../data/db/database_helper.dart';
 import '../../data/models/media_item.dart';
@@ -7,6 +6,7 @@ import '../widgets/media_item_card.dart';
 import '../widgets/animated_stagger.dart';
 import '../widgets/manual_upload_assistant_sheet.dart';
 import '../../util/telegram_launcher.dart';
+import '../../util/media_scanner.dart';
 
 class ActivityView extends StatefulWidget {
   final VoidCallback onDataChanged;
@@ -17,11 +17,16 @@ class ActivityView extends StatefulWidget {
   State<ActivityView> createState() => ActivityViewState();
 }
 
-class ActivityViewState extends State<ActivityView> {
+class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   String _selectedFilter = 'ALL';
   List<MediaItem> _items = [];
   bool _isLoading = true;
   int _oversizedCount = 0;
+  int _stashedCount = 0;
+  Map<String, int> _counts = {'total': 0, 'synced': 0, 'inQueue': 0, 'failed': 0, 'uploading': 0};
 
   @override
   void initState() {
@@ -30,16 +35,40 @@ class ActivityViewState extends State<ActivityView> {
   }
 
   Future<void> refreshItems() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     final status = _selectedFilter == 'ALL' ? null : _selectedFilter;
     final items = await DatabaseHelper.instance.getAllItems(statusFilter: status);
     final oversizedCount = await DatabaseHelper.instance.getOversizedCount();
+    final counts = await DatabaseHelper.instance.getAggregatedCounts();
+    final stashedCount = await DatabaseHelper.instance.getStashedCount();
     if (mounted) {
       setState(() {
         _items = items;
         _oversizedCount = oversizedCount;
+        _counts = counts;
+        _stashedCount = stashedCount;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _handleRemoveItem(MediaItem item) async {
+    final fileName = item.filePath.split('/').last;
+    await DatabaseHelper.instance.deleteItem(item.filePath);
+    await refreshItems();
+    widget.onDataChanged();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: ValtSkyTheme.primary(Theme.of(context).brightness == Brightness.dark),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          content: Text('Removed $fileName from queue'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -77,148 +106,52 @@ class ActivityViewState extends State<ActivityView> {
     );
   }
 
-  Future<void> _simulateNewPhoto() async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF18181B) : Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Simulate Gallery Capture', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 6),
-              Text(
-                'Add simulated media to test background sync and oversized manual uploads',
-                style: TextStyle(fontSize: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.photo_rounded),
-                title: const Text('Simulate Standard Photo (3.5 MB)'),
-                subtitle: const Text('Uploads automatically via background sync'),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _insertMockMedia(isVideo: false, isOversized: false);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.movie_rounded),
-                title: const Text('Simulate Video (45 MB)'),
-                subtitle: const Text('Chunks into 48MB parts if limit exceeded'),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _insertMockMedia(isVideo: true, isOversized: false);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.layers_rounded, color: ValtSkyTheme.warning),
-                title: const Text('Simulate Oversized 4K Master (2.85 GB)'),
-                subtitle: const Text('Held in QUEUED for 4-click manual lossless upload'),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _insertMockMedia(isVideo: true, isOversized: true);
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _insertMockMedia({required bool isVideo, required bool isOversized}) async {
-    final randId = Random().nextInt(9000) + 1000;
-    final ext = isOversized ? 'mov' : (isVideo ? 'mp4' : 'jpg');
-    final mime = isOversized ? 'video/quicktime' : (isVideo ? 'video/mp4' : 'image/jpeg');
-    final size = isOversized
-        ? 2854300000 // 2.85 GB
-        : (isVideo ? (30 + Random().nextInt(30)) * 1024 * 1024 : (2 + Random().nextInt(5)) * 1024 * 1024);
-    final prefix = isOversized ? 'VID_4K60_RAW' : (isVideo ? 'VID' : 'IMG');
-
-    final newItem = MediaItem(
-      filePath: '/storage/emulated/0/DCIM/Camera/${prefix}_20261101_$randId.$ext',
-      mimeType: mime,
-      dateTaken: DateTime.now().millisecondsSinceEpoch,
-      fileSize: size,
-      status: MediaItem.statusPending,
-      updatedAt: DateTime.now().millisecondsSinceEpoch,
-    );
-
-    await DatabaseHelper.instance.insert(newItem);
-    await refreshItems();
-    widget.onDataChanged();
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: isOversized ? ValtSkyTheme.warning : ValtSkyTheme.primaryAccent,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          content: Text(
-            isOversized
-                ? '⚡ 2.85 GB Oversized file added to > 2 GB queue!'
-                : 'Simulated new media added to sync queue: ${prefix}_20261101_$randId.$ext',
-          ),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = ValtSkyTheme.primary(isDark);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Filter Chips Row + Add Simulation Button
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 360;
+
+        return Padding(
+          padding: EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 18, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterChip('ALL', 'All'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(MediaItem.statusDone, 'Synced'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(MediaItem.statusPending, 'Queued'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('OVERSIZED', '> 2 GB', badgeCount: _oversizedCount),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(MediaItem.statusFailed, 'Failed'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip(MediaItem.statusStashed, 'Stashed'),
-                    ],
+              // Tab Bar with Live Count Badges
+              Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip('ALL', 'All', badgeCount: _counts['total'] ?? _items.length),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(MediaItem.statusPending, 'Queued', badgeCount: _counts['inQueue'] ?? 0),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(MediaItem.statusDone, 'Synced', badgeCount: _counts['synced'] ?? 0),
+                          const SizedBox(width: 8),
+                          _buildFilterChip('OVERSIZED', '> 2 GB', badgeCount: _oversizedCount),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(MediaItem.statusFailed, 'Failed', badgeCount: _counts['failed'] ?? 0),
+                          if (_stashedCount > 0) ...[
+                            const SizedBox(width: 8),
+                            _buildFilterChip(MediaItem.statusStashed, 'Stashed', badgeCount: _stashedCount),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Simulate taking a new photo',
-                style: IconButton.styleFrom(
-                  backgroundColor: isDark ? Colors.white : Colors.black,
-                  foregroundColor: isDark ? Colors.black : Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                icon: const Icon(Icons.add_a_photo_rounded, size: 20),
-                onPressed: _simulateNewPhoto,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Queue Summary Count Banner (Counts rather than photos)
+              _buildQueueSummaryBanner(isDark),
 
           // ─── QUEUED TAB NOTICE FOR OVERSIZED FILES ─────────────────
           if (_selectedFilter == MediaItem.statusPending && _oversizedCount > 0)
@@ -332,21 +265,21 @@ class ActivityViewState extends State<ActivityView> {
                             child: Container(
                               height: 48,
                               decoration: BoxDecoration(
-                                color: isDark ? Colors.white : Colors.black,
+                                color: primaryColor,
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              child: Row(
+                              child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.bolt_rounded, size: 20, color: isDark ? Colors.black : Colors.white),
-                                  const SizedBox(width: 8),
+                                  Icon(Icons.bolt_rounded, size: 20, color: Colors.white),
+                                  SizedBox(width: 8),
                                   Text(
                                     'UPLOAD ALL OVERSIZED',
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w900,
                                       letterSpacing: 0.5,
-                                      color: isDark ? Colors.black : Colors.white,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ],
@@ -495,11 +428,13 @@ class ActivityViewState extends State<ActivityView> {
                                 return StaggeredFadeSlide(
                                   delayMs: (index * 35).clamp(0, 200),
                                   child: MediaItemCard(
+                                    key: ValueKey(_items[index].filePath),
                                     item: _items[index],
                                     onChanged: () {
                                       refreshItems();
                                       widget.onDataChanged();
                                     },
+                                    onRemove: () => _handleRemoveItem(_items[index]),
                                     onManualUpload: () => _openManualUploadAssistant([_items[index]]),
                                   ),
                                 );
@@ -512,25 +447,120 @@ class ActivityViewState extends State<ActivityView> {
         ],
       ),
     );
+  },
+);
+  }
+
+  Widget _buildQueueSummaryBanner(bool isDark) {
+    final primaryColor = ValtSkyTheme.primary(isDark);
+    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
+    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
+    final mutedText = ValtSkyTheme.tertiaryText(isDark);
+
+    final pendingCount = _counts['inQueue'] ?? 0;
+    final syncedCount = _counts['synced'] ?? 0;
+
+    String title;
+    String subtitle;
+    IconData icon;
+
+    if (_selectedFilter == MediaItem.statusPending) {
+      title = '$pendingCount PENDING IN QUEUE';
+      subtitle = pendingCount > 0
+          ? 'Tap trash icon to exclude any photo from upload'
+          : 'Upload queue is clear';
+      icon = Icons.schedule_rounded;
+    } else if (_selectedFilter == MediaItem.statusDone) {
+      title = '$syncedCount SYNCHRONIZED';
+      subtitle = 'Bit-for-bit lossless backup in Telegram';
+      icon = Icons.cloud_done_rounded;
+    } else if (_selectedFilter == 'OVERSIZED') {
+      title = '$_oversizedCount OVERSIZED (> 2 GB)';
+      subtitle = 'Held for manual lossless upload';
+      icon = Icons.layers_rounded;
+    } else if (_selectedFilter == MediaItem.statusFailed) {
+      final failedCount = _counts['failed'] ?? 0;
+      title = '$failedCount FAILED TRANSFERS';
+      subtitle = 'Check connection or retry';
+      icon = Icons.error_outline_rounded;
+    } else {
+      final totalCount = _counts['total'] ?? _items.length;
+      title = '$totalCount TOTAL MEDIA TRACKED';
+      subtitle = '$pendingCount pending • $syncedCount synced';
+      icon = Icons.photo_library_outlined;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: primaryColor.withAlpha(22),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: primaryColor, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.w500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildFilterChip(String filterKey, String label, {int? badgeCount}) {
     final isSelected = _selectedFilter == filterKey;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = ValtSkyTheme.primary(isDark);
+    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
+    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
+    final mutedText = ValtSkyTheme.tertiaryText(isDark);
 
     return ChoiceChip(
       label: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label),
-          if (badgeCount != null && badgeCount > 0) ...[
+          if (badgeCount != null) ...[
             const SizedBox(width: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? (isDark ? Colors.black : Colors.white)
-                    : ValtSkyTheme.warning,
+                    ? Colors.white.withAlpha(50)
+                    : (filterKey == 'OVERSIZED' && badgeCount > 0
+                        ? ValtSkyTheme.warning.withAlpha(40)
+                        : (isDark ? Colors.white.withAlpha(20) : Colors.black.withAlpha(12))),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -539,8 +569,10 @@ class ActivityViewState extends State<ActivityView> {
                   fontSize: 10,
                   fontWeight: FontWeight.w900,
                   color: isSelected
-                      ? (isDark ? Colors.white : Colors.black)
-                      : Colors.black,
+                      ? Colors.white
+                      : (filterKey == 'OVERSIZED' && badgeCount > 0
+                          ? ValtSkyTheme.warning
+                          : (isDark ? Colors.white70 : const Color(0xFF1E293B))),
                 ),
               ),
             ),
@@ -557,16 +589,13 @@ class ActivityViewState extends State<ActivityView> {
       labelStyle: TextStyle(
         fontSize: 12,
         fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-        color: isSelected 
-            ? (isDark ? Colors.black : Colors.white)
-            : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF52525B)),
+        color: isSelected ? Colors.white : mutedText,
       ),
-      selectedColor: isDark ? Colors.white : Colors.black,
-      backgroundColor: isDark ? const Color(0xFF18181B) : Colors.white,
+      selectedColor: primaryColor,
+      backgroundColor: cardBg,
       side: BorderSide(
-        color: isSelected 
-            ? (isDark ? Colors.white : Colors.black)
-            : (isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7)),
+        color: isSelected ? primaryColor : borderColor,
+        width: 1.2,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
@@ -614,19 +643,53 @@ class ActivityViewState extends State<ActivityView> {
               icon: const Icon(Icons.open_in_new_rounded, size: 18),
               label: const Text('Open Channel in Telegram'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? Colors.white : Colors.black,
-                foregroundColor: isDark ? Colors.black : Colors.white,
+                backgroundColor: ValtSkyTheme.primary(isDark),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
             )
           else
-            OutlinedButton.icon(
-              onPressed: _simulateNewPhoto,
-              icon: const Icon(Icons.add_photo_alternate_rounded, size: 18),
-              label: const Text('Add Test Photo'),
-              style: OutlinedButton.styleFrom(
+            ElevatedButton.icon(
+              onPressed: () async {
+                setState(() => _isLoading = true);
+                try {
+                  final newCount = await MediaScanner.scanForNewMedia(forceFull: false);
+                  if (!mounted) return;
+                  await refreshItems();
+                  if (!mounted) return;
+                  widget.onDataChanged();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        newCount > 0
+                            ? 'Scanned gallery: $newCount new items queued'
+                            : 'Gallery up to date (no new items)',
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+                } catch (e) {
+                  if (mounted) {
+                    setState(() => _isLoading = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to scan gallery: $e'),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.sync_rounded, size: 18),
+              label: const Text('Scan Gallery Now'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ValtSkyTheme.primary(isDark),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               ),
             ),
         ],

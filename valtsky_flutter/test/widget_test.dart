@@ -7,6 +7,12 @@ import 'package:valtsky_flutter/data/prefs.dart';
 import 'package:valtsky_flutter/main.dart';
 import 'package:valtsky_flutter/util/telegram_launcher.dart';
 import 'package:valtsky_flutter/ui/widgets/valtsky_logo.dart';
+import 'package:valtsky_flutter/ui/widgets/app_walkthrough_guide.dart';
+import 'package:valtsky_flutter/ui/widgets/interactive_spotlight_tutorial.dart';
+import 'package:valtsky_flutter/ui/widgets/dashboard_control_deck.dart';
+import 'package:valtsky_flutter/ui/view_models/dashboard_view_model.dart';
+import 'package:valtsky_flutter/services/sync_engine.dart';
+import 'package:valtsky_flutter/ui/widgets/media_item_card.dart';
 
 void main() {
   setUp(() async {
@@ -166,5 +172,282 @@ void main() {
     );
     await tester.pump();
     expect(find.byType(ValtSkyLogo), findsNWidgets(2));
+  });
+
+  testWidgets('DashboardControlDeck displays Stop Process and Quick Controls', (WidgetTester tester) async {
+    bool stopped = false;
+    bool scanned = false;
+    bool paused = false;
+    bool diagnostics = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardControlDeck(
+            isConfigured: true,
+            isMonitoring: true,
+            isPaused: false,
+            isScanning: false,
+            onTogglePause: () => paused = true,
+            onScanGallery: () => scanned = true,
+            onStopProcess: () => stopped = true,
+            onShowDiagnostics: () => diagnostics = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Verify buttons are rendered
+    expect(find.text('QUICK CONTROLS'), findsOneWidget);
+    expect(find.text('Pause'), findsOneWidget);
+    expect(find.text('Scan Gallery'), findsOneWidget);
+    expect(find.text('Stop Process'), findsOneWidget);
+    expect(find.text('Diagnostics'), findsOneWidget);
+
+    // Tap Stop Process
+    await tester.tap(find.text('Stop Process'));
+    expect(stopped, isTrue);
+
+    // Tap Scan Gallery
+    await tester.tap(find.text('Scan Gallery'));
+    expect(scanned, isTrue);
+
+    // Tap Pause
+    await tester.tap(find.text('Pause'));
+    expect(paused, isTrue);
+
+    // Tap Diagnostics
+    await tester.tap(find.text('Diagnostics'));
+    expect(diagnostics, isTrue);
+  });
+
+  testWidgets('AppWalkthroughGuide displays all 3 tutorial steps correctly', (WidgetTester tester) async {
+    bool settingsNavigated = false;
+    bool galleryScanned = false;
+    bool dismissed = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppWalkthroughGuide(
+            isConfigured: false,
+            totalCount: 0,
+            isMonitoring: false,
+            onNavigateToSettings: () => settingsNavigated = true,
+            onScanGallery: () => galleryScanned = true,
+            onDismiss: () => dismissed = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Verify Tutorial Header
+    expect(find.text('QUICK START TUTORIAL'), findsOneWidget);
+    expect(find.text('Dismiss'), findsOneWidget);
+
+    // Verify 3 Steps
+    expect(find.text('Connect Your Vault'), findsOneWidget);
+    expect(find.text('Scan Gallery to Receive Media'), findsOneWidget);
+    expect(find.text('Monitor & Manage Sync'), findsOneWidget);
+
+    // Tap Step 1 Action (Open Settings)
+    expect(find.text('Open Settings'), findsOneWidget);
+    await tester.tap(find.text('Open Settings'));
+    expect(settingsNavigated, isTrue);
+
+    // Tap Step 2 Action (Scan Gallery)
+    expect(find.text('Scan Gallery'), findsOneWidget);
+    await tester.tap(find.text('Scan Gallery'));
+    expect(galleryScanned, isTrue);
+
+    // Tap Dismiss
+    await tester.tap(find.text('Dismiss'));
+    expect(dismissed, isTrue);
+  });
+
+  testWidgets('DashboardViewModel handleStopProcess halts engine and clears state', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () {
+                  final vm = DashboardViewModel();
+                  vm.handleStopProcess(context);
+                },
+                child: const Text('STOP_TEST'),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('STOP_TEST'));
+    await tester.pump();
+
+    // Verify engine status is idle and speed notifier says Stopped
+    expect(SyncEngine.uploadSpeedNotifier.value, 'Stopped');
+    expect(SyncEngine.engineStatusNotifier.value, SyncEngineStatus.idle);
+    expect(SyncEngine.currentItemNotifier.value, '');
+  });
+
+  testWidgets('InteractiveSpotlightTutorial renders beacons, advances steps, and triggers callbacks', (WidgetTester tester) async {
+    int currentStep = 1;
+    bool settingsTapped = false;
+    bool scanTapped = false;
+    bool monitoringTapped = false;
+    bool skipped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              return InteractiveSpotlightTutorial(
+                currentStep: currentStep,
+                onNext: () {
+                  setState(() => currentStep++);
+                },
+                onSkip: () => skipped = true,
+                onGoToSettings: () => settingsTapped = true,
+                onTriggerScan: () => scanTapped = true,
+                onToggleMonitoring: () => monitoringTapped = true,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Step 1: Connect Your Vault
+    expect(find.text('STEP 1 OF 3'), findsOneWidget);
+    expect(find.text('Connect Your Vault'), findsOneWidget);
+    expect(find.text('Open Settings'), findsOneWidget);
+
+    // Tap Open Settings
+    await tester.tap(find.text('Open Settings'));
+    await tester.pump();
+    expect(settingsTapped, isTrue);
+
+    // Step 2: Scan Gallery
+    expect(find.text('STEP 2 OF 3'), findsOneWidget);
+    expect(find.text('Scan Gallery'), findsOneWidget);
+    expect(find.text('Scan Gallery Now'), findsOneWidget);
+
+    // Tap Scan Gallery Now
+    await tester.tap(find.text('Scan Gallery Now'));
+    await tester.pump();
+    expect(scanTapped, isTrue);
+
+    // Step 3: Start Monitoring
+    expect(find.text('STEP 3 OF 3'), findsOneWidget);
+    expect(find.text('Start Monitoring'), findsOneWidget);
+    expect(find.text('Start & Finish'), findsOneWidget);
+
+    // Tap Start & Finish
+    await tester.tap(find.text('Start & Finish'));
+    await tester.pump();
+    expect(monitoringTapped, isTrue);
+    expect(skipped, isTrue);
+  });
+
+  testWidgets('Queue tab shows counts and allows removing pictures from upload queue', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    // Insert 2 pending items
+    await DatabaseHelper.instance.insert(MediaItem(
+      filePath: '/storage/emulated/0/DCIM/Camera/IMG_20261106_TEST1.jpg',
+      mimeType: 'image/jpeg',
+      dateTaken: DateTime.now().millisecondsSinceEpoch,
+      fileSize: 3500000,
+      status: MediaItem.statusPending,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+    await DatabaseHelper.instance.insert(MediaItem(
+      filePath: '/storage/emulated/0/DCIM/Camera/IMG_20261106_TEST2.jpg',
+      mimeType: 'image/jpeg',
+      dateTaken: DateTime.now().millisecondsSinceEpoch + 100,
+      fileSize: 4200000,
+      status: MediaItem.statusPending,
+      updatedAt: DateTime.now().millisecondsSinceEpoch + 100,
+    ));
+
+    await tester.pumpWidget(const ValtSkyApp());
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Switch to Queue & Activity
+    await tester.tap(find.text('Queue & Activity'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verify Tab shows Queued
+    expect(find.text('Queued'), findsOneWidget);
+
+    // Tap Queued tab
+    await tester.tap(find.text('Queued'));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verify count banner shows pending in queue
+    expect(find.textContaining('PENDING IN QUEUE'), findsOneWidget);
+    expect(find.text('IMG_20261106_TEST1.jpg'), findsOneWidget);
+    expect(find.text('IMG_20261106_TEST2.jpg'), findsOneWidget);
+
+    // Verify Delete / Trash button exists for items
+    final trashIcons = find.byIcon(Icons.delete_outline_rounded);
+    expect(trashIcons, findsWidgets);
+
+    // Tap trash icon on first item to remove it
+    await tester.tap(trashIcons.first);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verify item was removed from database and UI
+    final remaining = await DatabaseHelper.instance.getAllPending();
+    expect(remaining.length, 1);
+  });
+
+  testWidgets('Ultra-narrow 320px viewport renders MediaItemCard with all action buttons without overflow', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(320, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final item = MediaItem(
+      filePath: '/storage/emulated/0/DCIM/huge_video.mp4',
+      mimeType: 'video/mp4',
+      dateTaken: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      updatedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      fileSize: 3000000000, // > 2 GB
+      status: MediaItem.statusPending,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            child: MediaItemCard(
+              item: item,
+              onManualUpload: () {},
+              onRemove: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify all 3 elements render without throwing overflow exceptions
+    expect(find.text('> 2 GB'), findsOneWidget);
+    expect(find.text('UPLOAD'), findsOneWidget);
+    expect(find.text('DELETE'), findsOneWidget);
   });
 }

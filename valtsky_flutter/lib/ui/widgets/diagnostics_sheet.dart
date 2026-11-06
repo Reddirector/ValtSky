@@ -15,7 +15,7 @@ class DiagnosticsSheet extends StatefulWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: isDark ? const Color(0xFF131B2E) : Colors.white,
+      backgroundColor: ValtSkyTheme.tertiaryCard(isDark),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -30,13 +30,17 @@ class DiagnosticsSheet extends StatefulWidget {
 class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
   bool _isTestingNetwork = false;
   bool? _lastNetworkResult;
+  int? _latencyMs;
 
   Future<void> _checkNetwork() async {
     setState(() => _isTestingNetwork = true);
+    final sw = Stopwatch()..start();
     final result = await SyncEngine.hasInternetConnection();
+    sw.stop();
     if (mounted) {
       setState(() {
         _lastNetworkResult = result;
+        _latencyMs = sw.elapsedMilliseconds;
         _isTestingNetwork = false;
       });
     }
@@ -77,15 +81,19 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withAlpha(25),
+                  color: ValtSkyTheme.secondary(isDark).withAlpha(25),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.monitor_heart_rounded, color: Color(0xFF10B981), size: 22),
+                child: Icon(Icons.monitor_heart_rounded, color: ValtSkyTheme.secondary(isDark), size: 22),
               ),
               const SizedBox(width: 12),
-              const Text(
+              Text(
                 'Engine Diagnostics',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
               ),
             ],
           ),
@@ -93,9 +101,9 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF090D16) : const Color(0xFFF8FAFC),
+              color: ValtSkyTheme.tertiaryTrack(isDark),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+              border: Border.all(color: ValtSkyTheme.tertiaryBorder(isDark)),
             ),
             child: Column(
               children: [
@@ -107,7 +115,7 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
                 const Divider(height: 16),
                 _buildRow('Rate Limit Remaining', '${rateLimitRemaining}s', isDark),
                 const Divider(height: 16),
-                _buildRow('Worker Concurrency', '2x MTProto Parallel Streams', isDark),
+                _buildRow('Worker Concurrency', '1x Dedicated MTProto Stream', isDark),
                 const Divider(height: 16),
                 _buildRow('Database Mode', 'SQLite WAL (Write-Ahead Logging)', isDark),
                 const Divider(height: 16),
@@ -122,7 +130,11 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
                 child: OutlinedButton.icon(
                   onPressed: _isTestingNetwork ? null : _checkNetwork,
                   icon: _isTestingNetwork
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: ValtSkyTheme.secondary(isDark)),
+                        )
                       : Icon(
                           _lastNetworkResult == null
                               ? Icons.network_check_rounded
@@ -130,10 +142,16 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
                           size: 16,
                           color: _lastNetworkResult == null
                               ? null
-                              : (_lastNetworkResult! ? ValtSkyTheme.success : ValtSkyTheme.error),
+                              : (_lastNetworkResult! ? ValtSkyTheme.secondary(isDark) : ValtSkyTheme.error),
                         ),
-                  label: Text(_lastNetworkResult == null ? 'Ping Network' : (_lastNetworkResult! ? 'Online' : 'Offline')),
+                  label: Text(_lastNetworkResult == null
+                      ? 'Ping Network'
+                      : (_lastNetworkResult!
+                          ? 'Online (${_latencyMs ?? 0}ms)'
+                          : 'Offline')),
                   style: OutlinedButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+                    side: BorderSide(color: ValtSkyTheme.tertiaryBorder(isDark)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -149,7 +167,7 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
                   icon: const Icon(Icons.restart_alt_rounded, size: 16),
                   label: const Text('Restart Sockets'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B5CF6),
+                    backgroundColor: ValtSkyTheme.primary(isDark),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -172,7 +190,7 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            color: ValtSkyTheme.tertiaryText(isDark),
           ),
         ),
         const SizedBox(width: 8),
@@ -186,8 +204,8 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
               fontSize: 12,
               fontWeight: FontWeight.w800,
               color: highlight
-                  ? const Color(0xFF06B6D4)
-                  : (isDark ? Colors.white : Colors.black87),
+                  ? ValtSkyTheme.secondary(isDark)
+                  : (isDark ? Colors.white : const Color(0xFF0F172A)),
             ),
           ),
         ),

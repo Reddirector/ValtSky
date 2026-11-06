@@ -66,14 +66,13 @@ class _TactilePressState extends State<TactilePress> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onTap,
       onTapDown: (_) {
         if (widget.onTap != null) setState(() => _isPressed = true);
       },
       onTapUp: (_) {
-        if (widget.onTap != null) {
-          setState(() => _isPressed = false);
-          widget.onTap!();
-        }
+        if (widget.onTap != null) setState(() => _isPressed = false);
       },
       onTapCancel: () {
         if (widget.onTap != null) setState(() => _isPressed = false);
