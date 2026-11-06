@@ -29,8 +29,6 @@ class DashboardViewModel extends ChangeNotifier {
   void _init() {
     SyncEngine.statsNotifier.addListener(_onStatsChanged);
     SyncEngine.engineStatusNotifier.addListener(notifyListeners);
-    SyncEngine.uploadSpeedNotifier.addListener(notifyListeners);
-    SyncEngine.currentItemNotifier.addListener(notifyListeners);
     SyncEngine.rateLimitSecondsRemainingNotifier.addListener(notifyListeners);
     refreshStats();
   }
@@ -39,8 +37,6 @@ class DashboardViewModel extends ChangeNotifier {
   void dispose() {
     SyncEngine.statsNotifier.removeListener(_onStatsChanged);
     SyncEngine.engineStatusNotifier.removeListener(notifyListeners);
-    SyncEngine.uploadSpeedNotifier.removeListener(notifyListeners);
-    SyncEngine.currentItemNotifier.removeListener(notifyListeners);
     SyncEngine.rateLimitSecondsRemainingNotifier.removeListener(notifyListeners);
     super.dispose();
   }

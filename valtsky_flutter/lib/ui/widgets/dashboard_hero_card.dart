@@ -52,8 +52,6 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> with SingleTicker
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final engineStatus = SyncEngine.engineStatusNotifier.value;
-    final speed = SyncEngine.uploadSpeedNotifier.value;
-    final currentItem = SyncEngine.currentItemNotifier.value;
 
     final isActive = widget.isMonitoring && !widget.isPaused && engineStatus == SyncEngineStatus.active;
     final cardBg = isDark ? const Color(0xFF131B2E) : Colors.white;
@@ -146,7 +144,7 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> with SingleTicker
                     Icon(Icons.bolt_rounded, size: 14, color: isDark ? const Color(0xFF06B6D4) : Colors.blueGrey),
                     const SizedBox(width: 4),
                     Text(
-                      '4x MTProto Turbo',
+                      '2x MTProto Turbo',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
@@ -190,25 +188,31 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> with SingleTicker
               ),
               Row(
                 children: [
-                  if (speed.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF06B6D4).withAlpha(25),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF06B6D4).withAlpha(80)),
-                      ),
-                      child: Text(
-                        speed,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF06B6D4),
+                  ValueListenableBuilder<String>(
+                    valueListenable: SyncEngine.uploadSpeedNotifier,
+                    builder: (context, currentSpeed, _) {
+                      if (currentSpeed.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF06B6D4).withAlpha(25),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF06B6D4).withAlpha(80)),
+                          ),
+                          child: Text(
+                            currentSpeed,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF06B6D4),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
+                      );
+                    },
+                  ),
                   Text(
                     '$percentInt%',
                     style: TextStyle(
@@ -239,27 +243,33 @@ class _DashboardHeroCardState extends State<DashboardHeroCard> with SingleTicker
             ),
           ),
 
-          if (currentItem.isNotEmpty && isActive) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.arrow_upward_rounded, size: 14, color: Color(0xFF06B6D4)),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    currentItem,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+          ValueListenableBuilder<String>(
+            valueListenable: SyncEngine.currentItemNotifier,
+            builder: (context, activeFile, _) {
+              if (activeFile.isEmpty || !isActive) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
+                  children: [
+                    const Icon(Icons.arrow_upward_rounded, size: 14, color: Color(0xFF06B6D4)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        activeFile,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ],
+              );
+            },
+          ),
 
           const SizedBox(height: 18),
 

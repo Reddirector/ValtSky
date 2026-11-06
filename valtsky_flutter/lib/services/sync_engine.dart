@@ -70,8 +70,8 @@ class SyncEngine {
   bool get isSyncing => _isSyncing;
   Completer<void>? _syncCompleter;
 
-  // 4 concurrent turbo upload workers targeting 60+ images/minute (~1 image/sec)
-  static const int _workerCount = 4;
+  // 2 high-throughput parallel upload workers (optimal for mobile CPU headroom and zero frame drops)
+  static const int _workerCount = 2;
   static const int maxItemRetries = 3;
 
   // Global Engine Status & Diagnostic Notifiers
@@ -106,16 +106,25 @@ class SyncEngine {
 
   static void _scheduleStatsNotification() {
     final now = DateTime.now();
-    if (now.difference(_lastStatsNotify).inMilliseconds >= 250) {
+    if (now.difference(_lastStatsNotify).inMilliseconds >= 500) {
       _lastStatsNotify = now;
       statsNotifier.value = _cachedStats;
     } else if (!_statsNotifyScheduled) {
       _statsNotifyScheduled = true;
-      Future.delayed(const Duration(milliseconds: 250), () {
+      Future.delayed(const Duration(milliseconds: 500), () {
         _statsNotifyScheduled = false;
         _lastStatsNotify = DateTime.now();
         statsNotifier.value = _cachedStats;
       });
+    }
+  }
+
+  static DateTime _lastItemNotify = DateTime.fromMillisecondsSinceEpoch(0);
+  static void _updateCurrentItemThrottled(String fileName) {
+    final now = DateTime.now();
+    if (now.difference(_lastItemNotify).inMilliseconds >= 500) {
+      _lastItemNotify = now;
+      currentItemNotifier.value = fileName;
     }
   }
 
@@ -386,7 +395,7 @@ class SyncEngine {
       engineStatusMessageNotifier.value = 'Offline. Waiting for internet connection...';
     } else {
       engineStatusNotifier.value = SyncEngineStatus.active;
-      engineStatusMessageNotifier.value = 'Turbo upload workers active (4x parallel).';
+      engineStatusMessageNotifier.value = 'Turbo upload workers active (2x parallel).';
     }
 
     _totalBytesSent = 0;
@@ -618,8 +627,11 @@ class SyncEngine {
       }
 
       final fileName = item.filePath.split('/').last;
-      currentItemNotifier.value = fileName;
+      _updateCurrentItemThrottled(fileName);
       _updateInFlightClaim();
+
+      // Pacing yield for smooth 120 FPS UI rendering
+      await Future.delayed(const Duration(milliseconds: 2));
 
       final file = File(item.filePath);
       if (!await file.exists()) {

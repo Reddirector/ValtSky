@@ -107,7 +107,7 @@ class _DiagnosticsSheetState extends State<DiagnosticsSheet> {
                 const Divider(height: 16),
                 _buildRow('Rate Limit Remaining', '${rateLimitRemaining}s', isDark),
                 const Divider(height: 16),
-                _buildRow('Worker Concurrency', '4x MTProto Parallel Streams', isDark),
+                _buildRow('Worker Concurrency', '2x MTProto Parallel Streams', isDark),
                 const Divider(height: 16),
                 _buildRow('Database Mode', 'SQLite WAL (Write-Ahead Logging)', isDark),
                 const Divider(height: 16),

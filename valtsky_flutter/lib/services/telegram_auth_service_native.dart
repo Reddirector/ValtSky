@@ -767,8 +767,8 @@ class TelegramAuthService {
         bytesSent += bytesToRead;
         onProgress?.call(bytesSent, fileSize);
 
-        // Cooperative event loop yield to keep UI frame rendering silky smooth (60/120 FPS)
-        await Future.delayed(Duration.zero);
+        // Cooperative event loop yield to guarantee UI frame rendering remains silky smooth (60/120 FPS)
+        await Future.delayed(const Duration(milliseconds: 1));
       }
 
       final t.InputFileBase inputFile = isBigFile
