@@ -322,10 +322,14 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Telegram Phone Number',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                    const Expanded(
+                      child: Text(
+                        'Telegram Phone Number',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     // Live Digit Counter Badge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

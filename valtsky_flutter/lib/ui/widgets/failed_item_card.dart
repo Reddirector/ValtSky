@@ -237,9 +237,12 @@ class FailedItemCard extends StatelessWidget {
                     children: [
                       Icon(Icons.info_outline_rounded, size: 12, color: isDark ? Colors.grey[400] : Colors.grey[600]),
                       const SizedBox(width: 4),
-                      Text(
-                        'Tap for diagnosis & 1-click fix',
-                        style: TextStyle(fontSize: 10, color: isDark ? Colors.grey[400] : Colors.grey[600], fontWeight: FontWeight.w600),
+                      Expanded(
+                        child: Text(
+                          'Tap for diagnosis & 1-click fix',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 10, color: isDark ? Colors.grey[400] : Colors.grey[600], fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ],
                   ),

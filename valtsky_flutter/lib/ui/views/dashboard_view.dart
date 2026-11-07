@@ -178,19 +178,24 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.error_outline_rounded, color: ValtSkyTheme.error, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${_viewModel.failedCount} Failed Uploads',
-                    style: const TextStyle(
-                      color: ValtSkyTheme.error,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded, color: ValtSkyTheme.error, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${_viewModel.failedCount} Failed Uploads',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: ValtSkyTheme.error,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,

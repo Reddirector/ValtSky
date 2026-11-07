@@ -856,9 +856,11 @@ class _SettingsViewState extends State<SettingsView> {
             children: [
               Icon(Icons.wifi_rounded, size: 20, color: isDark ? Colors.white : Colors.black),
               const SizedBox(width: 8),
-              const Text(
-                'Network & Security Rules',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              const Expanded(
+                child: Text(
+                  'Network & Security Rules',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
               ),
             ],
           ),
