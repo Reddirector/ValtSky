@@ -117,6 +117,7 @@ class _SettingsViewState extends State<SettingsView> {
             }
           }
           await SyncEngine.instance.initializeNewVaultSession();
+          widget.onDataChanged();
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -373,6 +374,7 @@ class _SettingsViewState extends State<SettingsView> {
                             }
                           }
                           await SyncEngine.instance.initializeNewVaultSession();
+                          widget.onDataChanged();
                         },
                         onSwitchToBotMode: () {
                           setState(() => _authMode = 'bot');

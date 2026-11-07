@@ -94,7 +94,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (Prefs.isConfigured() && Prefs.monitoringEnabled && !Prefs.uploadPaused) {
       if (!kIsWeb) {
         try {
-          BackgroundService.start();
+          await BackgroundService.start();
         } catch (e) {
           debugPrint('Error starting background service: $e');
         }
