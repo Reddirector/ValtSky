@@ -74,6 +74,12 @@ flutter:
     - assets/fonts/
 
   fonts:
+    - family: Sora
+      fonts:
+        - asset: assets/fonts/Sora-VariableFont_wght.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-VariableFont_opsz_wght.ttf
     - family: Plus Jakarta Sans
       fonts:
         - asset: assets/fonts/PlusJakartaSans-VariableFont_wght.ttf

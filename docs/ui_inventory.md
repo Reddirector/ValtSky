@@ -1,7 +1,40 @@
 # ValtSky UI Inventory & Frozen Copy Baseline
 
-**Generated at Phase 0 Baseline**  
-This document establishes the single source of truth for all user-visible strings, controls, state bindings, handlers, and test identifiers prior to the visual presentation redesign.
+**Generated at Phase 0 Baseline (Night-Sky Vault Redesign)**  
+This document establishes the single source of truth for all user-visible strings, controls, state bindings, handlers, test identifiers, and logo-derived palette tokens.
+
+## 0. Logo-Derived Color Sampling & Palette Mapping
+
+Sampled from authentic repository assets (`valtsky_flutter/assets/images/valtsky_logo.svg` and `valtsky_logo.png`):
+- **Logo Cloud Gradient**: `#4F75FF` to `#3652D9` (sampled dominance: `#4F75FF`, RGB 79, 117, 255; `#4263EC`, RGB 66, 99, 236; `#3652D9`, RGB 54, 82, 217)
+- **Logo Chevron**: `#4F75FF`
+- **Logo Paper Plane Arrow**: `#FFFFFF`
+- **Logo Dark Container**: `#0D0D0F` (RGB 13, 13, 15)
+
+### Token Mapping:
+- **Dark Canvas (Ink Navy)**: `#070A14` (OLED-friendly, tinted by logo navy)
+- **Dark Surface-1**: `#0D1220`
+- **Dark Surface-2**: `#141B2E`
+- **Dark Surface-3**: `#1C2540`
+- **Dark Overlay**: `#242F52`
+- **Dark Hairline**: `#2A3558` at 60% opacity
+- **Dark Text Primary**: `#E8ECF8` (16.74:1 AAA contrast on canvas)
+- **Dark Text Secondary**: `#9AA4C2` (7.96:1 AAA contrast on canvas)
+- **Dark Text Tertiary (Minimum)**: `#7A85A8` (5.41:1 AA contrast on canvas)
+- **Dark Accent (Logo Indigo brightened)**: `#7C8CFF` (6.64:1 AA contrast on ink `#070A14`)
+- **Dark Accent-2 (Violet gradient end)**: `#A78BFA` (7.26:1 AAA contrast on ink `#070A14`)
+- **In-Flight Aqua**: `#5EE1F0` (active transfer glow only, 12.01:1 AAA contrast)
+- **Status Synced (Mint)**: `#5FD3A0` (10.06:1 AAA contrast)
+- **Status Failed (Coral)**: `#FF7A8A` (7.47:1 AAA contrast)
+- **Light Canvas**: `#F3F5FC`
+- **Light Surface-1**: `#FFFFFF`
+- **Light Surface-2**: `#E8ECF8`
+- **Light Surface-3**: `#DCE2F4`
+- **Light Hairline**: `#D5DBEE`
+- **Light Text Primary**: `#0E1330` (16.70:1 AAA contrast on canvas)
+- **Light Text Secondary**: `#4A5478` (6.81:1 AA contrast on canvas)
+- **Light Accent Fill**: `#4F5BD5` (5.54:1 AA contrast with white text)
+- **Light Accent Text/Icon**: `#3F4BC4` (6.97:1 AA contrast on surface-1)
 
 ## 1. Architectural Scope & File Boundaries
 
