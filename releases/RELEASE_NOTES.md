@@ -92,7 +92,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 ```bash
 sha256sum valtsky-v2.1-release.apk
 # Expected output:
-# 417edc160df719d4de5cba7e972cb658b8d1f8af00be85cba4810568acc9dbcc  valtsky-v2.1-release.apk
+# bae0bf29df105ab9fcf7c20327afb85ec526547ce6cff39f57cb927fbfb47059  valtsky-v2.1-release.apk
 ```
 
 ### Windows PowerShell Verification:
