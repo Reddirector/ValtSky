@@ -1,6 +1,6 @@
 # Security Policy
 
-ValtSky treats data security, privacy, and encryption with the rigor demanded by mission-critical aerospace standards (ADE STD 100). As a personal zero-loss cloud vault that bridges local file systems directly with Telegram's distributed data centers, security boundaries are enforced at compile time, runtime, and in transit.
+ValtSky treats data security, privacy, and encryption with paramount engineering rigor. As a personal zero-loss cloud vault that bridges local file systems directly with Telegram's distributed data centers, security boundaries are enforced at compile time, runtime, and in transit.
 
 ---
 
@@ -10,7 +10,7 @@ Only the latest active major/minor release stream receives official security pat
 
 | Version | Supported | Status |
 | :--- | :--- | :--- |
-| **v2.1.x** | :white_check_mark: | **Current Production Airframe (Active)** |
+| **v2.1.x** | :white_check_mark: | **Current Production Release (Active)** |
 | **v2.0.x** | :warning: | End of Active Maintenance |
 | **< v2.0** | :x: | Deprecated |
 

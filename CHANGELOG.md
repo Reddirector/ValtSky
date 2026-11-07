@@ -10,13 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2026-11-07
 
 ### Added
+- **Dual-Lane Split Uploader**: Concurrent processing pipeline separating lightweight photo transfers from heavyweight video chunk streams, eliminating head-of-line blocking.
 - **Dual Licensing**: Licensed under both the MIT License and the Apache License 2.0 (`LICENSE-MIT`, `LICENSE-APACHE`, `LICENSE`).
-- **Aerospace Standard Documentation (ADE STD 100)**: Full 360-line flight manual detailing ATA chapters, system architecture, normal checklists, Quick Reference Handbook (QRH) non-normal recovery, and BITE diagnostics.
+- **Comprehensive Systems Documentation**: Full technical manual detailing architecture, data flows, SQLite schemas, and "What ValtSky is NOT".
 - **Salted SHA-256 Vault Lock**: 4-digit privacy lock salted with a 32-byte cryptographic salt and hashed using SHA-256 with constant-time string comparison.
 - **Built-In Test Equipment (BITE)**: Real-time round-trip latency pings directly to Telegram primary datacenters with 1-click self-healing engine restart.
 - **1-Tap Debounced "Retry All"**: Added to both Dashboard and Activity views with floating feedback SnackBars and cross-tab synchronization.
 - **Interactive Onboarding Walkthrough**: Step-by-step tutorial guide with visual beacons explaining vault connection, gallery indexing, and background sync.
-- **Expanded Test Suite (42/42 Passing)**: Added widget tests for walkthrough guides, action button overflow prevention, and queue removal workflows.
+- **Expanded Test Suite (46/46 Passing)**: Added unit and integration tests for split uploader claiming, photo/video isolation, walkthrough guides, action button overflow prevention, and queue removal workflows.
 - **Standard Community Health Files**: Added `SECURITY.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and `CHANGELOG.md`.
 
 ### Changed

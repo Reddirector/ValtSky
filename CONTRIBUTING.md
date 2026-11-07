@@ -1,6 +1,6 @@
 # Contributing to ValtSky
 
-Thank you for your interest in contributing to **ValtSky**! ValtSky is an open-source, aircraft-grade multiplatform cloud vault airframe built with Flutter & Dart, engineered under the **ADE STD 100** aerospace documentation and reliability standard.
+Thank you for your interest in contributing to **ValtSky**! ValtSky is an open-source, high-performance multiplatform personal cloud vault built with Flutter & Dart, connecting local devices directly to Telegram storage without intermediaries.
 
 ---
 
@@ -10,7 +10,7 @@ All contributors, maintainers, and community participants are expected to adhere
 
 ---
 
-## Architectural Principles (ADE STD 100)
+## Architectural Principles & Invariants
 
 Every contribution must honor our five non-negotiable core invariants:
 

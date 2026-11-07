@@ -16,6 +16,9 @@ class MediaItem {
   int retryCount;
   int updatedAt;
 
+  bool get isVideo => mimeType.contains('video');
+  bool get isPhoto => !isVideo;
+
   MediaItem({
     required this.filePath,
     this.fileHash,

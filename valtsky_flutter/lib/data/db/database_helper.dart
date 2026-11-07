@@ -234,6 +234,118 @@ class DatabaseHelper {
     return null;
   }
 
+  /// Atomically claims a batch of pending photo items (excluding videos)
+  Future<List<MediaItem>> claimPendingPhotoBatch({int limit = 16}) async {
+    const int twoGigabytes = 2147483648;
+    if (_useMemoryStore) {
+      final items = _webItems.values
+          .where((e) =>
+              e.status == MediaItem.statusPending &&
+              e.fileSize < twoGigabytes &&
+              !e.mimeType.contains('video'))
+          .toList();
+      items.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      final updatedBatch = <MediaItem>[];
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final item in items.take(limit)) {
+        final updated = item.copyWith(
+          status: MediaItem.statusUploading,
+          updatedAt: now,
+        );
+        _webItems[item.filePath] = updated;
+        updatedBatch.add(updated);
+      }
+      return updatedBatch;
+    }
+    final db = await instance.database;
+    final maps = await db.query(
+      'media_items',
+      where: 'status = ? AND fileSize < ? AND mimeType NOT LIKE ?',
+      whereArgs: [MediaItem.statusPending, twoGigabytes, '%video%'],
+      orderBy: 'dateTaken ASC',
+      limit: limit,
+    );
+    if (maps.isEmpty) return [];
+    final items = maps.map((m) => MediaItem.fromMap(m)).toList();
+    final batch = db.batch();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final updatedItems = <MediaItem>[];
+    for (final item in items) {
+      final updated = item.copyWith(
+        status: MediaItem.statusUploading,
+        updatedAt: now,
+      );
+      updatedItems.add(updated);
+      batch.update(
+        'media_items',
+        {
+          'status': MediaItem.statusUploading,
+          'updatedAt': now,
+        },
+        where: 'filePath = ?',
+        whereArgs: [item.filePath],
+      );
+    }
+    await batch.commit(noResult: true);
+    return updatedItems;
+  }
+
+  /// Atomically claims a batch of pending video items
+  Future<List<MediaItem>> claimPendingVideoBatch({int limit = 8}) async {
+    const int twoGigabytes = 2147483648;
+    if (_useMemoryStore) {
+      final items = _webItems.values
+          .where((e) =>
+              e.status == MediaItem.statusPending &&
+              e.fileSize < twoGigabytes &&
+              e.mimeType.contains('video'))
+          .toList();
+      items.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      final updatedBatch = <MediaItem>[];
+      final now = DateTime.now().millisecondsSinceEpoch;
+      for (final item in items.take(limit)) {
+        final updated = item.copyWith(
+          status: MediaItem.statusUploading,
+          updatedAt: now,
+        );
+        _webItems[item.filePath] = updated;
+        updatedBatch.add(updated);
+      }
+      return updatedBatch;
+    }
+    final db = await instance.database;
+    final maps = await db.query(
+      'media_items',
+      where: 'status = ? AND fileSize < ? AND mimeType LIKE ?',
+      whereArgs: [MediaItem.statusPending, twoGigabytes, '%video%'],
+      orderBy: 'dateTaken ASC',
+      limit: limit,
+    );
+    if (maps.isEmpty) return [];
+    final items = maps.map((m) => MediaItem.fromMap(m)).toList();
+    final batch = db.batch();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final updatedItems = <MediaItem>[];
+    for (final item in items) {
+      final updated = item.copyWith(
+        status: MediaItem.statusUploading,
+        updatedAt: now,
+      );
+      updatedItems.add(updated);
+      batch.update(
+        'media_items',
+        {
+          'status': MediaItem.statusUploading,
+          'updatedAt': now,
+        },
+        where: 'filePath = ?',
+        whereArgs: [item.filePath],
+      );
+    }
+    await batch.commit(noResult: true);
+    return updatedItems;
+  }
+
   Future<List<MediaItem>> claimPendingBatch({int limit = 32}) async {
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {

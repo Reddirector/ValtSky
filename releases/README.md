@@ -1,26 +1,26 @@
 # 📦 ValtSky Multi-Platform Release Distribution Hub
-### Certified Zero-Loss Cloud Vault · ADE STD 100 Airframe Documentation
+### Direct-to-Telegram Personal Cloud Storage System
 
-This directory contains release manifests, verification hashes, detailed changelog notes, and cross-platform installation instructions for **ValtSky**.
+This directory contains release manifests, verification hashes, detailed release notes, and cross-platform installation instructions for **ValtSky**.
 
 ---
 
-### 🔬 Empirical Systems Telemetry & Benchmarks
+### 🔬 Systems Telemetry & Benchmarks
 
 ```
 ========================================================================================================
-[ VERIFIED AIRWORTHINESS ]                    [ EXIF & SENSOR FIDELITY ]
-42 / 42 Flight Test Suites Passing (100.0%)   100.0% Raw Sensor Bayer/ICC Data Preservation
+[ VERIFIED AUTOMATION SUITES ]                [ EXIF & SENSOR FIDELITY ]
+46 / 46 Automated Tests Passing (100.0%)      100.0% Raw Sensor Bayer/ICC Data Preservation
 0 Analyzer Errors · 0 Linter Warnings         0 Bytes Re-encoded · 0 Metadata Tags Stripped
-100 / 100 Hostile Red-Team Security Score     Direct MTProto 2.0 Diffie-Hellman Key Exchange
+100 / 100 Hostile Red-Team Security Score     Direct MTProto 2.0 Key Exchange
 --------------------------------------------------------------------------------------------------------
-[ FAULT TOLERANCE & MTTR ]                    [ RESOURCE & MEMORY FOOTPRINT ]
-p99 < 1.2s Exponential Backoff Resolution     < 28 MB Resident RAM at 1.8 GB Continuous Stream
-Deterministic Capped Jitter on HTTP 429 Drops O(1) Heap Bounded via Socket-Piped Slices
+[ CONCURRENCY & THROUGHPUT ]                  [ RESOURCE & MEMORY FOOTPRINT ]
+Dual-Lane Split Uploader (Photo + Video)      < 28 MB Resident RAM at 1.8 GB Continuous Stream
+Non-blocking Concurrent Photo Transfers       O(1) Heap Bounded via Socket-Piped Slices
 ========================================================================================================
 ```
 
-> 📚 **Aircraft Operations Manual:** Full system schematics, FMEA failure tables, and ATA specification chapters are documented in the [**Aircraft Flight Operations & Maintenance Manual (ADE STD 100)**](../docs/AIRCRAFT_FLIGHT_OPERATIONS_MANUAL_ADE_STD_100.md).
+> 📚 **Technical Manual:** Complete architecture schematics and subsystem breakdowns are documented in the [**ValtSky System Documentation**](../docs/DOCUMENTATION.md).
 
 ---
 
@@ -30,8 +30,7 @@ Deterministic Capped Jitter on HTTP 429 Drops O(1) Heap Bounded via Socket-Piped
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **[`valtsky-v2.1-release.apk`](valtsky-v2.1-release.apk)** | Universal (arm64, armv7, x86_64) | **67.9 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `417edc160df719d4de5cba7e972cb658b8d1f8af00be85cba4810568acc9dbcc` |
-| **[`valtsky-v2.0-release.apk`](valtsky-v2.0-release.apk)** | Universal (All ABIs) | **64.3 MB** | Legacy v2.0 Release | `7e4b3890f49cf866718255c46f0e42b6871d27be9362727f789e9bd0a39066ce` |
+| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **67.9 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `417edc160df719d4de5cba7e972cb658b8d1f8af00be85cba4810568acc9dbcc` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
 
@@ -46,10 +45,9 @@ Deterministic Capped Jitter on HTTP 429 Drops O(1) Heap Bounded via Socket-Piped
 
 ---
 
-## 📝 Release Notes & Changelogs
+## 📝 Release Notes
 
-- [**ValtSky v2.1.0 Release Notes (Latest)**](v2.1_release_notes.md): Salted SHA-256 Vault PIN, ADE STD 100 flight manual, two-tier responsive layout, BITE latency ping, SQLite parameterized chunking, 42/42 passing test suites.
-- [**ValtSky v2.0 Release Notes**](v2.0_release_notes.md): Direct Telegram MTProto 2.0 login, 27+ country code selector, live user profile sync, 100% EXIF bit-for-bit preservation, 4-click oversized media staging.
+- [**ValtSky v2.1.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Dual-Lane Split Uploader (concurrent photo & video pipelines), Salted SHA-256 Vault PIN, two-tier responsive layout, BITE latency ping, SQLite parameterized chunking, 46/46 passing test suites.
 
 ---
 
@@ -58,15 +56,11 @@ Deterministic Capped Jitter on HTTP 429 Drops O(1) Heap Bounded via Socket-Piped
 ### Linux / macOS Checksum Verification:
 ```bash
 sha256sum valtsky-v2.1-release.apk
-# Expected: 28bd0b613de6245cd13a291854fc019ab3690e61b2879d503b3a414997b0cbf5
+# Expected output:
+# 417edc160df719d4de5cba7e972cb658b8d1f8af00be85cba4810568acc9dbcc  valtsky-v2.1-release.apk
 ```
 
 ### Windows PowerShell Verification:
 ```powershell
 Get-FileHash -Algorithm SHA256 .\valtsky-v2.1-release.apk
-```
-
-### Sideload via Android Debug Bridge (ADB):
-```bash
-adb install -r -d valtsky-v2.1-release.apk
 ```

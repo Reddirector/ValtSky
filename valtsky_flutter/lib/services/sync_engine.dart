@@ -123,15 +123,6 @@ class SyncEngine {
     }
   }
 
-  static DateTime _lastItemNotify = DateTime.fromMillisecondsSinceEpoch(0);
-  static void _updateCurrentItemThrottled(String fileName) {
-    final now = DateTime.now();
-    if (now.difference(_lastItemNotify).inMilliseconds >= 500) {
-      _lastItemNotify = now;
-      currentItemNotifier.value = fileName;
-    }
-  }
-
   static DateTime? _rateLimitUntil;
   static Timer? _rateLimitTimer;
 
@@ -331,7 +322,8 @@ class SyncEngine {
     statsNotifier.value = _cachedStats;
 
     // Reset notifiers
-    _claimedBatchQueue.clear();
+    _claimedPhotoQueue.clear();
+    _claimedVideoQueue.clear();
     _speedMeterTimer?.cancel();
     _speedMeterTimer = null;
     _totalBytesSent = 0;
@@ -472,7 +464,12 @@ class SyncEngine {
 
   void stopSync() {
     _isSyncing = false;
-    _claimedBatchQueue.clear();
+    _isPhotoWorkerActive = false;
+    _isVideoWorkerActive = false;
+    _claimedPhotoQueue.clear();
+    _claimedVideoQueue.clear();
+    _activePhotoFileName = null;
+    _activeVideoFileName = null;
     _liveStatsTimer?.cancel();
     _liveStatsTimer = null;
     _speedMeterTimer?.cancel();
@@ -501,7 +498,8 @@ class SyncEngine {
 
     // 1. Halt workers and await active loop shutdown
     _isSyncing = false;
-    _claimedBatchQueue.clear();
+    _claimedPhotoQueue.clear();
+    _claimedVideoQueue.clear();
     if (_workerPoolFuture != null) {
       try {
         await _workerPoolFuture!.timeout(const Duration(seconds: 3));
@@ -605,18 +603,60 @@ class SyncEngine {
   // ──────────────────────────────────────────────────────────────────────────
 
   Future<void>? _workerPoolFuture;
+  static bool _isPhotoWorkerActive = false;
+  static bool _isVideoWorkerActive = false;
+  static bool get isPhotoWorkerActive => _isPhotoWorkerActive;
+  static bool get isVideoWorkerActive => _isVideoWorkerActive;
+
+  static String? _activePhotoFileName;
+  static String? _activeVideoFileName;
+
+  static void updateWorkerItemStatus({required bool isVideo, required String fileName}) {
+    if (isVideo) {
+      _activeVideoFileName = fileName;
+    } else {
+      _activePhotoFileName = fileName;
+    }
+    _refreshCurrentItemNotifier();
+  }
+
+  static void clearWorkerItemStatus({required bool isVideo}) {
+    if (isVideo) {
+      _activeVideoFileName = null;
+    } else {
+      _activePhotoFileName = null;
+    }
+    _refreshCurrentItemNotifier();
+  }
+
+  static void _refreshCurrentItemNotifier() {
+    if (_activePhotoFileName != null && _activeVideoFileName != null) {
+      currentItemNotifier.value = '📷 $_activePhotoFileName | 🎥 $_activeVideoFileName';
+    } else if (_activePhotoFileName != null) {
+      currentItemNotifier.value = '📷 $_activePhotoFileName';
+    } else if (_activeVideoFileName != null) {
+      currentItemNotifier.value = '🎥 $_activeVideoFileName';
+    } else {
+      currentItemNotifier.value = '';
+    }
+  }
 
   Future<void> _runWorkerPool() async {
     engineStatusNotifier.value = SyncEngineStatus.active;
     try {
-      final workers = List.generate(_workerCount, (index) => _workerLoop(index));
-      _workerPoolFuture = Future.wait(workers);
+      _isPhotoWorkerActive = true;
+      _isVideoWorkerActive = true;
+      final photoWorker = _photoWorkerLoop(0).whenComplete(() => _isPhotoWorkerActive = false);
+      final videoWorker = _videoWorkerLoop(1).whenComplete(() => _isVideoWorkerActive = false);
+      _workerPoolFuture = Future.wait([photoWorker, videoWorker]);
       await _workerPoolFuture;
     } catch (e) {
       debugPrint('[SyncEngine] Worker pool caught exception: $e');
     } finally {
       _workerPoolFuture = null;
       _isSyncing = false;
+      _isPhotoWorkerActive = false;
+      _isVideoWorkerActive = false;
       _liveStatsTimer?.cancel();
       _liveStatsTimer = null;
       _speedMeterTimer?.cancel();
@@ -635,72 +675,153 @@ class SyncEngine {
     }
   }
 
-  static final List<MediaItem> _claimedBatchQueue = [];
-  static Completer<void>? _batchRefillCompleter;
+  static final List<MediaItem> _claimedPhotoQueue = [];
+  static Completer<void>? _photoRefillCompleter;
 
-  Future<MediaItem?> _getNextPendingItem() async {
+  static final List<MediaItem> _claimedVideoQueue = [];
+  static Completer<void>? _videoRefillCompleter;
+
+  Future<MediaItem?> _getNextPendingPhotoItem() async {
     while (_isSyncing) {
-      if (_claimedBatchQueue.isNotEmpty) {
-        return _claimedBatchQueue.removeAt(0);
+      if (_claimedPhotoQueue.isNotEmpty) {
+        return _claimedPhotoQueue.removeAt(0);
       }
-      if (_batchRefillCompleter != null) {
-        await _batchRefillCompleter!.future;
-        if (_claimedBatchQueue.isNotEmpty) {
-          return _claimedBatchQueue.removeAt(0);
+      if (_photoRefillCompleter != null) {
+        await _photoRefillCompleter!.future;
+        if (_claimedPhotoQueue.isNotEmpty) {
+          return _claimedPhotoQueue.removeAt(0);
         }
         continue;
       }
-      _batchRefillCompleter = Completer<void>();
+      _photoRefillCompleter = Completer<void>();
       try {
-        final batch = await DatabaseHelper.instance.claimPendingBatch(limit: 32);
+        final batch = await DatabaseHelper.instance.claimPendingPhotoBatch(limit: 16);
         if (batch.isEmpty) {
-          return null; // Database has no more pending items!
+          return null;
         }
-        _claimedBatchQueue.addAll(batch);
-        return _claimedBatchQueue.removeAt(0);
+        _claimedPhotoQueue.addAll(batch);
+        return _claimedPhotoQueue.removeAt(0);
       } finally {
-        _batchRefillCompleter?.complete();
-        _batchRefillCompleter = null;
+        _photoRefillCompleter?.complete();
+        _photoRefillCompleter = null;
       }
     }
     return null;
   }
 
-  Future<void> _workerLoop(int workerIndex) async {
+  Future<MediaItem?> _getNextPendingVideoItem() async {
     while (_isSyncing) {
-      // 1. Check global rate limit cooldown
+      if (_claimedVideoQueue.isNotEmpty) {
+        return _claimedVideoQueue.removeAt(0);
+      }
+      if (_videoRefillCompleter != null) {
+        await _videoRefillCompleter!.future;
+        if (_claimedVideoQueue.isNotEmpty) {
+          return _claimedVideoQueue.removeAt(0);
+        }
+        continue;
+      }
+      _videoRefillCompleter = Completer<void>();
+      try {
+        final batch = await DatabaseHelper.instance.claimPendingVideoBatch(limit: 8);
+        if (batch.isEmpty) {
+          return null;
+        }
+        _claimedVideoQueue.addAll(batch);
+        return _claimedVideoQueue.removeAt(0);
+      } finally {
+        _videoRefillCompleter?.complete();
+        _videoRefillCompleter = null;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _photoWorkerLoop(int workerIndex) async {
+    while (_isSyncing) {
       if (_rateLimitUntil != null && DateTime.now().isBefore(_rateLimitUntil!)) {
         final waitSeconds = _rateLimitUntil!.difference(DateTime.now()).inSeconds;
         await Future.delayed(Duration(seconds: waitSeconds.clamp(1, 60)));
         continue;
       }
-
-      // 2. Check user pause
       if (Prefs.uploadPaused) {
         uploadSpeedNotifier.value = 'Paused';
         engineStatusNotifier.value = SyncEngineStatus.paused;
         await Future.delayed(const Duration(seconds: 2));
         continue;
       }
-
-      // 3. Check network connectivity
       if (!await hasInternetConnection()) {
         await _handleOfflineWait();
         continue;
       }
 
-      // 4. Atomically claim next item from RAM buffer (0ms, zero SQLite lock contention)
-      final item = await _getNextPendingItem();
+      final item = await _getNextPendingPhotoItem();
       if (item == null) {
-        // Queue is drained
+        if (_isVideoWorkerActive) {
+          await Future.delayed(const Duration(seconds: 2));
+          final retryBatch = await DatabaseHelper.instance.claimPendingPhotoBatch(limit: 16);
+          if (retryBatch.isNotEmpty) {
+            _claimedPhotoQueue.addAll(retryBatch);
+            continue;
+          }
+        }
         break;
       }
 
-      final fileName = item.filePath.split('/').last;
-      _updateCurrentItemThrottled(fileName);
-      _updateInFlightClaim();
+      await _uploadMediaItem(item, workerIndex: workerIndex, isVideo: false);
+    }
+  }
 
-      // Non-blocking microtask yield for smooth 120 FPS UI rendering without artificial latency
+  Future<void> _videoWorkerLoop(int workerIndex) async {
+    _isVideoWorkerActive = true;
+    try {
+      while (_isSyncing) {
+        if (_rateLimitUntil != null && DateTime.now().isBefore(_rateLimitUntil!)) {
+          final waitSeconds = _rateLimitUntil!.difference(DateTime.now()).inSeconds;
+          await Future.delayed(Duration(seconds: waitSeconds.clamp(1, 60)));
+          continue;
+        }
+        if (Prefs.uploadPaused) {
+          uploadSpeedNotifier.value = 'Paused';
+          engineStatusNotifier.value = SyncEngineStatus.paused;
+          await Future.delayed(const Duration(seconds: 2));
+          continue;
+        }
+        if (!await hasInternetConnection()) {
+          await _handleOfflineWait();
+          continue;
+        }
+
+        final item = await _getNextPendingVideoItem();
+        if (item == null) {
+          if (_isPhotoWorkerActive) {
+            await Future.delayed(const Duration(seconds: 2));
+            final retryBatch = await DatabaseHelper.instance.claimPendingVideoBatch(limit: 8);
+            if (retryBatch.isNotEmpty) {
+              _claimedVideoQueue.addAll(retryBatch);
+              continue;
+            }
+          }
+          break;
+        }
+
+        await _uploadMediaItem(item, workerIndex: workerIndex, isVideo: true);
+      }
+    } finally {
+      _isVideoWorkerActive = false;
+    }
+  }
+
+  Future<void> _uploadMediaItem(
+    MediaItem item, {
+    required int workerIndex,
+    required bool isVideo,
+  }) async {
+    final fileName = item.filePath.split('/').last;
+    updateWorkerItemStatus(isVideo: isVideo, fileName: fileName);
+    _updateInFlightClaim();
+
+    try {
       await Future.delayed(Duration.zero);
 
       final file = File(item.filePath);
@@ -711,10 +832,9 @@ class SyncEngine {
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
         _updateInFlightFailure();
-        continue;
+        return;
       }
 
-      // Fast security verification (reads initial 512 bytes header)
       final validation = await FileSecurityGuard.validateFile(file);
       if (!validation.isValid) {
         await DatabaseHelper.instance.update(item.copyWith(
@@ -723,7 +843,7 @@ class SyncEngine {
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         ));
         _updateInFlightFailure();
-        continue;
+        return;
       }
 
       int workerItemBytesSent = 0;
@@ -779,7 +899,7 @@ class SyncEngine {
           engineStatusMessageNotifier.value = 'Telegram session expired. Please re-authenticate.';
           TelegramAuthService.instance.resetClientPool();
           stopSync();
-          break;
+          return;
         } else if (isRateLimit) {
           final waitSec = extractFloodWaitSeconds(result.description, result.retryAfterSeconds);
           debugPrint('[SyncEngine] Telegram Rate Limit FLOOD_WAIT: ${waitSec}s');
@@ -791,7 +911,6 @@ class SyncEngine {
           triggerGlobalRateLimit(waitSec);
           await Future.delayed(Duration(seconds: waitSec.clamp(1, 60)));
         } else if (isNetwork) {
-          debugPrint('[SyncEngine] Network drop detected in TelegramError: ${result.description}');
           await DatabaseHelper.instance.update(item.copyWith(
             status: MediaItem.statusPending,
             updatedAt: DateTime.now().millisecondsSinceEpoch,
@@ -800,11 +919,9 @@ class SyncEngine {
           TelegramAuthService.instance.invalidateClient(workerIndex);
           await _handleOfflineWait();
         } else if (isPermission) {
-          // If error is CHANNEL_PRIVATE or CHAT_ADMIN_REQUIRED, allow retries if retryCount < maxItemRetries
-          // rather than immediately marking permanently failed, as channel access hash may need refreshing.
           if ((result.description.contains('CHANNEL_PRIVATE') ||
-               result.description.contains('CHANNEL_INVALID') ||
-               result.description.contains('CHAT_ADMIN_REQUIRED')) &&
+                  result.description.contains('CHANNEL_INVALID') ||
+                  result.description.contains('CHAT_ADMIN_REQUIRED')) &&
               item.retryCount < maxItemRetries) {
             final nextRetry = item.retryCount + 1;
             Prefs.channelAccessHash = null;
@@ -825,7 +942,6 @@ class SyncEngine {
             _updateInFlightFailure();
           }
         } else {
-          // Transient error: retry up to maxItemRetries with exponential backoff
           TelegramAuthService.instance.invalidateClient(workerIndex);
           if (item.retryCount < maxItemRetries) {
             final nextRetry = item.retryCount + 1;
@@ -861,7 +977,7 @@ class SyncEngine {
           engineStatusMessageNotifier.value = 'Telegram session expired. Please re-authenticate.';
           TelegramAuthService.instance.resetClientPool();
           stopSync();
-          break;
+          return;
         } else if (isRateLimit) {
           final waitSec = extractFloodWaitSeconds(result.message);
           await DatabaseHelper.instance.update(item.copyWith(
@@ -880,9 +996,9 @@ class SyncEngine {
           TelegramAuthService.instance.invalidateClient(workerIndex);
           await _handleOfflineWait();
         } else if ((result.message.contains('CHANNEL_PRIVATE') ||
-                    result.message.contains('CHANNEL_INVALID') ||
-                    result.message.contains('CHAT_ADMIN_REQUIRED')) &&
-                   item.retryCount < maxItemRetries) {
+                result.message.contains('CHANNEL_INVALID') ||
+                result.message.contains('CHAT_ADMIN_REQUIRED')) &&
+            item.retryCount < maxItemRetries) {
           final nextRetry = item.retryCount + 1;
           Prefs.channelAccessHash = null;
           await DatabaseHelper.instance.update(item.copyWith(
@@ -894,7 +1010,6 @@ class SyncEngine {
           _updateInFlightRetry();
           await Future.delayed(Duration(milliseconds: 1000 * nextRetry));
         } else {
-          // Transient failure: retry up to maxItemRetries with backoff
           TelegramAuthService.instance.invalidateClient(workerIndex);
           if (item.retryCount < maxItemRetries) {
             final nextRetry = item.retryCount + 1;
@@ -916,6 +1031,8 @@ class SyncEngine {
           }
         }
       }
+    } finally {
+      clearWorkerItemStatus(isVideo: isVideo);
     }
   }
 
