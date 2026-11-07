@@ -71,6 +71,12 @@ flutter:
 
   assets:
     - assets/images/
+    - assets/fonts/
+
+  fonts:
+    - family: Plus Jakarta Sans
+      fonts:
+        - asset: assets/fonts/PlusJakartaSans-VariableFont_wght.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

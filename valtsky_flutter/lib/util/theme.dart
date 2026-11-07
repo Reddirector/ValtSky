@@ -1,137 +1,216 @@
 import 'package:flutter/material.dart';
 
-/// ValtSky Unified Azure/Sapphire Theme Engine with Black Midnight Base & Light Royal Blue Buttons
-/// Enforces a strict 3-color family hierarchy (Primary, Secondary, Tertiary shades of Blue/Midnight):
-/// - Primary: Light Royal Blue (Action CTAs, dominant switches, active states)
-/// - Secondary: Electric Cerulean / Sky Blue (Telemetry, speed meters, progress fills, active accents)
-/// - Tertiary: Pure Black Midnight / Slate (Card surfaces, boundaries, neutral tracks, muted text)
+/// ValtSky Warm-Amber Design System
+/// Enforces the single source of truth for all colors, typography tokens,
+/// elevations, and geometric radii across Dark and Light modes.
 class ValtSkyTheme {
-  // ─── THREE-COLOR SINGLE FAMILY HIERARCHY (ROYAL BLUE / MIDNIGHT FAMILY) ───
+  // ─── DARK PALETTE TOKENS ──────────────────────────────────────────────────
+  static const Color darkCanvas = Color(0xFF0B0B0C);
+  static const Color darkSurface = Color(0xFF151516);
+  static const Color darkRaised = Color(0xFF1E1E20);
+  static const Color darkHairline = Color(0xFF2A2A2D);
+  static const Color darkTextPrimary = Color(0xFFF5F2EC);
+  static const Color darkTextSecondary = Color(0xFF9A968E);
 
-  // 1. PRIMARY SHADE: Simple Light Royal Blue (Buttons & Primary CTAs)
-  static const Color lightRoyalBlue = Color(0xFF4169E1); // Classic Light Royal Blue (4169E1)
-  static const Color lightRoyalBlueHover = Color(0xFF4F75F5); // Hover / Highlight Light Royal Blue
-  static const Color primaryLight = Color(0xFF3B64DE); // Light Royal Blue (Light Mode)
-  static const Color primaryDark = Color(0xFF4169E1);  // Vivid Light Royal Blue (Dark Mode)
+  // ─── LIGHT PALETTE TOKENS ─────────────────────────────────────────────────
+  static const Color lightCanvas = Color(0xFFE9E3D8);
+  static const Color lightSurface = Color(0xFFFAF8F5);
+  static const Color lightRaised = Color(0xFFE4DDD2);
+  static const Color lightHairline = Color(0xFFD0C8BA);
+  static const Color lightTextPrimary = Color(0xFF141414);
+  static const Color lightTextSecondary = Color(0xFF5E5A53);
 
-  // 2. SECONDARY SHADE: Electric Cerulean / Sky Blue
-  static const Color secondaryLight = Color(0xFF0284C7); // Vivid Sky Blue (Sky 600)
-  static const Color secondaryDark = Color(0xFF38BDF8);  // Electric Sky Blue (Sky 400)
+  // ─── ACCENT & INK TOKENS ──────────────────────────────────────────────────
+  static const Color amber = Color(0xFFF2B10F);
+  static const Color ink = Color(0xFF141414);
+  static const Color lightAmberText = Color(0xFF8A5F00); // Accessible contrast (> 5.3:1) on cream surfaces
 
-  // 3. TERTIARY SHADE: Black Midnight / Ice Mist (Surfaces, Borders, Tracks)
-  static const Color tertiaryLightSurface = Color(0xFFF0F7FF); // Soft Ice Sky Blue Tint
-  static const Color tertiaryLightCard = Color(0xFFFFFFFF);    // Clean Card Surface
-  static const Color tertiaryLightBorder = Color(0xFFBAE6FD);  // Powder Sky Border (Sky 200)
-  static const Color tertiaryLightTrack = Color(0xFFE0F2FE);   // Subtle Telemetry Track
-  static const Color tertiaryLightMuted = Color(0xFF64748B);   // Slate Tertiary Muted Text
+  // ─── STATUS TOKENS ────────────────────────────────────────────────────────
+  static const Color statusSynced = Color(0xFF8FB996);
+  static const Color statusFailed = Color(0xFFE07A6B);
+  static const Color statusInFlight = Color(0xFFF2B10F);
 
-  // Black Midnight Base & Surface Hierarchy
-  static const Color blackMidnight = Color(0xFF000000);        // Deep Pure Midnight Black
-  static const Color tertiaryDarkSurface = Color(0xFF000000);  // Black Midnight Scaffold Surface
-  static const Color tertiaryDarkCard = Color(0xFF0A0D14);     // Midnight Surface Card
-  static const Color tertiaryDarkBorder = Color(0xFF141A26);   // Midnight Slate Boundary
-  static const Color tertiaryDarkTrack = Color(0xFF0D121B);    // Midnight Telemetry Track
-  static const Color tertiaryDarkMuted = Color(0xFF8899AC);    // Slate Tertiary Muted Text
+  // Semantic & compatibility mappings
+  static const Color error = statusFailed;
+  static const Color errorGlow = Color(0xFFC55A4C);
+  static const Color success = statusSynced;
+  static const Color warning = amber;
+  static const Color info = amber;
 
-  // Backward-compatible semantic and telegram accents
-  static const Color primaryAccent = primaryDark;
-  static const Color primaryAccentLight = primaryLight;
-  static const Color telegramBlue = secondaryLight;
+  static const Color telegramBlue = amber;
+  static const Color primaryAccent = amber;
+  static const Color primaryAccentLight = amber;
+  static const Color tertiaryLightSurface = lightCanvas;
+  static const Color tertiaryDarkSurface = darkCanvas;
+  static const Color tertiaryLightCard = lightSurface;
+  static const Color tertiaryDarkCard = darkSurface;
+  static const Color tertiaryLightBorder = lightHairline;
+  static const Color tertiaryDarkBorder = darkHairline;
+  static const Color tertiaryLightTrack = lightRaised;
+  static const Color tertiaryDarkTrack = darkRaised;
+  static const Color tertiaryLightMuted = lightTextSecondary;
+  static const Color tertiaryDarkMuted = darkTextSecondary;
 
-  // Semantic Alerts (Preserved for system safety and notifications)
-  static const Color error = Color(0xFFEF4444);
-  static const Color errorGlow = Color(0xFFDC2626);
-  static const Color success = Color(0xFF10B981);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color info = secondaryLight;
+  // ─── GEOMETRY TOKENS ──────────────────────────────────────────────────────
+  static const double radiusCard = 24.0;
+  static const double radiusPill = 999.0;
+  static const double gridUnit = 8.0;
 
-  // Helpers for contextual palette resolution
-  static Color primary(bool isDark) => isDark ? primaryDark : primaryLight;
-  static Color secondary(bool isDark) => isDark ? secondaryDark : secondaryLight;
-  static Color tertiarySurface(bool isDark) => isDark ? tertiaryDarkSurface : tertiaryLightSurface;
-  static Color tertiaryCard(bool isDark) => isDark ? tertiaryDarkCard : tertiaryLightCard;
-  static Color tertiaryBorder(bool isDark) => isDark ? tertiaryDarkBorder : tertiaryLightBorder;
-  static Color tertiaryTrack(bool isDark) => isDark ? tertiaryDarkTrack : tertiaryLightTrack;
-  static Color tertiaryText(bool isDark) => isDark ? tertiaryDarkMuted : tertiaryLightMuted;
+  // ─── FONT FAMILY ──────────────────────────────────────────────────────────
+  static const String fontFamily = 'Plus Jakarta Sans';
+
+  // ─── CONTEXTUAL ACCESSORS ─────────────────────────────────────────────────
+  static Color canvas(bool isDark) => isDark ? darkCanvas : lightCanvas;
+  static Color surface(bool isDark) => isDark ? darkSurface : lightSurface;
+  static Color raised(bool isDark) => isDark ? darkRaised : lightRaised;
+  static Color hairline(bool isDark) => isDark ? darkHairline : lightHairline;
+  static Color textPrimary(bool isDark) => isDark ? darkTextPrimary : lightTextPrimary;
+  static Color textSecondary(bool isDark) => isDark ? darkTextSecondary : lightTextSecondary;
+
+  /// Primary accent color:
+  /// For fills/rings/buttons: Amber (#F2B10F).
+  static Color accent(bool isDark) => amber;
+
+  /// Accessible text/icon accent color on surfaces:
+  /// In Dark mode: Amber (#F2B10F, 9.7:1).
+  /// In Light mode: Deep Amber (#8A5F00, 5.3:1).
+  static Color accentText(bool isDark) => isDark ? amber : lightAmberText;
+
+  // Backward-compatible accessors
+  static Color primary(bool isDark) => accent(isDark);
+  static Color secondary(bool isDark) => accentText(isDark);
+  static Color tertiarySurface(bool isDark) => canvas(isDark);
+  static Color tertiaryCard(bool isDark) => surface(isDark);
+  static Color tertiaryBorder(bool isDark) => hairline(isDark);
+  static Color tertiaryTrack(bool isDark) => raised(isDark);
+  static Color tertiaryText(bool isDark) => textSecondary(isDark);
+
+  // ─── TYPOGRAPHY HELPERS ───────────────────────────────────────────────────
+  /// Big numeral display (Light 300, confident and clean)
+  static TextStyle bigNumeral({required bool isDark, double fontSize = 44}) {
+    return TextStyle(
+      fontFamily: fontFamily,
+      fontSize: fontSize,
+      fontWeight: FontWeight.w300,
+      letterSpacing: -0.5,
+      color: textPrimary(isDark),
+      height: 1.05,
+    );
+  }
+
+  /// Small letter-spaced caps label (10.5-11pt, +1.2 letter spacing)
+  static TextStyle capsLabel({required bool isDark, Color? color}) {
+    return TextStyle(
+      fontFamily: fontFamily,
+      fontSize: 10.5,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 1.2,
+      color: color ?? textSecondary(isDark),
+    );
+  }
+
+  /// Standard body regular (14-15px)
+  static TextStyle body({required bool isDark, FontWeight weight = FontWeight.w400, Color? color}) {
+    return TextStyle(
+      fontFamily: fontFamily,
+      fontSize: 14.0,
+      fontWeight: weight,
+      color: color ?? textPrimary(isDark),
+      height: 1.4,
+    );
+  }
 
   // ─── LIGHT THEME ──────────────────────────────────────────────────────────
   static ThemeData light() {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamily: fontFamily,
       colorScheme: const ColorScheme(
         brightness: Brightness.light,
-        primary: primaryLight,
-        onPrimary: Colors.white,
-        secondary: secondaryLight,
+        primary: amber,
+        onPrimary: ink,
+        secondary: lightAmberText,
         onSecondary: Colors.white,
-        tertiary: tertiaryLightBorder,
-        onTertiary: primaryLight,
-        error: error,
+        tertiary: lightRaised,
+        onTertiary: ink,
+        error: statusFailed,
         onError: Colors.white,
-        surface: tertiaryLightCard,
-        onSurface: Color(0xFF0F172A),
+        surface: lightSurface,
+        onSurface: lightTextPrimary,
       ),
-      scaffoldBackgroundColor: tertiaryLightSurface,
+      scaffoldBackgroundColor: lightCanvas,
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: tertiaryLightBorder, width: 1),
+          borderRadius: BorderRadius.circular(radiusCard),
+          side: const BorderSide(color: lightHairline, width: 1.0),
         ),
-        color: tertiaryLightCard,
+        color: lightSurface,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: primaryLight),
+        iconTheme: IconThemeData(color: lightTextPrimary),
         titleTextStyle: TextStyle(
-          color: primaryLight,
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
+          fontFamily: fontFamily,
+          color: lightTextPrimary,
+          fontSize: 19,
+          fontWeight: FontWeight.w800,
           letterSpacing: -0.5,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: tertiaryLightCard,
-        indicatorColor: tertiaryLightTrack,
+        backgroundColor: lightSurface,
+        indicatorColor: amber,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: primaryLight);
+            return const IconThemeData(color: ink);
           }
-          return const IconThemeData(color: tertiaryLightMuted);
+          return const IconThemeData(color: lightTextSecondary);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: primaryLight, fontSize: 12, fontWeight: FontWeight.w800);
+            return const TextStyle(
+              fontFamily: fontFamily,
+              color: ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            );
           }
-          return const TextStyle(color: tertiaryLightMuted, fontSize: 12, fontWeight: FontWeight.w600);
+          return const TextStyle(
+            fontFamily: fontFamily,
+            color: lightTextSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          );
         }),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryLight,
-          foregroundColor: Colors.white,
+          backgroundColor: amber,
+          foregroundColor: ink,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusPill)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primaryLight,
-          side: const BorderSide(color: primaryLight, width: 1.2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          foregroundColor: lightTextPrimary,
+          side: const BorderSide(color: lightHairline, width: 1.0),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusPill)),
         ),
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF0F172A), letterSpacing: -0.5),
-        headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A), letterSpacing: -0.4),
-        titleLarge: TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
-        titleMedium: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
-        bodyLarge: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
-        bodyMedium: TextStyle(color: tertiaryLightMuted),
-        bodySmall: TextStyle(color: Color(0xFF94A3B8)),
+        headlineLarge: TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w300, color: lightTextPrimary, letterSpacing: -0.5),
+        headlineMedium: TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w600, color: lightTextPrimary, letterSpacing: -0.4),
+        titleLarge: TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w700, color: lightTextPrimary),
+        titleMedium: TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w600, color: lightTextPrimary),
+        bodyLarge: TextStyle(fontFamily: fontFamily, color: lightTextPrimary, fontWeight: FontWeight.w400),
+        bodyMedium: TextStyle(fontFamily: fontFamily, color: lightTextSecondary),
+        bodySmall: TextStyle(fontFamily: fontFamily, color: lightTextSecondary),
       ),
     );
   }
@@ -141,79 +220,92 @@ class ValtSkyTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      fontFamily: fontFamily,
       colorScheme: const ColorScheme(
         brightness: Brightness.dark,
-        primary: primaryDark,
-        onPrimary: Colors.white,
-        secondary: secondaryDark,
-        onSecondary: Colors.black,
-        tertiary: tertiaryDarkBorder,
-        onTertiary: secondaryDark,
-        error: error,
+        primary: amber,
+        onPrimary: ink,
+        secondary: amber,
+        onSecondary: ink,
+        tertiary: darkRaised,
+        onTertiary: darkTextPrimary,
+        error: statusFailed,
         onError: Colors.white,
-        surface: tertiaryDarkCard,
-        onSurface: Colors.white,
+        surface: darkSurface,
+        onSurface: darkTextPrimary,
       ),
-      scaffoldBackgroundColor: tertiaryDarkSurface,
+      scaffoldBackgroundColor: darkCanvas,
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: tertiaryDarkBorder, width: 1),
+          borderRadius: BorderRadius.circular(radiusCard),
+          side: const BorderSide(color: darkHairline, width: 1.0),
         ),
-        color: tertiaryDarkCard,
+        color: darkSurface,
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
-        iconTheme: IconThemeData(color: secondaryDark),
+        iconTheme: IconThemeData(color: darkTextPrimary),
         titleTextStyle: TextStyle(
-          color: Colors.white,
-          fontSize: 22,
-          fontWeight: FontWeight.w900,
+          fontFamily: fontFamily,
+          color: darkTextPrimary,
+          fontSize: 19,
+          fontWeight: FontWeight.w800,
           letterSpacing: -0.5,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xFF000000),
-        indicatorColor: const Color(0xFF101C33),
+        backgroundColor: darkSurface,
+        indicatorColor: amber,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: primaryDark);
+            return const IconThemeData(color: ink);
           }
-          return const IconThemeData(color: tertiaryDarkMuted);
+          return const IconThemeData(color: darkTextSecondary);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(color: primaryDark, fontSize: 12, fontWeight: FontWeight.w800);
+            return const TextStyle(
+              fontFamily: fontFamily,
+              color: ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            );
           }
-          return const TextStyle(color: tertiaryDarkMuted, fontSize: 12, fontWeight: FontWeight.w600);
+          return const TextStyle(
+            fontFamily: fontFamily,
+            color: darkTextSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          );
         }),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryDark,
-          foregroundColor: Colors.white,
+          backgroundColor: amber,
+          foregroundColor: ink,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusPill)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primaryDark,
-          side: const BorderSide(color: primaryDark, width: 1.2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          foregroundColor: darkTextPrimary,
+          side: const BorderSide(color: darkHairline, width: 1.0),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusPill)),
         ),
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5),
-        headlineMedium: TextStyle(fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.4),
-        titleLarge: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
-        titleMedium: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFF1F5F9)),
-        bodyLarge: TextStyle(color: Color(0xFFE2E8F0), fontWeight: FontWeight.w500),
-        bodyMedium: TextStyle(color: tertiaryDarkMuted),
-        bodySmall: TextStyle(color: Color(0xFF64748B)),
+        headlineLarge: TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w300, color: darkTextPrimary, letterSpacing: -0.5),
+        headlineMedium: TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w600, color: darkTextPrimary, letterSpacing: -0.4),
+        titleLarge: TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w700, color: darkTextPrimary),
+        titleMedium: TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w600, color: darkTextPrimary),
+        bodyLarge: TextStyle(fontFamily: fontFamily, color: darkTextPrimary, fontWeight: FontWeight.w400),
+        bodyMedium: TextStyle(fontFamily: fontFamily, color: darkTextSecondary),
+        bodySmall: TextStyle(fontFamily: fontFamily, color: darkTextSecondary),
       ),
     );
   }
