@@ -26,40 +26,23 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
-    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
+    final cardBg = ValtSkyTheme.surface(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
 
     return ValueListenableBuilder<SyncEngineStatus>(
       valueListenable: SyncEngine.engineStatusNotifier,
       child: child,
       builder: (context, engineStatus, childWidget) {
-        // High-Performance Optimization:
-        // BackdropFilter is an expensive GPU shader operation (framebuffer copy + Gaussian blur pass).
-        // During active sync, incoming transfer stats frequently trigger widget rebuilds.
-        // Dynamically bypass BackdropFilter during active uploads and fall back to a high-performance
-        // semi-transparent solid gradient background to eliminate raster thread bottlenecks and scroll lag.
         final isUploading = engineStatus == SyncEngineStatus.active;
 
         final cardContent = Container(
           padding: padding,
           decoration: BoxDecoration(
-            gradient: gradient ?? LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark 
-                  ? [
-                      cardBg.withAlpha(240),
-                      const Color(0xFF07090F).withAlpha(245),
-                    ] 
-                  : [
-                      Colors.white,
-                      ValtSkyTheme.tertiaryLightSurface,
-                    ],
-            ),
+            color: cardBg,
             borderRadius: BorderRadius.circular(borderRadius),
             border: border ?? Border.all(
               color: borderColor,
-              width: 1.2,
+              width: 1.0,
             ),
           ),
           child: Material(
@@ -74,7 +57,7 @@ class GlassCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(borderRadius),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(isDark ? 50 : 8),
+                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),

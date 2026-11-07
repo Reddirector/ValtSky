@@ -681,17 +681,22 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildFieldHeader(String title, String subtitle) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+          style: ValtSkyTheme.capsLabel(isDark: isDark),
         ),
         const Spacer(),
         Flexible(
           child: Text(
             subtitle,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
+            style: TextStyle(
+              fontFamily: ValtSkyTheme.fontFamily,
+              fontSize: 11,
+              color: ValtSkyTheme.textSecondary(isDark),
+            ),
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
           ),
@@ -711,12 +716,10 @@ class _SettingsViewState extends State<SettingsView> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark 
-            ? (enabled ? const Color(0xFF18181B) : const Color(0xFF121214))
-            : (enabled ? const Color(0xFFFAFAFA) : const Color(0xFFF4F4F5)),
+        color: enabled ? ValtSkyTheme.surface(isDark) : ValtSkyTheme.raised(isDark),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+          color: ValtSkyTheme.hairline(isDark),
           width: 1,
         ),
       ),
@@ -729,14 +732,19 @@ class _SettingsViewState extends State<SettingsView> {
               obscureText: isPassword,
               enabled: enabled,
               style: TextStyle(
+                fontFamily: ValtSkyTheme.fontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: enabled ? null : Colors.grey,
+                color: enabled ? ValtSkyTheme.textPrimary(isDark) : ValtSkyTheme.textSecondary(isDark),
               ),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hint,
-                hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+                hintStyle: TextStyle(
+                  fontFamily: ValtSkyTheme.fontFamily,
+                  fontSize: 13,
+                  color: ValtSkyTheme.textSecondary(isDark),
+                ),
               ),
             ),
           ),
@@ -1200,11 +1208,11 @@ class _SettingsViewState extends State<SettingsView> {
   Widget _buildDangerZone(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1315) : const Color(0xFFFFF1F2),
-        borderRadius: BorderRadius.circular(20),
+        color: ValtSkyTheme.statusFailed.withValues(alpha: isDark ? 0.08 : 0.05),
+        borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
         border: Border.all(
-          color: ValtSkyTheme.error.withValues(alpha: isDark ? 0.35 : 0.2),
-          width: 1,
+          color: ValtSkyTheme.statusFailed.withValues(alpha: isDark ? 0.35 : 0.25),
+          width: 1.0,
         ),
       ),
       padding: const EdgeInsets.all(20),
@@ -1213,11 +1221,16 @@ class _SettingsViewState extends State<SettingsView> {
         children: [
           const Row(
             children: [
-              Icon(Icons.warning_amber_rounded, size: 20, color: ValtSkyTheme.error),
+              Icon(Icons.warning_amber_rounded, size: 20, color: ValtSkyTheme.statusFailed),
               SizedBox(width: 8),
               Text(
                 'Danger Zone',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: ValtSkyTheme.error),
+                style: TextStyle(
+                  fontFamily: ValtSkyTheme.fontFamily,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: ValtSkyTheme.statusFailed,
+                ),
               ),
             ],
           ),
@@ -1225,22 +1238,26 @@ class _SettingsViewState extends State<SettingsView> {
           Text(
             'Wipes local sync index.',
             style: TextStyle(
+              fontFamily: ValtSkyTheme.fontFamily,
               fontSize: 12,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
+              color: ValtSkyTheme.textSecondary(isDark),
             ),
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: OutlinedButton.icon(
-              onPressed: _handleReset,
-              icon: const Icon(Icons.delete_sweep_rounded, size: 18),
-              label: const Text('RESET ALL SYNC HISTORY', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: ValtSkyTheme.error,
-                side: const BorderSide(color: ValtSkyTheme.error),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _handleReset,
+                icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+                label: const Text('RESET ALL SYNC HISTORY', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: ValtSkyTheme.statusFailed,
+                  side: const BorderSide(color: ValtSkyTheme.statusFailed),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill)),
+                ),
               ),
             ),
           ),
@@ -1258,10 +1275,10 @@ class _SettingsViewState extends State<SettingsView> {
             height: 52,
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5),
+              color: ValtSkyTheme.raised(isDark),
               borderRadius: BorderRadius.circular(15),
               border: Border.all(
-                color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.08),
+                color: ValtSkyTheme.hairline(isDark),
               ),
               boxShadow: [
                 BoxShadow(
@@ -1274,16 +1291,23 @@ class _SettingsViewState extends State<SettingsView> {
             child: const ValtSkyLogo(size: 40),
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'ValtSky Multiplatform v2.0',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: -0.2),
+            style: TextStyle(
+              fontFamily: ValtSkyTheme.fontFamily,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+              color: ValtSkyTheme.textPrimary(isDark),
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             'Zero-Loss Telegram Cloud Storage • Open Source',
             style: TextStyle(
+              fontFamily: ValtSkyTheme.fontFamily,
               fontSize: 11,
-              color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+              color: ValtSkyTheme.textSecondary(isDark),
             ),
           ),
         ],

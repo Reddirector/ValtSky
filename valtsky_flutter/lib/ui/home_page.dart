@@ -201,188 +201,266 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final secondaryColor = ValtSkyTheme.secondary(isDark);
-    final surfaceBg = ValtSkyTheme.tertiarySurface(isDark);
-    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
-    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
-    final trackBg = ValtSkyTheme.tertiaryTrack(isDark);
-    final mutedText = ValtSkyTheme.tertiaryText(isDark);
+    final secondaryColor = ValtSkyTheme.accentText(isDark);
+    final surfaceBg = ValtSkyTheme.canvas(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
+    final trackBg = ValtSkyTheme.raised(isDark);
 
     return Scaffold(
       backgroundColor: surfaceBg,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
-          child: Stack(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth > 1024;
+
+          final content = PageView(
+            controller: _pageController,
+            physics: const ClampingScrollPhysics(),
+            onPageChanged: (index) {
+              setState(() => _currentIndex = index);
+              if (index == 0) _dashboardKey.currentState?.refreshStats();
+              if (index == 1) _activityKey.currentState?.refreshItems();
+            },
             children: [
-              Scaffold(
-                backgroundColor: Colors.transparent,
-                appBar: AppBar(
-                  titleSpacing: 20,
-                  elevation: 0,
-                  scrolledUnderElevation: 0,
-                  backgroundColor: Colors.transparent,
-                  title: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: trackBg,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: const ValtSkyLogo(size: 28),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'ValtSky',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        ),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.all(6),
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      tooltip: 'Interactive Guide',
-                      icon: Icon(Icons.help_outline_rounded, color: secondaryColor, size: 21),
-                      onPressed: _openGuide,
-                    ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.all(6),
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      tooltip: 'Refresh Live Counts',
-                      icon: _isRefreshing
-                          ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: secondaryColor),
-                            )
-                          : Icon(Icons.sync_rounded, color: secondaryColor, size: 21),
-                      onPressed: _handleGlobalRefresh,
-                    ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.all(6),
-                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                      tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
-                      icon: Icon(
-                        isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                        color: secondaryColor,
-                        size: 21,
-                      ),
-                      onPressed: () => context.read<ThemeProvider>().toggleTheme(),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                ),
-                body: PageView(
-                  controller: _pageController,
-                  physics: const ClampingScrollPhysics(),
-                  onPageChanged: (index) {
-                    setState(() => _currentIndex = index);
-                    if (index == 0) _dashboardKey.currentState?.refreshStats();
-                    if (index == 1) _activityKey.currentState?.refreshItems();
-                  },
-                  children: [
-                    DashboardView(
-                      key: _dashboardKey,
-                      onNavigateToSettings: () => _switchPage(2),
-                      onNavigateToActivity: _navigateToActivityWithFilter,
-                    ),
-                    ActivityView(
-                      key: _activityKey,
-                      onDataChanged: _onDataChanged,
-                    ),
-                    SettingsView(
-                      onDataChanged: _onDataChanged,
-                    ),
-                  ],
-                ),
-                bottomNavigationBar: Container(
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    border: Border(
-                      top: BorderSide(
-                        color: borderColor,
-                        width: 1,
-                      ),
-                    ),
-                  ),
-                  child: NavigationBar(
-                    selectedIndex: _currentIndex,
-                    onDestinationSelected: (index) {
-                      _switchPage(index);
-                      if (index == 0) _dashboardKey.currentState?.refreshStats();
-                      if (index == 1) _activityKey.currentState?.refreshItems();
-                    },
-                    backgroundColor: cardBg,
-                    indicatorColor: trackBg,
-                    destinations: [
-                      NavigationDestination(
-                        icon: Icon(Icons.cloud_outlined, color: mutedText),
-                        selectedIcon: Icon(Icons.cloud_rounded, color: secondaryColor),
-                        label: 'Dashboard',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.format_list_bulleted_rounded, color: mutedText),
-                        selectedIcon: Icon(Icons.fact_check_rounded, color: secondaryColor),
-                        label: 'Queue & Activity',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.tune_outlined, color: mutedText),
-                        selectedIcon: Icon(Icons.tune_rounded, color: secondaryColor),
-                        label: 'Settings',
-                      ),
-                    ],
-                  ),
-                ),
+              DashboardView(
+                key: _dashboardKey,
+                onNavigateToSettings: () => _switchPage(2),
+                onNavigateToActivity: _navigateToActivityWithFilter,
               ),
-              if (_isTutorialActive && !_isLocked)
-                InteractiveSpotlightTutorial(
-                  currentStep: _tutorialStep,
-                  onNext: () {
-                    setState(() {
-                      if (_tutorialStep < 3) {
-                        _tutorialStep++;
-                      } else {
-                        _isTutorialActive = false;
-                        Prefs.tutorialDismissed = true;
-                      }
-                    });
-                  },
-                  onSkip: () {
-                    setState(() {
-                      _isTutorialActive = false;
-                      Prefs.tutorialDismissed = true;
-                    });
-                  },
-                  onGoToSettings: () {
-                    _switchPage(2);
-                  },
-                  onTriggerScan: () {
-                    _switchPage(0);
-                    _handleGlobalRefresh();
-                  },
-                  onToggleMonitoring: () {
-                    _switchPage(0);
-                    _dashboardKey.currentState?.refreshStats();
-                  },
-                ),
-              if (_isLocked) _buildLockScreen(isDark),
+              ActivityView(
+                key: _activityKey,
+                onDataChanged: _onDataChanged,
+              ),
+              SettingsView(
+                onDataChanged: _onDataChanged,
+              ),
             ],
-          ),
-        ),
+          );
+
+          if (isDesktop) {
+            // Expanded (>1024): Left Navigation Rail with 3 labeled destinations
+            return Stack(
+              children: [
+                Row(
+                  children: [
+                    NavigationRail(
+                      selectedIndex: _currentIndex,
+                      onDestinationSelected: (index) {
+                        _switchPage(index);
+                        if (index == 0) _dashboardKey.currentState?.refreshStats();
+                        if (index == 1) _activityKey.currentState?.refreshItems();
+                      },
+                      backgroundColor: ValtSkyTheme.surface(isDark),
+                      indicatorColor: ValtSkyTheme.amber,
+                      labelType: NavigationRailLabelType.all,
+                      leading: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: trackBg,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: const ValtSkyLogo(size: 30),
+                        ),
+                      ),
+                      destinations: const [
+                        NavigationRailDestination(
+                          icon: Icon(Icons.cloud_outlined),
+                          selectedIcon: Icon(Icons.cloud_rounded, color: ValtSkyTheme.ink),
+                          label: Text('Dashboard'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.format_list_bulleted_rounded),
+                          selectedIcon: Icon(Icons.fact_check_rounded, color: ValtSkyTheme.ink),
+                          label: Text('Queue & Activity'),
+                        ),
+                        NavigationRailDestination(
+                          icon: Icon(Icons.tune_outlined),
+                          selectedIcon: Icon(Icons.tune_rounded, color: ValtSkyTheme.ink),
+                          label: Text('Settings'),
+                        ),
+                      ],
+                    ),
+                    const VerticalDivider(thickness: 1, width: 1),
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 960),
+                          child: Column(
+                            children: [
+                              _buildAppBar(isDark, secondaryColor, trackBg, borderColor),
+                              Expanded(child: content),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_isTutorialActive && !_isLocked) _buildTutorialOverlay(),
+                if (_isLocked) _buildLockScreen(isDark),
+              ],
+            );
+          }
+
+          // Compact (<600) & Medium (600-1024): Floating Pill Bottom Dock
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: Stack(
+                children: [
+                  Scaffold(
+                    backgroundColor: Colors.transparent,
+                    appBar: _buildAppBar(isDark, secondaryColor, trackBg, borderColor),
+                    body: content,
+                    bottomNavigationBar: SafeArea(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: ValtSkyTheme.surface(isDark),
+                          border: Border(
+                            top: BorderSide(color: borderColor, width: 1),
+                          ),
+                        ),
+                        child: NavigationBar(
+                          selectedIndex: _currentIndex,
+                          onDestinationSelected: (index) {
+                            _switchPage(index);
+                            if (index == 0) _dashboardKey.currentState?.refreshStats();
+                            if (index == 1) _activityKey.currentState?.refreshItems();
+                          },
+                          backgroundColor: ValtSkyTheme.surface(isDark),
+                          indicatorColor: ValtSkyTheme.amber,
+                          destinations: [
+                            NavigationDestination(
+                              icon: Icon(Icons.cloud_outlined, color: ValtSkyTheme.textSecondary(isDark)),
+                              selectedIcon: const Icon(Icons.cloud_rounded, color: ValtSkyTheme.ink),
+                              label: 'Dashboard',
+                            ),
+                            NavigationDestination(
+                              icon: Icon(Icons.format_list_bulleted_rounded, color: ValtSkyTheme.textSecondary(isDark)),
+                              selectedIcon: const Icon(Icons.fact_check_rounded, color: ValtSkyTheme.ink),
+                              label: 'Queue & Activity',
+                            ),
+                            NavigationDestination(
+                              icon: Icon(Icons.tune_outlined, color: ValtSkyTheme.textSecondary(isDark)),
+                              selectedIcon: const Icon(Icons.tune_rounded, color: ValtSkyTheme.ink),
+                              label: 'Settings',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_isTutorialActive && !_isLocked) _buildTutorialOverlay(),
+                  if (_isLocked) _buildLockScreen(isDark),
+                ],
+              ),
+            ),
+          );
+        },
       ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(bool isDark, Color secondaryColor, Color trackBg, Color borderColor) {
+    return AppBar(
+      titleSpacing: 20,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: Colors.transparent,
+      title: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: trackBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: borderColor),
+            ),
+            child: const ValtSkyLogo(size: 28),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'ValtSky',
+            style: TextStyle(
+              fontFamily: ValtSkyTheme.fontFamily,
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              color: ValtSkyTheme.textPrimary(isDark),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          tooltip: 'Interactive Guide',
+          icon: Icon(Icons.help_outline_rounded, color: secondaryColor, size: 21),
+          onPressed: _openGuide,
+        ),
+        IconButton(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          tooltip: 'Refresh Live Counts',
+          icon: _isRefreshing
+              ? SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: secondaryColor),
+                )
+              : Icon(Icons.sync_rounded, color: secondaryColor, size: 21),
+          onPressed: _handleGlobalRefresh,
+        ),
+        IconButton(
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
+          icon: Icon(
+            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            color: secondaryColor,
+            size: 21,
+          ),
+          onPressed: () => context.read<ThemeProvider>().toggleTheme(),
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  Widget _buildTutorialOverlay() {
+    return InteractiveSpotlightTutorial(
+      currentStep: _tutorialStep,
+      onNext: () {
+        setState(() {
+          if (_tutorialStep < 3) {
+            _tutorialStep++;
+          } else {
+            _isTutorialActive = false;
+            Prefs.tutorialDismissed = true;
+          }
+        });
+      },
+      onSkip: () {
+        setState(() {
+          _isTutorialActive = false;
+          Prefs.tutorialDismissed = true;
+        });
+      },
+      onGoToSettings: () {
+        _switchPage(2);
+      },
+      onTriggerScan: () {
+        _switchPage(0);
+        _handleGlobalRefresh();
+      },
+      onToggleMonitoring: () {
+        _switchPage(0);
+        _dashboardKey.currentState?.refreshStats();
+      },
     );
   }
 
@@ -403,10 +481,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildLockScreen(bool isDark) {
-    final bg = isDark ? const Color(0xFF000000) : Colors.white;
-    final primaryColor = ValtSkyTheme.primary(isDark);
-    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
-    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
+    final bg = ValtSkyTheme.canvas(isDark);
+    final primaryColor = ValtSkyTheme.amber;
+    final cardBg = ValtSkyTheme.surface(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
 
     return Positioned.fill(
       child: Container(
@@ -435,17 +513,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   Text(
                     'Vault Privacy Lock',
                     style: TextStyle(
+                      fontFamily: ValtSkyTheme.fontFamily,
                       fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      fontWeight: FontWeight.w800,
+                      color: ValtSkyTheme.textPrimary(isDark),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Enter 4-digit security PIN to access cloud media',
                     style: TextStyle(
+                      fontFamily: ValtSkyTheme.fontFamily,
                       fontSize: 13,
-                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                      color: ValtSkyTheme.textSecondary(isDark),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -465,11 +545,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       obscureText: true,
                       autofocus: true,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 24, letterSpacing: 14, fontWeight: FontWeight.bold),
-                      decoration: const InputDecoration(
+                      style: TextStyle(
+                        fontFamily: ValtSkyTheme.fontFamily,
+                        fontSize: 24,
+                        letterSpacing: 14,
+                        fontWeight: FontWeight.bold,
+                        color: ValtSkyTheme.textPrimary(isDark),
+                      ),
+                      decoration: InputDecoration(
                         counterText: '',
                         border: InputBorder.none,
                         hintText: '••••',
+                        hintStyle: TextStyle(color: ValtSkyTheme.textSecondary(isDark)),
                       ),
                       onChanged: (val) {
                         if (val.length == 4) {
@@ -482,7 +569,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     const SizedBox(height: 12),
                     Text(
                       _unlockErrorMsg!,
-                      style: const TextStyle(color: ValtSkyTheme.error, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontFamily: ValtSkyTheme.fontFamily,
+                        color: ValtSkyTheme.statusFailed,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 24),
@@ -493,22 +585,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       decoration: BoxDecoration(
                         color: primaryColor,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryColor.withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
                       ),
                       alignment: Alignment.center,
                       child: const Text(
                         'UNLOCK VAULT',
                         style: TextStyle(
+                          fontFamily: ValtSkyTheme.fontFamily,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                          color: ValtSkyTheme.ink,
                           letterSpacing: 0.5,
                         ),
                       ),

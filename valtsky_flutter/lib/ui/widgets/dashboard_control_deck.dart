@@ -27,9 +27,7 @@ class DashboardControlDeck extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = ValtSkyTheme.primary(isDark);
-    final secondaryColor = ValtSkyTheme.secondary(isDark);
-    final mutedText = ValtSkyTheme.tertiaryText(isDark);
+    final mutedText = ValtSkyTheme.textSecondary(isDark);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -43,21 +41,16 @@ class DashboardControlDeck extends StatelessWidget {
               padding: const EdgeInsets.only(left: 4, bottom: 12),
               child: Text(
                 'QUICK CONTROLS',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.0,
-                  color: mutedText,
-                ),
+                style: ValtSkyTheme.capsLabel(isDark: isDark, color: mutedText),
               ),
             ),
             Row(
               children: [
                 Expanded(
-                  child: _buildActionCard(
+                  child: _buildActionTile(
                     title: isPaused ? 'Resume' : 'Pause',
                     icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                    accentColor: isPaused ? secondaryColor : ValtSkyTheme.warning,
+                    iconColor: isPaused ? ValtSkyTheme.amber : ValtSkyTheme.warning,
                     isDark: isDark,
                     isNarrow: isNarrow,
                     isEnabled: isConfigured,
@@ -66,10 +59,10 @@ class DashboardControlDeck extends StatelessWidget {
                 ),
                 SizedBox(width: spacing),
                 Expanded(
-                  child: _buildActionCard(
+                  child: _buildActionTile(
                     title: 'Scan Gallery',
                     icon: Icons.photo_camera_back_outlined,
-                    accentColor: primaryColor,
+                    iconColor: ValtSkyTheme.amber,
                     isDark: isDark,
                     isNarrow: isNarrow,
                     isLoading: isScanning,
@@ -82,10 +75,10 @@ class DashboardControlDeck extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildActionCard(
+                  child: _buildActionTile(
                     title: 'Stop Process',
                     icon: Icons.stop_circle_outlined,
-                    accentColor: ValtSkyTheme.error,
+                    iconColor: ValtSkyTheme.statusFailed, // Subtle coral icon
                     isDark: isDark,
                     isNarrow: isNarrow,
                     onTap: onStopProcess,
@@ -93,10 +86,10 @@ class DashboardControlDeck extends StatelessWidget {
                 ),
                 SizedBox(width: spacing),
                 Expanded(
-                  child: _buildActionCard(
+                  child: _buildActionTile(
                     title: 'Diagnostics',
                     icon: Icons.terminal_rounded,
-                    accentColor: primaryColor.withAlpha(210),
+                    iconColor: ValtSkyTheme.accentText(isDark),
                     isDark: isDark,
                     isNarrow: isNarrow,
                     onTap: onShowDiagnostics,
@@ -110,75 +103,68 @@ class DashboardControlDeck extends StatelessWidget {
     );
   }
 
-  Widget _buildActionCard({
+  Widget _buildActionTile({
     required String title,
     required IconData icon,
-    required Color accentColor,
+    required Color iconColor,
     required bool isDark,
     required bool isNarrow,
     required VoidCallback? onTap,
     bool isLoading = false,
     bool isEnabled = true,
   }) {
-    final bg = ValtSkyTheme.tertiaryCard(isDark);
-    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
+    final bg = ValtSkyTheme.surface(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
     final opacity = isEnabled ? 1.0 : 0.45;
 
     return Opacity(
       opacity: opacity,
       child: TactilePress(
         onTap: onTap,
-        scaleDown: 0.96,
+        scaleDown: 0.97,
         child: Container(
+          constraints: const BoxConstraints(minHeight: 56.0),
           padding: EdgeInsets.symmetric(
             horizontal: isNarrow ? 12 : 16,
-            vertical: isNarrow ? 14 : 16,
+            vertical: 14,
           ),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderColor, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(isDark ? 28 : 6),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
+            border: Border.all(color: borderColor, width: 1.0),
           ),
           child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(isNarrow ? 8 : 10),
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
-                  color: accentColor.withAlpha(22),
-                  borderRadius: BorderRadius.circular(12),
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                alignment: Alignment.center,
                 child: isLoading
                     ? SizedBox(
-                        width: isNarrow ? 18 : 20,
-                        height: isNarrow ? 18 : 20,
+                        width: 18,
+                        height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(accentColor),
+                          valueColor: AlwaysStoppedAnimation<Color>(iconColor),
                         ),
                       )
-                    : Icon(
-                        icon,
-                        size: isNarrow ? 20 : 22,
-                        color: accentColor,
-                      ),
+                    : Icon(icon, size: 20, color: iconColor),
               ),
-              SizedBox(width: isNarrow ? 10 : 14),
+              SizedBox(width: isNarrow ? 10 : 12),
               Expanded(
                 child: Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: isNarrow ? 13 : 14,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontFamily: ValtSkyTheme.fontFamily,
+                    fontSize: isNarrow ? 12.5 : 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: ValtSkyTheme.textPrimary(isDark),
                   ),
                 ),
               ),

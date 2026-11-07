@@ -7,6 +7,7 @@ import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 import '../widgets/media_item_card.dart';
 import '../widgets/manual_upload_assistant_sheet.dart';
+import '../widgets/valtsky_components.dart';
 import '../../util/telegram_launcher.dart';
 import '../../util/media_scanner.dart';
 
@@ -356,19 +357,18 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
     required bool isDark,
     bool isActiveTrack = false,
   }) {
-    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
-    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
-    final mutedText = ValtSkyTheme.tertiaryText(isDark);
+    final cardBg = ValtSkyTheme.surface(isDark);
+    final borderColor = isActiveTrack
+        ? ValtSkyTheme.amber.withValues(alpha: 0.45)
+        : ValtSkyTheme.hairline(isDark);
+    final mutedText = ValtSkyTheme.textSecondary(isDark);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isActiveTrack ? color.withValues(alpha: 0.35) : borderColor,
-          width: 1.2,
-        ),
+        borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
+        border: Border.all(color: borderColor, width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,11 +390,11 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: color,
+                    color: ValtSkyTheme.amber,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: color.withValues(alpha: 0.6),
+                        color: ValtSkyTheme.amber.withValues(alpha: 0.6),
                         blurRadius: 6,
                         spreadRadius: 1,
                       ),
@@ -403,31 +403,34 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           Text(
             '$count',
             style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
+              fontFamily: ValtSkyTheme.fontFamily,
+              fontSize: 32,
+              fontWeight: FontWeight.w300,
               letterSpacing: -0.5,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              color: ValtSkyTheme.textPrimary(isDark),
+              height: 1.05,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.6,
-              color: color,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: ValtSkyTheme.capsLabel(
+              isDark: isDark,
+              color: isDark ? color : (isActiveTrack ? ValtSkyTheme.accentText(isDark) : ValtSkyTheme.textSecondary(isDark)),
             ),
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
             style: TextStyle(
-              fontSize: 10,
+              fontFamily: ValtSkyTheme.fontFamily,
+              fontSize: 11,
               fontWeight: FontWeight.w500,
               color: mutedText,
             ),
@@ -441,64 +444,53 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
 
   /// Compact action deck for managing the queue without rendering huge lists.
   Widget _buildActionDeck(bool isDark) {
-    final primaryColor = ValtSkyTheme.primary(isDark);
-
     return Column(
       children: [
         Row(
           children: [
             // Scan Gallery Now
             Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: _isScanning ? null : () async {
-                  setState(() => _isScanning = true);
-                  try {
-                    final newCount = await MediaScanner.scanForNewMedia(forceFull: false);
-                    await refreshItems();
-                    widget.onDataChanged();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          newCount > 0
-                              ? 'Scanned gallery: $newCount new items queued'
-                              : 'Gallery up to date (no new items)',
-                        ),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: ValtSkyTheme.primary(isDark),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    );
-                  } finally {
-                    if (mounted) setState(() => _isScanning = false);
-                  }
-                },
-                icon: const Icon(Icons.sync_rounded, size: 18),
-                label: const Text('Scan Gallery', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+              child: PillButton(
+                label: 'Scan Gallery',
+                icon: Icons.sync_rounded,
+                variant: PillButtonVariant.primary,
+                isLoading: _isScanning,
+                onPressed: _isScanning
+                    ? null
+                    : () async {
+                        setState(() => _isScanning = true);
+                        try {
+                          final newCount = await MediaScanner.scanForNewMedia(forceFull: false);
+                          await refreshItems();
+                          widget.onDataChanged();
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                newCount > 0
+                                    ? 'Scanned gallery: $newCount new items queued'
+                                    : 'Gallery up to date (no new items)',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: ValtSkyTheme.primary(isDark),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          );
+                        } finally {
+                          if (mounted) setState(() => _isScanning = false);
+                        }
+                      },
               ),
             ),
             const SizedBox(width: 10),
             // Clear Queue / Exclude
             Expanded(
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5),
-                  foregroundColor: isDark ? Colors.white : Colors.black87,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    side: BorderSide(color: isDark ? const Color(0xFF3F3F46) : const Color(0xFFE4E4E7)),
-                  ),
-                ),
+              child: PillButton(
+                label: 'Clear Queue',
+                icon: Icons.delete_outline_rounded,
+                variant: PillButtonVariant.secondary,
+                isLoading: _isClearingQueue,
                 onPressed: _isClearingQueue ? null : _handleClearQueue,
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                label: const Text('Clear Queue', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
               ),
             ),
           ],
@@ -507,13 +499,11 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ValtSkyTheme.error,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
+            child: PillButton(
+              label: 'Retry ${_breakdown.totalFailed} Failed Transfers',
+              icon: Icons.replay_rounded,
+              variant: PillButtonVariant.destructive,
+              isLoading: _isRetryingAll,
               onPressed: _isRetryingAll
                   ? null
                   : () async {
@@ -538,27 +528,17 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                         if (mounted) setState(() => _isRetryingAll = false);
                       }
                     },
-              icon: const Icon(Icons.replay_rounded, size: 18),
-              label: Text(
-                'Retry ${_breakdown.totalFailed} Failed Transfers',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-              ),
             ),
           ),
         ],
         const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: isDark ? Colors.white70 : const Color(0xFF334155),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              side: BorderSide(color: isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0)),
-            ),
+          child: PillButton(
+            label: 'Open Telegram Channel',
+            icon: Icons.open_in_new_rounded,
+            variant: PillButtonVariant.outline,
             onPressed: () => TelegramLauncher.openChannel(context),
-            icon: const Icon(Icons.open_in_new_rounded, size: 16),
-            label: const Text('Open Telegram Channel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
           ),
         ),
       ],
@@ -566,10 +546,10 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   }
 
   Widget _buildQueueSummaryBanner(bool isDark) {
-    final primaryColor = ValtSkyTheme.primary(isDark);
-    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
-    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
-    final mutedText = ValtSkyTheme.tertiaryText(isDark);
+    final secondaryColor = ValtSkyTheme.accentText(isDark);
+    final cardBg = ValtSkyTheme.surface(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
+    final mutedText = ValtSkyTheme.textSecondary(isDark);
 
     final pendingCount = _breakdown.totalPending;
     final syncedCount = _breakdown.totalSynced;
@@ -609,8 +589,8 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1.2),
+        borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
+        border: Border.all(color: borderColor, width: 1.0),
       ),
       child: Row(
         children: [
@@ -618,10 +598,10 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: primaryColor.withAlpha(22),
+              color: secondaryColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: primaryColor, size: 20),
+            child: Icon(icon, color: secondaryColor, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -631,16 +611,22 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                 Text(
                   title,
                   style: TextStyle(
+                    fontFamily: ValtSkyTheme.fontFamily,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.6,
-                    color: primaryColor,
+                    color: secondaryColor,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    fontFamily: ValtSkyTheme.fontFamily,
+                    fontSize: 11,
+                    color: mutedText,
+                    fontWeight: FontWeight.w500,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -684,7 +670,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                   : const Icon(Icons.refresh_rounded, size: 14),
               label: const Text('RETRY ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: ValtSkyTheme.error,
+                backgroundColor: ValtSkyTheme.statusFailed,
                 foregroundColor: Colors.white,
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -699,78 +685,80 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   Widget _buildFilterChip(String filterKey, String label, {int? badgeCount}) {
     final isSelected = _selectedFilter == filterKey;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = ValtSkyTheme.primary(isDark);
-    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
-    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
-    final mutedText = ValtSkyTheme.tertiaryText(isDark);
+    final cardBg = ValtSkyTheme.surface(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
+    final mutedText = ValtSkyTheme.textSecondary(isDark);
 
-    return ChoiceChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(label),
-          if (badgeCount != null) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Colors.white.withAlpha(50)
-                    : (filterKey == 'OVERSIZED' && badgeCount > 0
-                        ? ValtSkyTheme.warning.withAlpha(40)
-                        : (isDark ? Colors.white.withAlpha(20) : Colors.black.withAlpha(12))),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                '$badgeCount',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
-                  color: isSelected
-                      ? Colors.white
-                      : (filterKey == 'OVERSIZED' && badgeCount > 0
-                          ? ValtSkyTheme.warning
-                          : (isDark ? Colors.white70 : const Color(0xFF1E293B))),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+      child: Center(
+        child: ChoiceChip(
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label),
+              if (badgeCount != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? ValtSkyTheme.ink.withValues(alpha: 0.14)
+                        : (filterKey == 'OVERSIZED' && badgeCount > 0
+                            ? ValtSkyTheme.amber.withValues(alpha: 0.25)
+                            : ValtSkyTheme.raised(isDark)),
+                    borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                  ),
+                  child: Text(
+                    '$badgeCount',
+                    style: TextStyle(
+                      fontFamily: ValtSkyTheme.fontFamily,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected
+                          ? ValtSkyTheme.ink
+                          : (filterKey == 'OVERSIZED' && badgeCount > 0
+                              ? ValtSkyTheme.accentText(isDark)
+                              : mutedText),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
-        ],
+              ],
+            ],
+          ),
+          selected: isSelected,
+          onSelected: (selected) {
+            if (selected) {
+              setState(() => _selectedFilter = filterKey);
+              refreshItems();
+            }
+          },
+          labelStyle: TextStyle(
+            fontFamily: ValtSkyTheme.fontFamily,
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: isSelected ? ValtSkyTheme.ink : mutedText,
+          ),
+          selectedColor: ValtSkyTheme.amber,
+          backgroundColor: cardBg,
+          side: BorderSide(
+            color: isSelected ? ValtSkyTheme.amber : borderColor,
+            width: 1.0,
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill)),
+        ),
       ),
-      selected: isSelected,
-      onSelected: (selected) {
-        if (selected) {
-          setState(() => _selectedFilter = filterKey);
-          refreshItems();
-        }
-      },
-      labelStyle: TextStyle(
-        fontSize: 12,
-        fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
-        color: isSelected ? Colors.white : mutedText,
-      ),
-      selectedColor: primaryColor,
-      backgroundColor: cardBg,
-      side: BorderSide(
-        color: isSelected ? primaryColor : borderColor,
-        width: 1.2,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 
   Widget _buildOversizedHeader(bool isDark) {
-    final primaryColor = ValtSkyTheme.primary(isDark);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF18181B) : const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
-        ),
+        color: ValtSkyTheme.surface(isDark),
+        borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
+        border: Border.all(color: ValtSkyTheme.hairline(isDark)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -783,24 +771,30 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: ValtSkyTheme.warning.withValues(alpha: 0.15),
+                      color: ValtSkyTheme.amber.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.layers_clear_rounded, size: 18, color: ValtSkyTheme.warning),
+                    child: const Icon(Icons.layers_clear_rounded, size: 18, color: ValtSkyTheme.amber),
                   ),
                   const SizedBox(width: 10),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'OVERSIZED VAULT (> 2 GB)',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          fontFamily: ValtSkyTheme.fontFamily,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: ValtSkyTheme.textPrimary(isDark),
+                        ),
                       ),
                       Text(
                         'Exceeds standard automated Bot limits',
                         style: TextStyle(
+                          fontFamily: ValtSkyTheme.fontFamily,
                           fontSize: 11,
-                          color: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                          color: ValtSkyTheme.textSecondary(isDark),
                         ),
                       ),
                     ],
@@ -810,15 +804,17 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(8),
+                  color: ValtSkyTheme.raised(isDark),
+                  borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                  border: Border.all(color: ValtSkyTheme.hairline(isDark)),
                 ),
                 child: Text(
                   '$_oversizedCount Files',
                   style: TextStyle(
+                    fontFamily: ValtSkyTheme.fontFamily,
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : Colors.black,
+                    color: ValtSkyTheme.textPrimary(isDark),
                   ),
                 ),
               ),
@@ -830,65 +826,21 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
               children: [
                 Expanded(
                   flex: 3,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => _openManualUploadAssistant(_oversizedItems),
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: primaryColor,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.bolt_rounded, size: 20, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text(
-                            'UPLOAD ALL OVERSIZED',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: PillButton(
+                    label: 'UPLOAD ALL OVERSIZED',
+                    icon: Icons.bolt_rounded,
+                    variant: PillButtonVariant.primary,
+                    onPressed: () => _openManualUploadAssistant(_oversizedItems),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   flex: 2,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => TelegramLauncher.openChannel(context),
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.1),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.open_in_new_rounded, size: 16, color: isDark ? Colors.white : Colors.black),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Open Channel',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: isDark ? Colors.white : Colors.black,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  child: PillButton(
+                    label: 'Open Channel',
+                    icon: Icons.open_in_new_rounded,
+                    variant: PillButtonVariant.outline,
+                    onPressed: () => TelegramLauncher.openChannel(context),
                   ),
                 ),
               ],
@@ -909,24 +861,34 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF18181B) : const Color(0xFFF4F4F5),
+                color: ValtSkyTheme.surface(isDark),
                 shape: BoxShape.circle,
+                border: Border.all(color: ValtSkyTheme.hairline(isDark)),
               ),
               child: Icon(
                 Icons.check_circle_outline_rounded,
                 size: 40,
-                color: ValtSkyTheme.primary(isDark),
+                color: ValtSkyTheme.amber,
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'Oversized Vault Clear',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontFamily: ValtSkyTheme.fontFamily,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: ValtSkyTheme.textPrimary(isDark),
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               'No media files exceed the 2 GB threshold',
-              style: TextStyle(fontSize: 12, color: ValtSkyTheme.tertiaryText(isDark)),
+              style: TextStyle(
+                fontFamily: ValtSkyTheme.fontFamily,
+                fontSize: 12,
+                color: ValtSkyTheme.textSecondary(isDark),
+              ),
             ),
           ],
         ),
