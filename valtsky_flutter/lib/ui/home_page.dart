@@ -16,6 +16,7 @@ import 'widgets/valtsky_logo.dart';
 import 'widgets/interactive_spotlight_tutorial.dart';
 import 'widgets/app_walkthrough_guide.dart';
 import 'widgets/animated_stagger.dart';
+import 'widgets/valtsky_components.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -208,7 +209,38 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
     return Scaffold(
       backgroundColor: surfaceBg,
-      body: LayoutBuilder(
+      body: Stack(
+        children: [
+          // Pre-rendered soft indigo ambient glow blob (Night-Sky atmosphere)
+          Positioned(
+            top: -120,
+            left: 0,
+            right: 0,
+            height: 380,
+            child: IgnorePointer(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0.0, -0.6),
+                    radius: 1.1,
+                    colors: isDark
+                        ? [
+                            ValtSkyTheme.darkAccent.withValues(alpha: 0.18),
+                            ValtSkyTheme.darkSurface3.withValues(alpha: 0.05),
+                            Colors.transparent,
+                          ]
+                        : [
+                            ValtSkyTheme.lightAccentFill.withValues(alpha: 0.12),
+                            ValtSkyTheme.lightSurface3.withValues(alpha: 0.04),
+                            Colors.transparent,
+                          ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          LayoutBuilder(
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth > 1024;
 
@@ -313,44 +345,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               child: Stack(
                 children: [
                   Scaffold(
+                    extendBody: true,
                     backgroundColor: Colors.transparent,
                     appBar: _buildAppBar(isDark, secondaryColor, trackBg, borderColor),
                     body: content,
                     bottomNavigationBar: SafeArea(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: ValtSkyTheme.surface(isDark),
-                          border: Border(
-                            top: BorderSide(color: borderColor, width: 1),
-                          ),
-                        ),
-                        child: NavigationBar(
-                          selectedIndex: _currentIndex,
-                          onDestinationSelected: (index) {
-                            _switchPage(index);
-                            if (index == 0) _dashboardKey.currentState?.refreshStats();
-                            if (index == 1) _activityKey.currentState?.refreshItems();
-                          },
-                          backgroundColor: ValtSkyTheme.surface(isDark),
-                          indicatorColor: ValtSkyTheme.amber,
-                          destinations: [
-                            NavigationDestination(
-                              icon: Icon(Icons.cloud_outlined, color: ValtSkyTheme.textSecondary(isDark)),
-                              selectedIcon: const Icon(Icons.cloud_rounded, color: ValtSkyTheme.ink),
-                              label: 'Dashboard',
-                            ),
-                            NavigationDestination(
-                              icon: Icon(Icons.format_list_bulleted_rounded, color: ValtSkyTheme.textSecondary(isDark)),
-                              selectedIcon: const Icon(Icons.fact_check_rounded, color: ValtSkyTheme.ink),
-                              label: 'Queue & Activity',
-                            ),
-                            NavigationDestination(
-                              icon: Icon(Icons.tune_outlined, color: ValtSkyTheme.textSecondary(isDark)),
-                              selectedIcon: const Icon(Icons.tune_rounded, color: ValtSkyTheme.ink),
-                              label: 'Settings',
-                            ),
-                          ],
-                        ),
+                      child: ValtSkyNavigationDock(
+                        selectedIndex: _currentIndex,
+                        onDestinationSelected: (index) {
+                          _switchPage(index);
+                          if (index == 0) _dashboardKey.currentState?.refreshStats();
+                          if (index == 1) _activityKey.currentState?.refreshItems();
+                        },
                       ),
                     ),
                   ),
@@ -362,7 +368,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           );
         },
       ),
-    );
+    ],
+  ),
+);
   }
 
   PreferredSizeWidget _buildAppBar(bool isDark, Color secondaryColor, Color trackBg, Color borderColor) {

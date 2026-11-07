@@ -3,50 +3,61 @@ import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 import 'valtsky_components.dart';
 
+/// Night-Sky Vault Hero Storage Card
+/// Features:
+/// - Living Sky Orb Hero with cosmic starfield (lit stars proportional to synced items)
+/// - Sora Light 56 center percentage readout
+/// - Glowing head progress arc in surface-3 recessed track
+/// - Live count subtitle "$uploadedCount of $totalCount synced" and "Lossless" pill
+/// - Single dominant Master Action CTA with primary gradient fill
 class VaultStorageCard extends StatelessWidget {
+  final int totalCount;
+  final int uploadedCount;
+  final int pendingCount;
+  final int failedCount;
+  final double progress;
   final bool isConfigured;
   final bool isMonitoring;
   final bool isPaused;
-  final int uploadedCount;
-  final int totalCount;
-  final double progress;
+  final bool isUploading;
   final VoidCallback onToggleMonitoring;
+  final VoidCallback onNavigateToSettings;
 
   const VaultStorageCard({
     super.key,
+    required this.totalCount,
+    required this.uploadedCount,
+    required this.pendingCount,
+    required this.failedCount,
+    required this.progress,
     required this.isConfigured,
     required this.isMonitoring,
     required this.isPaused,
-    required this.uploadedCount,
-    required this.totalCount,
-    required this.progress,
+    required this.isUploading,
     required this.onToggleMonitoring,
+    required this.onNavigateToSettings,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final engineStatus = SyncEngine.engineStatusNotifier.value;
-    final isUploading = !isPaused &&
-        (engineStatus == SyncEngineStatus.active ||
-            SyncEngine.isPhotoWorkerActive ||
-            SyncEngine.isVideoWorkerActive);
-
-    final cardBg = ValtSkyTheme.surface(isDark);
+    final cardBg = ValtSkyTheme.surface(isDark, level: 1);
     final borderColor = ValtSkyTheme.hairline(isDark);
-    final trackBg = ValtSkyTheme.raised(isDark);
-    final secondaryColor = ValtSkyTheme.accentText(isDark);
-    final mutedText = ValtSkyTheme.textSecondary(isDark);
+    final secondaryColor = ValtSkyTheme.textSecondary(isDark);
+    final trackBg = ValtSkyTheme.surface(isDark, level: 3);
 
     final percentInt = (progress.clamp(0.0, 1.0) * 100).toInt();
 
-    final Color statusDotColor = !isConfigured
-        ? mutedText
+    // Dot indicator color
+    final statusDotColor = !isConfigured
+        ? ValtSkyTheme.statusFailed
         : (isPaused
-            ? ValtSkyTheme.warning
-            : (isUploading ? ValtSkyTheme.amber : (isMonitoring ? ValtSkyTheme.statusSynced : mutedText)));
+            ? ValtSkyTheme.darkAccent
+            : (isUploading
+                ? ValtSkyTheme.darkAqua
+                : (isMonitoring ? ValtSkyTheme.statusSynced : secondaryColor)));
 
-    final String statusText = !isConfigured
+    final statusText = !isConfigured
         ? 'SETUP'
         : (isPaused
             ? 'PAUSED'
@@ -57,6 +68,7 @@ class VaultStorageCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 360;
+        final orbSize = (constraints.maxWidth * 0.46).clamp(150.0, 200.0);
 
         return HeroCutoutContainer(
           backgroundColor: cardBg,
@@ -72,9 +84,9 @@ class VaultStorageCard extends StatelessWidget {
                   vertical: 20,
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Row 1: Status Dot + Tag & Lossless Pill
+                    // Header Row: Status Indicator & Lossless Pill
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -93,7 +105,7 @@ class VaultStorageCard extends StatelessWidget {
                             Text(
                               statusText,
                               style: TextStyle(
-                                fontFamily: ValtSkyTheme.fontFamily,
+                                fontFamily: ValtSkyTheme.fontFamilyBody,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.8,
@@ -117,7 +129,7 @@ class VaultStorageCard extends StatelessWidget {
                               Text(
                                 'Lossless',
                                 style: TextStyle(
-                                  fontFamily: ValtSkyTheme.fontFamily,
+                                  fontFamily: ValtSkyTheme.fontFamilyBody,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
                                   color: secondaryColor,
@@ -129,112 +141,56 @@ class VaultStorageCard extends StatelessWidget {
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    // Row 2: Radial Tick Ring & Live Sync Metrics
+                    // Living Sky Orb Hero (Cosmic Starfield & Progress Arc)
+                    SkyOrbHero(
+                      progress: progress,
+                      totalCount: totalCount,
+                      syncedCount: uploadedCount,
+                      size: orbSize,
+                      isUploading: isUploading,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Counter & Tag Pill: "$uploadedCount of $totalCount synced" + "$percentInt%"
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Radial Tick-Mark Ring with Real Percentage (36 Ticks)
-                        RadialTickRing(
-                          progress: progress,
-                          size: isNarrow ? 110 : 124,
-                          totalTicks: 36,
+                        Text(
+                          '$uploadedCount of $totalCount synced',
+                          style: TextStyle(
+                            fontFamily: ValtSkyTheme.fontFamilyBody,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: ValtSkyTheme.textPrimary(isDark),
+                          ),
                         ),
-
-                        SizedBox(width: isNarrow ? 16 : 22),
-
-                        // Backup Progress Numbers & Labels
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 6,
-                                    height: 6,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isUploading
-                                          ? ValtSkyTheme.amber
-                                          : (isPaused ? ValtSkyTheme.warning : mutedText),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      isUploading
-                                          ? 'UPLOADING TO VAULT'
-                                          : (isPaused ? 'UPLOADS PAUSED' : 'VAULT SYNC STATUS'),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: ValtSkyTheme.capsLabel(
-                                        isDark: isDark,
-                                        color: isUploading ? ValtSkyTheme.amber : mutedText,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  '$uploadedCount of $totalCount synced',
-                                  style: TextStyle(
-                                    fontFamily: ValtSkyTheme.fontFamily,
-                                    fontSize: isNarrow ? 16 : 19,
-                                    fontWeight: FontWeight.w800,
-                                    color: ValtSkyTheme.textPrimary(isDark),
-                                    letterSpacing: -0.3,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              // Percentage Pill Badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: trackBg,
-                                  borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                                  border: Border.all(color: borderColor),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '$percentInt',
-                                      style: TextStyle(
-                                        fontFamily: ValtSkyTheme.fontFamily,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800,
-                                        color: ValtSkyTheme.textPrimary(isDark),
-                                      ),
-                                    ),
-                                    Text(
-                                      '%',
-                                      style: TextStyle(
-                                        fontFamily: ValtSkyTheme.fontFamily,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                        color: ValtSkyTheme.accentText(isDark),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: trackBg,
+                            borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Text(
+                            '$percentInt%',
+                            style: TextStyle(
+                              fontFamily: ValtSkyTheme.fontFamilyDisplay,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: ValtSkyTheme.accentText(isDark),
+                            ),
                           ),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
-                    // Row 3: Regulatory Telemetry Strip
+                    // Regulatory Telemetry Strip
                     Container(
                       height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -290,7 +246,7 @@ class VaultStorageCard extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        fontFamily: ValtSkyTheme.fontFamily,
+                                        fontFamily: ValtSkyTheme.fontFamilyBody,
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w800,
                                         letterSpacing: 0.6,
@@ -302,7 +258,7 @@ class VaultStorageCard extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        fontFamily: ValtSkyTheme.fontFamily,
+                                        fontFamily: ValtSkyTheme.fontFamilyBody,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
                                         color: ValtSkyTheme.textSecondary(isDark),
@@ -314,30 +270,45 @@ class VaultStorageCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          // Speed / Mode Pill
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: secondaryColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                            ),
-                            child: ValueListenableBuilder<String>(
-                              valueListenable: SyncEngine.uploadSpeedNotifier,
-                              builder: (context, currentSpeed, _) {
-                                String displaySpeed;
-                                if (!isConfigured) {
-                                  displaySpeed = 'Setup';
-                                } else if (isPaused) {
-                                  displaySpeed = 'Paused';
-                                } else if (currentSpeed.isNotEmpty && isUploading) {
-                                  displaySpeed = currentSpeed;
-                                } else if (isMonitoring) {
-                                  displaySpeed = '0.0 MB/s';
-                                } else {
-                                  displaySpeed = 'Standby';
-                                }
+                          // Speed / Setup Pill
+                          ValueListenableBuilder<String>(
+                            valueListenable: SyncEngine.uploadSpeedNotifier,
+                            builder: (context, currentSpeed, _) {
+                              if (!isConfigured) {
+                                return ElevatedButton(
+                                  onPressed: onNavigateToSettings,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: ValtSkyTheme.accent(isDark),
+                                    foregroundColor: isDark ? ValtSkyTheme.ink : Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                    minimumSize: const Size(60, 32),
+                                    visualDensity: VisualDensity.compact,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                                    ),
+                                  ),
+                                  child: const Text('Setup', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                );
+                              }
 
-                                return Row(
+                              String displaySpeed;
+                              if (isPaused) {
+                                displaySpeed = 'Paused';
+                              } else if (currentSpeed.isNotEmpty && isUploading) {
+                                displaySpeed = currentSpeed;
+                              } else if (isMonitoring) {
+                                displaySpeed = '0.0 MB/s';
+                              } else {
+                                displaySpeed = 'Standby';
+                              }
+
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: secondaryColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                                ),
+                                child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
@@ -349,16 +320,16 @@ class VaultStorageCard extends StatelessWidget {
                                     Text(
                                       displaySpeed,
                                       style: TextStyle(
-                                        fontFamily: ValtSkyTheme.fontFamily,
+                                        fontFamily: ValtSkyTheme.fontFamilyBody,
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w800,
                                         color: secondaryColor,
                                       ),
                                     ),
                                   ],
-                                );
-                              },
-                            ),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -367,7 +338,7 @@ class VaultStorageCard extends StatelessWidget {
                 ),
               ),
 
-              // ─── BOTTOM CTA SHEET PANEL (SIGNATURE CUT-OUT JUNCTION) ────────
+              // ─── BOTTOM CTA SHEET PANEL (PINNED DOMINANT BUTTON) ───────────
               Container(
                 decoration: BoxDecoration(
                   color: ValtSkyTheme.ctaPanelBackground(isDark),
@@ -383,7 +354,7 @@ class VaultStorageCard extends StatelessWidget {
                   vertical: 16,
                 ),
                 child: PillButton(
-                  height: 50,
+                  height: 52,
                   label: !isConfigured
                       ? 'CONFIGURE TELEGRAM BACKUP'
                       : (isMonitoring ? 'STOP MONITORING' : 'START MONITORING'),

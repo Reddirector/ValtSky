@@ -74,7 +74,7 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
               backgroundColor: cardBg,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
+                padding: EdgeInsets.fromLTRB(horizontalPadding, 12, horizontalPadding, 96),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -95,22 +95,32 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                 ),
 
                 // 2. Monolithic Storage Vault Card (Progress, Master Switch)
-                VaultStorageCard(
-                  isConfigured: isConfigured,
-                  isMonitoring: isMonitoring,
-                  isPaused: isPaused,
-                  uploadedCount: _viewModel.uploadedCount,
-                  totalCount: _viewModel.totalCount,
-                  progress: _viewModel.progress,
-                  onToggleMonitoring: () {
-                    if (!isConfigured) {
-                      widget.onNavigateToSettings();
-                    } else {
-                      _viewModel.toggleMonitoring(
-                        context,
-                        onNavigateToSettings: widget.onNavigateToSettings,
-                      );
-                    }
+                ValueListenableBuilder<SyncEngineStatus>(
+                  valueListenable: SyncEngine.engineStatusNotifier,
+                  builder: (context, engineStatus, _) {
+                    final isUploading = engineStatus == SyncEngineStatus.active;
+                    return VaultStorageCard(
+                      totalCount: _viewModel.totalCount,
+                      uploadedCount: _viewModel.uploadedCount,
+                      pendingCount: _viewModel.pendingCount,
+                      failedCount: _viewModel.failedCount,
+                      progress: _viewModel.progress,
+                      isConfigured: isConfigured,
+                      isMonitoring: isMonitoring,
+                      isPaused: isPaused,
+                      isUploading: isUploading,
+                      onToggleMonitoring: () {
+                        if (!isConfigured) {
+                          widget.onNavigateToSettings();
+                        } else {
+                          _viewModel.toggleMonitoring(
+                            context,
+                            onNavigateToSettings: widget.onNavigateToSettings,
+                          );
+                        }
+                      },
+                      onNavigateToSettings: widget.onNavigateToSettings,
+                    );
                   },
                 ),
 

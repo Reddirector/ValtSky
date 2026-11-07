@@ -174,7 +174,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
         final isNarrow = constraints.maxWidth < 360;
 
         return SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 18, vertical: 12),
+          padding: EdgeInsets.fromLTRB(isNarrow ? 12 : 18, 12, isNarrow ? 12 : 18, 96),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -386,20 +386,28 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                 child: Icon(icon, color: color, size: 18),
               ),
               if (isActiveTrack)
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: ValtSkyTheme.amber,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: ValtSkyTheme.amber.withValues(alpha: 0.6),
-                        blurRadius: 6,
-                        spreadRadius: 1,
+                ValueListenableBuilder<SyncEngineStatus>(
+                  valueListenable: SyncEngine.engineStatusNotifier,
+                  builder: (context, engineStatus, _) {
+                    final isLive = engineStatus == SyncEngineStatus.active;
+                    return Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: isLive ? ValtSkyTheme.darkAqua : ValtSkyTheme.darkAccent.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                        boxShadow: isLive
+                            ? [
+                                BoxShadow(
+                                  color: ValtSkyTheme.darkAqua.withValues(alpha: 0.75),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ]
+                            : null,
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
             ],
           ),

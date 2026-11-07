@@ -353,7 +353,7 @@ class _SettingsViewState extends State<SettingsView> {
     final isMonitoring = Prefs.monitoringEnabled;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 96),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1040,7 +1040,22 @@ class _SettingsViewState extends State<SettingsView> {
               ],
             ),
           ),
-          const Icon(Icons.check_circle_rounded, size: 14, color: ValtSkyTheme.success),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle_rounded, size: 14, color: ValtSkyTheme.statusSynced),
+              const SizedBox(width: 4),
+              Text(
+                'Granted',
+                style: TextStyle(
+                  fontFamily: ValtSkyTheme.fontFamilyBody,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: ValtSkyTheme.statusSynced,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

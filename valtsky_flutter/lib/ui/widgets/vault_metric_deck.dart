@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../util/theme.dart';
 import 'valtsky_components.dart';
 
 class VaultMetricDeck extends StatelessWidget {
@@ -24,53 +25,57 @@ class VaultMetricDeck extends StatelessWidget {
         final isNarrow = constraints.maxWidth < 360;
         final spacing = isNarrow ? 8.0 : 12.0;
 
-        return Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: StatTile(
-                    title: 'TOTAL MEDIA',
-                    value: '$totalCount',
-                    icon: Icons.photo_library_outlined,
-                    onTap: () => onNavigateToActivity('ALL'),
-                  ),
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Bento Left: Tall Tile for TOTAL MEDIA (biggest numeral)
+              Expanded(
+                flex: 5,
+                child: StatTile(
+                  label: 'TOTAL MEDIA',
+                  value: totalCount,
+                  icon: Icons.photo_library_outlined,
+                  isTall: true,
+                  onTap: () => onNavigateToActivity('ALL'),
                 ),
-                SizedBox(width: spacing),
-                Expanded(
-                  child: StatTile(
-                    title: 'SYNCED',
-                    value: '$uploadedCount',
-                    icon: Icons.cloud_done_rounded,
-                    onTap: () => onNavigateToActivity('DONE'),
-                  ),
+              ),
+
+              SizedBox(width: spacing),
+
+              // Bento Right: Stacked Tiles for SYNCED, IN QUEUE, FAILED
+              Expanded(
+                flex: 6,
+                child: Column(
+                  children: [
+                    StatTile(
+                      label: 'SYNCED',
+                      value: uploadedCount,
+                      icon: Icons.cloud_done_rounded,
+                      accentColor: uploadedCount > 0 ? ValtSkyTheme.statusSynced : null,
+                      onTap: () => onNavigateToActivity('DONE'),
+                    ),
+                    SizedBox(height: spacing),
+                    StatTile(
+                      label: 'IN QUEUE',
+                      value: pendingCount,
+                      icon: Icons.hourglass_top_rounded,
+                      onTap: () => onNavigateToActivity('PENDING'),
+                    ),
+                    SizedBox(height: spacing),
+                    StatTile(
+                      label: 'FAILED',
+                      value: failedCount,
+                      icon: Icons.error_outline_rounded,
+                      accentColor: failedCount > 0 ? ValtSkyTheme.statusFailed : null,
+                      hasAlert: failedCount > 0,
+                      onTap: () => onNavigateToActivity('FAILED'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            SizedBox(height: spacing),
-            Row(
-              children: [
-                Expanded(
-                  child: StatTile(
-                    title: 'IN QUEUE',
-                    value: '$pendingCount',
-                    icon: Icons.hourglass_top_rounded,
-                    onTap: () => onNavigateToActivity('PENDING'),
-                  ),
-                ),
-                SizedBox(width: spacing),
-                Expanded(
-                  child: StatTile(
-                    title: 'FAILED',
-                    value: '$failedCount',
-                    icon: Icons.error_outline_rounded,
-                    hasAlert: failedCount > 0,
-                    onTap: () => onNavigateToActivity('FAILED'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         );
       },
     );
