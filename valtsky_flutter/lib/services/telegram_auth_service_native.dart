@@ -849,6 +849,7 @@ class TelegramAuthService {
         asDocument: asDocument,
         caption: caption,
         channelAccessHash: Prefs.channelAccessHash,
+        smoothMode: Prefs.smoothUploadMode,
         onProgress: onProgress,
       );
 

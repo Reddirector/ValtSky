@@ -26,11 +26,11 @@ class ValtSkyTheme {
   static const Color tertiaryLightMuted = Color(0xFF64748B);   // Slate Tertiary Muted Text
 
   // Black Midnight Base & Surface Hierarchy
-  static const Color blackMidnight = Color(0xFF050811);        // Deep Pure Black Midnight
-  static const Color tertiaryDarkSurface = Color(0xFF050811);  // Black Midnight Scaffold Surface
-  static const Color tertiaryDarkCard = Color(0xFF0C1322);     // Midnight Surface Card
-  static const Color tertiaryDarkBorder = Color(0xFF162540);   // Midnight Slate Boundary
-  static const Color tertiaryDarkTrack = Color(0xFF0E1626);    // Midnight Telemetry Track
+  static const Color blackMidnight = Color(0xFF000000);        // Deep Pure Midnight Black
+  static const Color tertiaryDarkSurface = Color(0xFF000000);  // Black Midnight Scaffold Surface
+  static const Color tertiaryDarkCard = Color(0xFF0A0D14);     // Midnight Surface Card
+  static const Color tertiaryDarkBorder = Color(0xFF141A26);   // Midnight Slate Boundary
+  static const Color tertiaryDarkTrack = Color(0xFF0D121B);    // Midnight Telemetry Track
   static const Color tertiaryDarkMuted = Color(0xFF8899AC);    // Slate Tertiary Muted Text
 
   // Backward-compatible semantic and telegram accents
@@ -176,7 +176,7 @@ class ValtSkyTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xFF04060E),
+        backgroundColor: const Color(0xFF000000),
         indicatorColor: const Color(0xFF101C33),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {

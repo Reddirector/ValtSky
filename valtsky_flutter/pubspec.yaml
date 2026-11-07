@@ -46,6 +46,7 @@ dependencies:
   url_launcher: ^6.3.0
   t: ^230.0.0
   tg: ^0.0.20
+  pointycastle: ^4.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

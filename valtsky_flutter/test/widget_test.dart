@@ -14,6 +14,7 @@ import 'package:valtsky_flutter/ui/view_models/dashboard_view_model.dart';
 import 'package:valtsky_flutter/services/sync_engine.dart';
 import 'package:valtsky_flutter/ui/widgets/glass_card.dart';
 import 'package:valtsky_flutter/ui/widgets/media_item_card.dart';
+import 'package:valtsky_flutter/ui/views/settings_view.dart';
 
 void main() {
   setUp(() async {
@@ -511,5 +512,43 @@ void main() {
     SyncEngine.engineStatusNotifier.value = SyncEngineStatus.idle;
     await tester.pump();
     expect(find.byType(BackdropFilter), findsOneWidget);
+  });
+
+  testWidgets('SettingsView renders Performance & Battery card and toggles Eco/Smooth Mode', (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    Prefs.smoothUploadMode = true;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SettingsView(onDataChanged: () {}),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify card header and 120 FPS tag
+    expect(find.text('Performance & Battery'), findsOneWidget);
+    expect(find.text('Zero-lag upload engine'), findsOneWidget);
+    expect(find.text('120 FPS'), findsOneWidget);
+    expect(find.text('Eco / Smooth Mode'), findsOneWidget);
+
+    // Toggle off to Turbo Mode
+    final switchFinder = find.widgetWithText(SwitchListTile, 'Eco / Smooth Mode');
+    expect(switchFinder, findsOneWidget);
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+
+    expect(Prefs.smoothUploadMode, isFalse);
+    expect(find.text('TURBO'), findsOneWidget);
+
+    // Toggle back to Eco Mode
+    await tester.tap(switchFinder);
+    await tester.pumpAndSettle();
+    expect(Prefs.smoothUploadMode, isTrue);
+    expect(find.text('120 FPS'), findsOneWidget);
   });
 }

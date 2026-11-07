@@ -134,7 +134,7 @@ class VaultStorageCard extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // 2. Main Hero Numbers & Progress Percentage
+              // 2. Redesigned Uploading Progress Header & Percentage Placement
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -143,22 +143,36 @@ class VaultStorageCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Vault Sync Status',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: mutedText,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isUploading ? Colors.white : (isPaused ? ValtSkyTheme.warning : mutedText),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isUploading ? 'UPLOADING TO VAULT' : (isPaused ? 'UPLOADS PAUSED' : 'VAULT SYNC STATUS'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                                color: isUploading ? Colors.white.withValues(alpha: 0.9) : mutedText,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
                           child: Text(
                             '$uploadedCount of $totalCount synced',
                             style: TextStyle(
-                              fontSize: isNarrow ? 15 : 17,
+                              fontSize: isNarrow ? 15 : 18,
                               fontWeight: FontWeight.w800,
                               color: isDark ? Colors.white : const Color(0xFF0F172A),
                               letterSpacing: -0.3,
@@ -168,30 +182,78 @@ class VaultStorageCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '$percentInt%',
-                    style: TextStyle(
-                      fontSize: isNarrow ? 28 : 32,
-                      fontWeight: FontWeight.w900,
-                      color: primaryColor,
-                      letterSpacing: -1.0,
+                  const SizedBox(width: 14),
+                  // Modern Percentage Capsule
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withValues(alpha: 0.12) : const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? Colors.white.withValues(alpha: 0.25) : const Color(0xFF0F172A),
+                        width: 1.2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          '$percentInt',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 1),
+                        Text(
+                          '%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white.withValues(alpha: 0.75),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
 
-              // 3. Linear Progress Bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progress.clamp(0.0, 1.0),
-                  minHeight: 6,
-                  backgroundColor: trackBg,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    isPaused ? ValtSkyTheme.warning : secondaryColor,
+              // 3. Crisp Pure White Linear Progress Bar
+              Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withValues(alpha: isDark ? 0.20 : 0.06),
+                      blurRadius: 8,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: progress.clamp(0.0, 1.0),
+                    minHeight: 8,
+                    backgroundColor: isDark
+                        ? Colors.white.withValues(alpha: 0.14)
+                        : const Color(0xFFE2E8F0),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 ),
               ),

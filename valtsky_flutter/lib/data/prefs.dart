@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum NetworkTypeChoice { wifi, mobile, both }
@@ -34,11 +35,15 @@ class Prefs {
   static const String keyPermissionsRequested = 'permissions_requested_v1';
   static const String keyVaultPinEnabled = 'vault_pin_enabled';
   static const String keyVaultPin = 'vault_pin';
+  static const String keySmoothUploadMode = 'smooth_upload_mode';
+
+  static final ValueNotifier<bool> smoothUploadModeNotifier = ValueNotifier<bool>(true);
 
   static SharedPreferences? _prefs;
 
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    smoothUploadModeNotifier.value = smoothUploadMode;
   }
 
   static String get authMethod => _prefs?.getString(keyAuthMethod) ?? 'phone';
@@ -206,6 +211,12 @@ class Prefs {
           userPhoneNumber.isNotEmpty;
     }
     return botToken.isNotEmpty;
+  }
+
+  static bool get smoothUploadMode => _prefs?.getBool(keySmoothUploadMode) ?? true;
+  static set smoothUploadMode(bool value) {
+    _prefs?.setBool(keySmoothUploadMode, value);
+    smoothUploadModeNotifier.value = value;
   }
 
   static Future<void> clearAllSyncState() async {

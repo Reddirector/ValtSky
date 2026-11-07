@@ -400,6 +400,13 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const SizedBox(height: 20),
 
+          // ─── PERFORMANCE & ZERO-LAG ENGINE ────────────────
+          StaggeredFadeSlide(
+            delayMs: 60,
+            child: _buildPerformanceCard(isDark),
+          ),
+          const SizedBox(height: 20),
+
           // ─── SYNC & NETWORK RULES ─────────────────────────
           StaggeredFadeSlide(
             delayMs: 80,
@@ -736,6 +743,98 @@ class _SettingsViewState extends State<SettingsView> {
           ?suffix,
         ],
       ),
+    );
+  }
+
+  Widget _buildPerformanceCard(bool isDark) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: Prefs.smoothUploadModeNotifier,
+      builder: (context, isSmooth, _) {
+        return GlassCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF00E676).withValues(alpha: 0.15)
+                          : const Color(0xFF00E676).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.speed_rounded, size: 20, color: Color(0xFF00E676)),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Performance & Battery',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                        ),
+                        Text(
+                          'Zero-lag upload engine',
+                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isSmooth
+                          ? const Color(0xFF00E676).withValues(alpha: 0.15)
+                          : Colors.orange.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      isSmooth ? '120 FPS' : 'TURBO',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: isSmooth ? const Color(0xFF00E676) : Colors.orange,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Eco / Smooth Mode',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  isSmooth
+                      ? '120 FPS silky-smooth UI & cooler device. Balanced concurrency (4 video / 2 photo parts).'
+                      : 'Turbo Mode: Maximum wire speed with 8 video / 6 photo parts. Uses more CPU & battery.',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                value: isSmooth,
+                activeThumbColor: const Color(0xFF00E676),
+                onChanged: (val) {
+                  Prefs.smoothUploadMode = val;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        val
+                            ? 'Eco / Smooth Mode enabled: UI locked at silky-smooth 120 FPS.'
+                            : 'Turbo Mode enabled: Maximum parallel wire throughput.',
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/media_item.dart';
 import '../models/media_breakdown.dart';
+import 'batched_write_queue.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -11,8 +13,15 @@ class DatabaseHelper {
   static final Map<String, MediaItem> _webItems = {};
   static bool _inMemoryOverride = false;
 
+  late final BatchedWriteQueue _writeQueue = BatchedWriteQueue(
+    onCommitBatch: _commitBatchToStorage,
+  );
+
   static void enableMemoryStoreForTesting() => _inMemoryOverride = true;
-  static void clearMemoryStoreForTesting() => _webItems.clear();
+  static void clearMemoryStoreForTesting() {
+    _webItems.clear();
+    instance._writeQueue.clear();
+  }
 
   static bool get _useMemoryStore {
     if (kIsWeb || _inMemoryOverride) return true;
@@ -102,7 +111,63 @@ class DatabaseHelper {
     return inserted;
   }
 
+  Future<void> _commitBatchToStorage(List<MediaItem> items) async {
+    if (_useMemoryStore) {
+      for (final item in items) {
+        _webItems[item.filePath] = item;
+      }
+      return;
+    }
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final item in items) {
+        batch.update(
+          'media_items',
+          item.toMap(),
+          where: 'filePath = ?',
+          whereArgs: [item.filePath],
+        );
+      }
+      await batch.commit(noResult: true);
+    });
+  }
+
+  /// Enqueue an item update into the in-memory batch.
+  void enqueueUpdate(MediaItem item, {bool immediate = false}) =>
+      _writeQueue.enqueue(item, immediate: immediate);
+
+  /// Flushes all staged updates in a single atomic SQLite transaction.
+  Future<void> flushPendingUpdates() => _writeQueue.flush();
+
+  Future<int> updateBatch(List<MediaItem> items) async {
+    if (items.isEmpty) return 0;
+    if (_useMemoryStore) {
+      for (final item in items) {
+        _webItems[item.filePath] = item;
+      }
+      return items.length;
+    }
+    final db = await instance.database;
+    int updated = 0;
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final item in items) {
+        batch.update(
+          'media_items',
+          item.toMap(),
+          where: 'filePath = ?',
+          whereArgs: [item.filePath],
+        );
+      }
+      final results = await batch.commit(noResult: false);
+      updated = results.length;
+    });
+    return updated;
+  }
+
   Future<int> update(MediaItem item) async {
+    _writeQueue.remove(item.filePath);
     if (_useMemoryStore) {
       _webItems[item.filePath] = item;
       return 1;
@@ -117,6 +182,9 @@ class DatabaseHelper {
   }
 
   Future<MediaItem?> getItem(String path) async {
+    final staged = _writeQueue.getItem(path);
+    if (staged != null) return staged;
+
     if (_useMemoryStore) {
       return _webItems[path];
     }
@@ -134,6 +202,9 @@ class DatabaseHelper {
   }
 
   Future<MediaItem?> getItemByHash(String hash) async {
+    final staged = _writeQueue.getItemByHash(hash);
+    if (staged != null) return staged;
+
     if (_useMemoryStore) {
       for (final item in _webItems.values) {
         if (item.fileHash == hash) return item;
@@ -152,6 +223,9 @@ class DatabaseHelper {
   }
 
   Future<List<MediaItem>> getAllItems({String? statusFilter, int? limit, int? offset}) async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       var items = _webItems.values.toList();
@@ -212,6 +286,9 @@ class DatabaseHelper {
   }
 
   Future<MediaItem?> getNextPending() async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       final pending = _webItems.values
@@ -237,6 +314,9 @@ class DatabaseHelper {
 
   /// Atomically claims a batch of pending photo items (excluding videos)
   Future<List<MediaItem>> claimPendingPhotoBatch({int limit = 16}) async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       final items = _webItems.values
@@ -293,6 +373,9 @@ class DatabaseHelper {
 
   /// Atomically claims a batch of pending video items
   Future<List<MediaItem>> claimPendingVideoBatch({int limit = 8}) async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       final items = _webItems.values
@@ -348,6 +431,9 @@ class DatabaseHelper {
   }
 
   Future<List<MediaItem>> claimPendingBatch({int limit = 32}) async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       final items = _webItems.values
@@ -406,6 +492,9 @@ class DatabaseHelper {
   }
 
   Future<MediaBreakdown> getMediaBreakdown() async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       int pendingPhotos = 0;
@@ -507,6 +596,9 @@ class DatabaseHelper {
   }
 
   Future<Map<String, int>> getAggregatedCounts() async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
     if (_useMemoryStore) {
       final total = _webItems.length;
       final synced = _webItems.values.where((e) => e.status == MediaItem.statusDone).length;
@@ -869,6 +961,7 @@ class DatabaseHelper {
 
   /// Delete a single media item by its file path (removes it from queue/index)
   Future<int> deleteItem(String path) async {
+    _writeQueue.remove(path);
     if (_useMemoryStore) {
       return _webItems.remove(path) != null ? 1 : 0;
     }
@@ -883,6 +976,9 @@ class DatabaseHelper {
   /// Batch delete media items by file paths
   Future<int> deleteItems(List<String> paths) async {
     if (paths.isEmpty) return 0;
+    for (final p in paths) {
+      _writeQueue.remove(p);
+    }
     if (_useMemoryStore) {
       int count = 0;
       for (final p in paths) {
@@ -907,6 +1003,7 @@ class DatabaseHelper {
   }
 
   Future<int> deleteAll() async {
+    _writeQueue.clear();
     if (_useMemoryStore) {
       final count = _webItems.length;
       _webItems.clear();

@@ -160,6 +160,7 @@ class IsolateUploadClient {
     required bool asDocument,
     String? caption,
     String? channelAccessHash,
+    bool smoothMode = true,
     void Function(int sent, int total)? onProgress,
   }) async {
     if (_isDisposed) {
@@ -180,6 +181,7 @@ class IsolateUploadClient {
       'channelAccessHash': channelAccessHash,
       'asDocument': asDocument,
       'caption': caption,
+      'smoothMode': smoothMode,
     });
 
     return completer.future;
@@ -352,13 +354,22 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
 
           raf = await file.open(mode: FileMode.read);
           int bytesSent = 0;
-          final int maxConcurrentParts = (totalParts <= 4) ? totalParts : (isBigFile ? 8 : 6);
+          final bool smoothMode = msg['smoothMode'] as bool? ?? true;
+          final int maxConcurrentParts = (totalParts <= 2)
+              ? totalParts
+              : (smoothMode
+                  ? (isBigFile ? 4 : 2)
+                  : (isBigFile ? 8 : 6));
           int nextPartIndex = 0;
           int? abortErrorCode;
           String? abortErrorMessage;
           Future<void>? lastDiskRead;
+          DateTime lastProgressEmit = DateTime.fromMillisecondsSinceEpoch(0);
 
           Future<void> isolateWorker() async {
+            // Reusable chunk buffer per worker thread to eliminate GC pressure
+            final Uint8List workerChunkBuffer = Uint8List(chunkSize);
+
             while (true) {
               if (abortErrorMessage != null) return;
 
@@ -383,7 +394,10 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
                 final offset = part * chunkSize;
                 final bytesToRead = (part == totalParts - 1) ? (fileSize - offset) : chunkSize;
                 await raf!.setPosition(offset);
-                buffer = await raf.read(bytesToRead);
+                final bytesRead = await raf.readInto(workerChunkBuffer, 0, bytesToRead);
+                buffer = (bytesRead == chunkSize)
+                    ? workerChunkBuffer
+                    : Uint8List.sublistView(workerChunkBuffer, 0, bytesRead);
               } finally {
                 readCompleter.complete();
               }
@@ -444,7 +458,11 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
               }
 
               bytesSent += buffer.length;
-              eventPort?.send({'type': 'progress', 'sent': bytesSent, 'total': fileSize});
+              final now = DateTime.now();
+              if (now.difference(lastProgressEmit).inMilliseconds >= 500 || bytesSent >= fileSize) {
+                lastProgressEmit = now;
+                eventPort?.send({'type': 'progress', 'sent': bytesSent, 'total': fileSize});
+              }
             }
           }
 

@@ -113,7 +113,8 @@ class SyncEngine {
 
   static void _scheduleStatsNotification() {
     final now = DateTime.now();
-    if (now.difference(_lastStatsNotify).inMilliseconds >= 500) {
+    final throttleMs = Prefs.smoothUploadMode ? 1000 : 500;
+    if (now.difference(_lastStatsNotify).inMilliseconds >= throttleMs) {
       _lastStatsNotify = now;
       statsNotifier.value = _cachedStats;
       DatabaseHelper.instance.getMediaBreakdown().then((b) {
@@ -121,7 +122,7 @@ class SyncEngine {
       }).catchError((_) {});
     } else if (!_statsNotifyScheduled) {
       _statsNotifyScheduled = true;
-      Future.delayed(const Duration(milliseconds: 500), () {
+      Future.delayed(Duration(milliseconds: throttleMs), () {
         _statsNotifyScheduled = false;
         _lastStatsNotify = DateTime.now();
         statsNotifier.value = _cachedStats;
@@ -417,8 +418,11 @@ class SyncEngine {
     _lastActiveTransferTime = DateTime.now();
     _speedMeterTimer?.cancel();
 
-    // Smooth, low-overhead speed sampler (300ms window = ~3 updates/sec, <0.01% CPU)
-    _speedMeterTimer = Timer.periodic(const Duration(milliseconds: 300), (_) {
+    // Zero-lag speed sampler: 1000ms window in Smooth Mode (1 update/sec), 500ms in Turbo Mode
+    final sampleWindow = Prefs.smoothUploadMode
+        ? const Duration(milliseconds: 1000)
+        : const Duration(milliseconds: 500);
+    _speedMeterTimer = Timer.periodic(sampleWindow, (_) {
       if (!_isSyncing) return;
       final now = DateTime.now();
       final elapsedMs = now.difference(_lastSpeedSampleTime).inMilliseconds;
@@ -466,16 +470,17 @@ class SyncEngine {
 
     // Light periodic consistency check every 10 seconds (in WAL mode, 1 fast query)
     _liveStatsTimer?.cancel();
-    _liveStatsTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _liveStatsTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
       if (_isSyncing) {
-        fetchCurrentStats(forceDb: true);
+        await DatabaseHelper.instance.flushPendingUpdates();
+        await fetchCurrentStats(forceDb: true);
       }
     });
 
     _runWorkerPool();
   }
 
-  void stopSync() {
+  Future<void> stopSync() async {
     _isSyncing = false;
     _isPhotoWorkerActive = false;
     _isVideoWorkerActive = false;
@@ -495,7 +500,8 @@ class SyncEngine {
     if (engineStatusNotifier.value == SyncEngineStatus.active) {
       engineStatusNotifier.value = SyncEngineStatus.idle;
     }
-    fetchCurrentStats(forceDb: true);
+    await DatabaseHelper.instance.flushPendingUpdates();
+    await fetchCurrentStats(forceDb: true);
     if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
       _syncCompleter!.complete();
     }
@@ -536,6 +542,7 @@ class SyncEngine {
     TelegramAuthService.instance.resetClientPool();
 
     // 3. Reset any stuck UPLOADING items back to PENDING and failed items in database
+    await DatabaseHelper.instance.flushPendingUpdates();
     await DatabaseHelper.instance.resetUploadingToPending();
     await DatabaseHelper.instance.retryAllFailed();
 
@@ -680,6 +687,7 @@ class SyncEngine {
       if (engineStatusNotifier.value == SyncEngineStatus.active) {
         engineStatusNotifier.value = SyncEngineStatus.idle;
       }
+      await DatabaseHelper.instance.flushPendingUpdates();
       await fetchCurrentStats(forceDb: true);
       if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
         _syncCompleter!.complete();
@@ -886,7 +894,7 @@ class SyncEngine {
           _totalBytesSent += (fileLen - workerItemBytesSent);
           workerItemBytesSent = fileLen;
         }
-        await DatabaseHelper.instance.update(item.copyWith(
+        DatabaseHelper.instance.enqueueUpdate(item.copyWith(
           status: MediaItem.statusDone,
           telegramMessageId: result.telegramMessageId,
           errorReason: null,

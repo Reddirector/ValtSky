@@ -403,7 +403,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildLockScreen(bool isDark) {
-    final bg = isDark ? const Color(0xFF050811) : Colors.white;
+    final bg = isDark ? const Color(0xFF000000) : Colors.white;
     final primaryColor = ValtSkyTheme.primary(isDark);
     final cardBg = ValtSkyTheme.tertiaryCard(isDark);
     final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
