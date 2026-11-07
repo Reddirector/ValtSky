@@ -21,7 +21,7 @@
 [![Security & QA Score](https://img.shields.io/badge/Security_&_QA-100%2F100_Strict-10B981?style=flat-square&logo=shield)](valtsky_flutter/test/security_and_stress_test.dart)
 [![MTProto 2.0](https://img.shields.io/badge/Telegram-MTProto_2.0-2AABEE?style=flat-square&logo=telegram)](https://core.telegram.org/mtproto)
 [![Lossless Quality](https://img.shields.io/badge/Quality-100%25_Bit--for--Bit_EXIF-blue?style=flat-square)](https://github.com/Reddirector/ValtSky)
-[![License: MIT](https://img.shields.io/badge/License-MIT-purple?style=flat-square)](LICENSE)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-purple?style=flat-square)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platforms-Android%20%7C%20iOS%20%7C%20Windows%20%7C%20macOS%20%7C%20Linux%20%7C%20Web-orange?style=flat-square)](https://github.com/Reddirector/ValtSky)
 
 </div>
