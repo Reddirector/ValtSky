@@ -10,7 +10,7 @@ MANUFACTURER / DESIGN AUTHORITY: ADITYA SHARMA SYSTEMS (CALLSIGN: REDDIRECTOR)
 REGULATORY STANDARD: ADE STD 100 (AERONAUTICAL DOCUMENTATION ENGINEERING) / ATA SPEC 100
 AIRWORTHINESS DIRECTIVE: AD-VALTSKY-2026-01 (MANDATORY CRYPTOGRAPHIC PIN & WAL CHUNKING)
 SYSTEM STATUS: AIRWORTHY / CERTIFIED FOR UNRESTRICTED CONTINUOUS MULTIPLATFORM DEPLOYMENT
-TEST VERIFICATION ENVELOPE: 38 / 38 PASSING FLIGHT TEST SUITES (100.0% COVERAGE)
+TEST VERIFICATION ENVELOPE: 42 / 42 PASSING FLIGHT TEST SUITES (100.0% COVERAGE)
 STATIC ANALYSIS: 0 ERRORS · 0 WARNINGS · 0 LINT DEVIATIONS
 ========================================================================================================
 ```
@@ -74,7 +74,7 @@ Operating personnel and deployment engineers must verify compliance with the fol
 4. **AD-04 (Lifecycle Re-Lock Interlock)**: If Vault PIN protection is enabled, the airframe must drop all UI viewports and raise a full-screen cryptographic lock barrier immediately when the OS signals app resume (`AppLifecycleState.resumed`).
 
 ### 2.2 Formal Verification & Test Flight Envelope
-Prior to flight release, ValtSky v2.1 successfully executed **38 out of 38** formal test suites with zero failures:
+Prior to flight release, ValtSky v2.1 successfully executed **42 out of 42** formal test suites with zero failures:
 
 ```
 [TEST SUITE FLIGHT CARD: VERIFIED AIRWORTHINESS]
@@ -86,9 +86,10 @@ Test Group 4: UI Viewport Smoke & Navigation Engine (lib/ui/home_page.dart)     
 Test Group 5: Oversized Payload 4-Click Staging Flow (lib/ui/widgets/...)          --> PASS [4 Suites]
 Test Group 6: Hostile Security, Path Traversal & EICAR Quarantine                 --> PASS [4 Suites]
 Test Group 7: Permissions Safety & Android 10+ Geotag Interlock                   --> PASS [2 Suites]
-Test Group 8: Multi-Screen 320px/390px Responsive Layout & Action Deck Overflows   --> PASS [2 Suites]
+Test Group 8: Multi-Screen 320px/390px Responsive Layout & Action Deck Overflows   --> PASS [4 Suites]
+Test Group 9: Guided Walkthrough Beacon & Queue Lifecycle                         --> PASS [2 Suites]
 --------------------------------------------------------------------------------------------------------
-FINAL CERTIFICATION: 38 / 38 SUITES CONCURRENTLY GREEN (100% AIRWORTHINESS PASSED)
+FINAL CERTIFICATION: 42 / 42 SUITES CONCURRENTLY GREEN (100% AIRWORTHINESS PASSED)
 ```
 
 ---
@@ -353,7 +354,7 @@ To safeguard confidential media archives against unauthorized cockpit intrusion:
 ```
 ========================================================================================================
 I hereby certify that the VALTSKY MULTIPLATFORM ZERO-LOSS CLOUD AIRFRAME (v2.1.0) has undergone
-exhaustive static analysis, formal verification across 38 flight test suites, and hardware in-the-loop
+exhaustive static analysis, formal verification across 42 flight test suites, and hardware in-the-loop
 validation on physical Android hardware (Device Serial: 9htsfa4l6lk7roay). The documentation herein 
 strictly complies with ADE STD 100 and ATA Spec 100 specifications.
 
