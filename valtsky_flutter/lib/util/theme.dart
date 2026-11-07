@@ -5,30 +5,32 @@ import 'package:flutter/material.dart';
 /// elevations, and geometric radii across Dark and Light modes.
 class ValtSkyTheme {
   // ─── DARK PALETTE TOKENS ──────────────────────────────────────────────────
-  static const Color darkCanvas = Color(0xFF0B0B0C);
-  static const Color darkSurface = Color(0xFF151516);
-  static const Color darkRaised = Color(0xFF1E1E20);
-  static const Color darkHairline = Color(0xFF2A2A2D);
-  static const Color darkTextPrimary = Color(0xFFF5F2EC);
-  static const Color darkTextSecondary = Color(0xFF9A968E);
+  static const Color darkCanvas = Color(0xFF0B0C0C);
+  static const Color darkSurface = Color(0xFF141616);
+  static const Color darkRaised = Color(0xFF1D2020);
+  static const Color darkHairline = Color(0xFF2A2E2E);
+  static const Color darkTextPrimary = Color(0xFFF2F5F4);
+  static const Color darkTextSecondary = Color(0xFF98A09E);
 
   // ─── LIGHT PALETTE TOKENS ─────────────────────────────────────────────────
-  static const Color lightCanvas = Color(0xFFE9E3D8);
-  static const Color lightSurface = Color(0xFFFAF8F5);
-  static const Color lightRaised = Color(0xFFE4DDD2);
-  static const Color lightHairline = Color(0xFFD0C8BA);
-  static const Color lightTextPrimary = Color(0xFF141414);
-  static const Color lightTextSecondary = Color(0xFF5E5A53);
+  static const Color lightCanvas = Color(0xFFE6ECEA);
+  static const Color lightSurface = Color(0xFFF7FAF9);
+  static const Color lightRaised = Color(0xFFDDE5E2);
+  static const Color lightHairline = Color(0xFFC6D0CD);
+  static const Color lightTextPrimary = Color(0xFF111514);
+  static const Color lightTextSecondary = Color(0xFF55605D);
 
   // ─── ACCENT & INK TOKENS ──────────────────────────────────────────────────
-  static const Color amber = Color(0xFFF2B10F);
-  static const Color ink = Color(0xFF141414);
-  static const Color lightAmberText = Color(0xFF8A5F00); // Accessible contrast (> 5.3:1) on cream surfaces
+  static const Color accentColor = Color(0xFF3DD6C6);
+  static const Color amber = accentColor; // Alias for backward compatibility
+  static const Color ink = Color(0xFF0B0C0C);
+  static const Color lightAccentText = Color(0xFF0B6B63); // Accessible teal text/icon (> 5.3:1)
+  static const Color lightAmberText = lightAccentText; // Alias for backward compatibility
 
   // ─── STATUS TOKENS ────────────────────────────────────────────────────────
-  static const Color statusSynced = Color(0xFF8FB996);
-  static const Color statusFailed = Color(0xFFE07A6B);
-  static const Color statusInFlight = Color(0xFFF2B10F);
+  static const Color statusSynced = Color(0xFFA3D977); // Lime: does not blur with teal
+  static const Color statusFailed = Color(0xFFE07A6B); // Coral
+  static const Color statusInFlight = accentColor;     // In-flight = accent (#3DD6C6)
 
   // Semantic & compatibility mappings
   static const Color error = statusFailed;
@@ -67,14 +69,19 @@ class ValtSkyTheme {
   static Color textPrimary(bool isDark) => isDark ? darkTextPrimary : lightTextPrimary;
   static Color textSecondary(bool isDark) => isDark ? darkTextSecondary : lightTextSecondary;
 
-  /// Primary accent color:
-  /// For fills/rings/buttons: Amber (#F2B10F).
-  static Color accent(bool isDark) => amber;
+  /// Primary accent color: #3DD6C6 (teal)
+  /// For fills/rings/buttons/active states.
+  static Color accent(bool isDark) => accentColor;
 
   /// Accessible text/icon accent color on surfaces:
-  /// In Dark mode: Amber (#F2B10F, 9.7:1).
-  /// In Light mode: Deep Amber (#8A5F00, 5.3:1).
-  static Color accentText(bool isDark) => isDark ? amber : lightAmberText;
+  /// In Dark mode: Teal (#3DD6C6, 9.7:1).
+  /// In Light mode: Deep Teal (#0B6B63, > 5.3:1).
+  static Color accentText(bool isDark) => isDark ? accentColor : lightAccentText;
+
+  /// CTA panel background:
+  /// In Dark mode: darkRaised (#1D2020).
+  /// In Light mode: inverse ink (#0B0C0C) with cream text and teal button.
+  static Color ctaPanelBackground(bool isDark) => isDark ? darkRaised : ink;
 
   // Backward-compatible accessors
   static Color primary(bool isDark) => accent(isDark);

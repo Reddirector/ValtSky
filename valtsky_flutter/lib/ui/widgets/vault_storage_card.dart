@@ -370,9 +370,12 @@ class VaultStorageCard extends StatelessWidget {
               // ─── BOTTOM CTA SHEET PANEL (SIGNATURE CUT-OUT JUNCTION) ────────
               Container(
                 decoration: BoxDecoration(
-                  color: isDark ? ValtSkyTheme.darkRaised : ValtSkyTheme.lightRaised,
+                  color: ValtSkyTheme.ctaPanelBackground(isDark),
                   border: Border(
-                    top: BorderSide(color: borderColor, width: 1.0),
+                    top: BorderSide(
+                      color: isDark ? borderColor : ValtSkyTheme.darkHairline,
+                      width: 1.0,
+                    ),
                   ),
                 ),
                 padding: EdgeInsets.symmetric(

@@ -244,8 +244,8 @@ class _PillButtonState extends State<PillButton> {
     switch (widget.variant) {
       case PillButtonVariant.primary:
         bg = isEnabled
-            ? (_isPressed ? const Color(0xFFD99E0B) : ValtSkyTheme.amber)
-            : ValtSkyTheme.amber.withValues(alpha: 0.40);
+            ? (_isPressed ? const Color(0xFF2EBEAF) : ValtSkyTheme.accentColor)
+            : ValtSkyTheme.accentColor.withValues(alpha: 0.40);
         fg = ValtSkyTheme.ink;
         break;
       case PillButtonVariant.secondary:

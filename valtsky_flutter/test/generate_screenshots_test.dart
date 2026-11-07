@@ -64,7 +64,11 @@ void main() {
       final image = await boundary.toImage(pixelRatio: 1.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       final bytes = byteData!.buffer.asUint8List();
-      final file = File('/home/aditya/Desktop/valtsky/docs/redesign/$filename');
+      final targetDir = Directory('../docs/redesign').existsSync()
+          ? Directory('../docs/redesign')
+          : Directory('docs/redesign');
+      if (!targetDir.existsSync()) targetDir.createSync(recursive: true);
+      final file = File('${targetDir.path}/$filename');
       await file.writeAsBytes(bytes);
     });
   }
