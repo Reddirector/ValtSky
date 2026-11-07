@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../data/db/database_helper.dart';
 import '../../data/prefs.dart';
 import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
@@ -29,6 +30,7 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
   bool get wantKeepAlive => true;
 
   late final DashboardViewModel _viewModel;
+  bool _isRetrying = false;
 
   @override
   void initState() {
@@ -190,13 +192,56 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                   ),
                 ],
               ),
-              TextButton(
-                onPressed: () => widget.onNavigateToActivity?.call('FAILED'),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                ),
-                child: const Text('View All', style: TextStyle(color: ValtSkyTheme.error, fontWeight: FontWeight.bold, fontSize: 12)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: _isRetrying
+                        ? null
+                        : () async {
+                            setState(() => _isRetrying = true);
+                            try {
+                              final count = await DatabaseHelper.instance.retryAllFailed();
+                              await _viewModel.refreshStats();
+                              if (Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+                                SyncEngine().startSync();
+                              }
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('$count failed items queued for retry'),
+                                    behavior: SnackBarBehavior.floating,
+                                    backgroundColor: ValtSkyTheme.success,
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() => _isRetrying = false);
+                              }
+                            }
+                          },
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                    child: _isRetrying
+                        ? const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: ValtSkyTheme.error),
+                          )
+                        : const Text('Retry All', style: TextStyle(color: ValtSkyTheme.error, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                  TextButton(
+                    onPressed: () => widget.onNavigateToActivity?.call('FAILED'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                    child: const Text('View All', style: TextStyle(color: ValtSkyTheme.error, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ],
               ),
             ],
           ),

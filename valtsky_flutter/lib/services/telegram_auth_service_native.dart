@@ -665,8 +665,8 @@ class TelegramAuthService {
     if (Prefs.botToken.isEmpty) {
       Prefs.botToken = 'mtproto_session_${TelegramSecrets.apiId}';
     }
-    // Do NOT auto-start monitoring on link. Remains idle until explicitly commanded.
-    Prefs.monitoringEnabled = false;
+    // Enable monitoring by default on account link so camera captures sync automatically
+    Prefs.monitoringEnabled = true;
 
     stateNotifier.value = currentState.copyWith(
       step: AuthStep.completed,

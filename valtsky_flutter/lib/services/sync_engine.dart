@@ -362,17 +362,18 @@ class SyncEngine {
     );
     statsNotifier.value = _cachedStats;
 
-    // 2. Monitoring stays OFF by default until the user explicitly commands it
-    Prefs.monitoringEnabled = false;
+    // 2. Monitoring enabled by default on successful account link
+    Prefs.monitoringEnabled = true;
     Prefs.uploadPaused = false;
-    engineStatusNotifier.value = SyncEngineStatus.idle;
-    engineStatusMessageNotifier.value = 'Telegram linked. Ready to start backup when commanded.';
+    engineStatusNotifier.value = SyncEngineStatus.active;
+    engineStatusMessageNotifier.value = 'Telegram linked. Starting vault backup...';
 
     // 3. Scan camera roll cleanly into fresh database
     await MediaScanner.scanForNewMedia();
 
-    // 4. Populate live stats from database
+    // 4. Populate live stats from database and activate sync
     await fetchCurrentStats(forceDb: true);
+    await startSync();
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -390,12 +391,12 @@ class SyncEngine {
     _isSyncing = true;
     _syncCompleter = Completer<void>();
 
-    // Reset any interrupted uploading state from abrupt app closes and retry failed items
+    // Reset any interrupted uploading state from abrupt app closes
     await DatabaseHelper.instance.resetUploadingToPending();
-    await DatabaseHelper.instance.retryAllFailed();
     await fetchCurrentStats(forceDb: true);
 
     final online = await hasInternetConnection();
+    if (!_isSyncing) return;
     if (!online) {
       engineStatusNotifier.value = SyncEngineStatus.offline;
       engineStatusMessageNotifier.value = 'Offline. Waiting for internet connection...';

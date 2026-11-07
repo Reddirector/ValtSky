@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sync_engine.dart';
+import '../services/background_service.dart';
 import '../main.dart';
 import '../util/theme.dart';
 import '../util/media_scanner.dart';
@@ -88,6 +89,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
     _dashboardKey.currentState?.refreshStats();
     _activityKey.currentState?.refreshItems();
+
+    // Auto-resume background monitoring & sync if configured and monitoring was enabled
+    if (Prefs.isConfigured() && Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+      if (!kIsWeb) {
+        try {
+          BackgroundService.start();
+        } catch (e) {
+          debugPrint('Error starting background service: $e');
+        }
+      }
+      SyncEngine().startSync();
+    }
   }
 
   void _onDataChanged() {

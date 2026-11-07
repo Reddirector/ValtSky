@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../data/db/database_helper.dart';
 import '../../data/models/media_item.dart';
+import '../../data/prefs.dart';
+import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 import '../widgets/media_item_card.dart';
 import '../widgets/animated_stagger.dart';
@@ -31,6 +33,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   bool _hasMore = true;
   int _oversizedCount = 0;
   int _stashedCount = 0;
+  bool _isRetryingAll = false;
   Map<String, int> _counts = {'total': 0, 'synced': 0, 'inQueue': 0, 'failed': 0, 'uploading': 0};
 
   @override
@@ -630,6 +633,49 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
               ],
             ),
           ),
+          if (_selectedFilter == MediaItem.statusFailed && (_counts['failed'] ?? 0) > 0)
+            ElevatedButton.icon(
+              onPressed: _isRetryingAll
+                  ? null
+                  : () async {
+                      setState(() => _isRetryingAll = true);
+                      try {
+                        final count = await DatabaseHelper.instance.retryAllFailed();
+                        await refreshItems();
+                        widget.onDataChanged();
+                        if (Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+                          SyncEngine().startSync();
+                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('$count failed items queued for retry'),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: ValtSkyTheme.success,
+                          ),
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isRetryingAll = false);
+                        }
+                      }
+                    },
+              icon: _isRetryingAll
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.refresh_rounded, size: 14),
+              label: const Text('RETRY ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ValtSkyTheme.error,
+                foregroundColor: Colors.white,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
         ],
       ),
     );

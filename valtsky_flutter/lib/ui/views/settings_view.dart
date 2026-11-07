@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/prefs.dart';
 import '../../data/db/database_helper.dart';
 import '../../services/telegram_api.dart';
+import '../../services/background_service.dart';
+import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 import '../../util/file_security_guard.dart';
 import '../../util/permission_manager.dart';
@@ -103,7 +106,17 @@ class _SettingsViewState extends State<SettingsView> {
           Prefs.channelId = channel;
           Prefs.botName = botName;
           Prefs.channelName = channelName;
+          Prefs.monitoringEnabled = true;
           widget.onDataChanged();
+
+          if (!kIsWeb) {
+            try {
+              await BackgroundService.start();
+            } catch (e) {
+              debugPrint('BackgroundService start error: $e');
+            }
+          }
+          await SyncEngine.instance.initializeNewVaultSession();
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -349,9 +362,17 @@ class _SettingsViewState extends State<SettingsView> {
             child: _authMode == 'phone'
                 ? (!Prefs.isConfigured()
                     ? TelegramPhoneLoginWidget(
-                        onLoginSuccess: () {
+                        onLoginSuccess: () async {
                           setState(() {});
                           widget.onDataChanged();
+                          if (!kIsWeb) {
+                            try {
+                              await BackgroundService.start();
+                            } catch (e) {
+                              debugPrint('BackgroundService start error: $e');
+                            }
+                          }
+                          await SyncEngine.instance.initializeNewVaultSession();
                         },
                         onSwitchToBotMode: () {
                           setState(() => _authMode = 'bot');
