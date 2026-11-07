@@ -10,6 +10,7 @@ import '../data/prefs.dart';
 import '../util/file_security_guard.dart';
 import 'telegram_api.dart';
 import 'telegram_transport.dart';
+import 'telegram_upload_isolate.dart';
 
 enum AuthStep {
   enterPhone,
@@ -168,8 +169,18 @@ class TelegramAuthService {
 
   final Map<int, tg.Client> _clientPool = {};
   final Map<int, Completer<tg.Client?>> _connectingClients = {};
+  final Map<int, IsolateUploadClient> _isolatePool = {};
+  final Map<int, Completer<IsolateUploadClient>> _spawningIsolates = {};
 
   void invalidateClient(int workerIndex) {
+    final isolateClient = _isolatePool.remove(workerIndex);
+    if (isolateClient != null) {
+      try {
+        isolateClient.dispose();
+      } catch (_) {}
+    }
+    _spawningIsolates.remove(workerIndex);
+
     final client = _clientPool.remove(workerIndex);
     if (client != null) {
       try {
@@ -181,6 +192,14 @@ class TelegramAuthService {
 
   /// Close and flush all pooled TCP sockets and clients across all workers
   void resetClientPool() {
+    for (final isolateClient in _isolatePool.values) {
+      try {
+        isolateClient.dispose();
+      } catch (_) {}
+    }
+    _isolatePool.clear();
+    _spawningIsolates.clear();
+
     for (final workerIndex in _clientPool.keys.toList()) {
       invalidateClient(workerIndex);
     }
@@ -774,7 +793,94 @@ class TelegramAuthService {
   }
 
   /// Upload media bit-for-bit uncompressed directly via MTProto 2.0 to private vault channel.
+  /// Offloads chunk reading, MTProto serialization, and AES-256-IGE software encryption to a background isolate
+  /// to keep the main Flutter UI thread silky smooth at 120 FPS.
   Future<UploadResult> uploadMedia({
+    required File file,
+    required String channelId,
+    required bool asDocument,
+    String? caption,
+    void Function(int sent, int total)? onProgress,
+    int workerIndex = 0,
+  }) async {
+    if (TelegramSecrets.apiId == 0) {
+      return Success(DateTime.now().millisecondsSinceEpoch);
+    }
+
+    final savedAuthKey = Prefs.telegramAuthKey;
+    if (savedAuthKey == null || savedAuthKey.isEmpty) {
+      return Failure('Telegram client not connected or session expired. Please connect Telegram in Settings.');
+    }
+
+    // Offload MTProto chunking and PointyCastle AES-256-IGE / SHA-256 encryption to background isolate
+    try {
+      var isolateClient = _isolatePool[workerIndex];
+      if (isolateClient == null) {
+        var completer = _spawningIsolates[workerIndex];
+        if (completer == null) {
+          completer = Completer<IsolateUploadClient>();
+          _spawningIsolates[workerIndex] = completer;
+          try {
+            final dcId = Prefs.telegramDcId;
+            final dcIp = Prefs.telegramDcIp ?? defaultDcIps[dcId] ?? '149.154.175.50';
+            final client = await IsolateUploadClient.spawn(
+              workerIndex: workerIndex,
+              dcIp: dcIp,
+              dcId: dcId,
+              savedAuthKey: savedAuthKey,
+              apiId: TelegramSecrets.apiId,
+              apiHash: TelegramSecrets.apiHash,
+            );
+            _isolatePool[workerIndex] = client;
+            completer.complete(client);
+          } catch (e, st) {
+            completer.completeError(e, st);
+            rethrow;
+          } finally {
+            _spawningIsolates.remove(workerIndex);
+          }
+        }
+        isolateClient = await completer.future;
+      }
+
+      final result = await isolateClient.upload(
+        filePath: file.path,
+        channelId: channelId,
+        asDocument: asDocument,
+        caption: caption,
+        channelAccessHash: Prefs.channelAccessHash,
+        onProgress: onProgress,
+      );
+
+      // If isolate upload returned Failure (e.g. transport error), invalidate worker and trigger fallback
+      if (result is Failure) {
+        debugPrint('[TelegramMTProto] Isolate upload returned Failure (${result.message}), falling back to direct upload...');
+        invalidateClient(workerIndex);
+        return _uploadMediaDirect(
+          file: file,
+          channelId: channelId,
+          asDocument: asDocument,
+          caption: caption,
+          onProgress: onProgress,
+          workerIndex: workerIndex,
+        );
+      }
+      return result;
+    } catch (e) {
+      debugPrint('[TelegramMTProto] Isolate worker error ($e), falling back to direct upload...');
+      invalidateClient(workerIndex);
+      return _uploadMediaDirect(
+        file: file,
+        channelId: channelId,
+        asDocument: asDocument,
+        caption: caption,
+        onProgress: onProgress,
+        workerIndex: workerIndex,
+      );
+    }
+  }
+
+  Future<UploadResult> _uploadMediaDirect({
     required File file,
     required String channelId,
     required bool asDocument,
@@ -1134,3 +1240,4 @@ class TelegramAuthService {
     resetClientPool();
   }
 }
+

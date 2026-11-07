@@ -12,6 +12,7 @@ import 'package:valtsky_flutter/ui/widgets/interactive_spotlight_tutorial.dart';
 import 'package:valtsky_flutter/ui/widgets/dashboard_control_deck.dart';
 import 'package:valtsky_flutter/ui/view_models/dashboard_view_model.dart';
 import 'package:valtsky_flutter/services/sync_engine.dart';
+import 'package:valtsky_flutter/ui/widgets/glass_card.dart';
 import 'package:valtsky_flutter/ui/widgets/media_item_card.dart';
 
 void main() {
@@ -487,5 +488,28 @@ void main() {
     expect(find.text('> 2 GB'), findsOneWidget);
     expect(find.text('UPLOAD'), findsOneWidget);
     expect(find.text('DELETE'), findsOneWidget);
+  });
+
+  testWidgets('GlassCard dynamically bypasses BackdropFilter during active uploads to avoid GPU shader jank', (WidgetTester tester) async {
+    SyncEngine.engineStatusNotifier.value = SyncEngineStatus.idle;
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: GlassCard(
+            child: Text('Performance Card'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(BackdropFilter), findsOneWidget);
+
+    SyncEngine.engineStatusNotifier.value = SyncEngineStatus.active;
+    await tester.pump();
+    expect(find.byType(BackdropFilter), findsNothing);
+
+    SyncEngine.engineStatusNotifier.value = SyncEngineStatus.idle;
+    await tester.pump();
+    expect(find.byType(BackdropFilter), findsOneWidget);
   });
 }

@@ -30,7 +30,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **68.1 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `7bc2dd5297733366819ba7eef841259e011bc9be18717c8f2bb48d5c4cf8e2cd` |
+| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **68.2 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
 
@@ -47,7 +47,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 ## 📝 Release Notes
 
-- [**ValtSky v2.1.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Dual-Lane Split Uploader (concurrent photo & video pipelines), Decoupled Gallery Monitoring & Queue Draining, Salted SHA-256 Vault PIN, two-tier responsive layout, BITE latency ping, SQLite parameterized chunking, 52/52 passing test suites.
+- [**ValtSky v2.1.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Background Isolate MTProto Cryptography, Dynamic GPU Gaussian Blur Bypass, Dual-Lane Split Uploader, Decoupled Gallery Monitoring & Queue Draining, Salted SHA-256 Vault PIN, SQLite parameterized chunking, 53/53 passing test suites.
 
 ---
 
@@ -57,7 +57,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 ```bash
 sha256sum valtsky-v2.1-release.apk
 # Expected output:
-# 7bc2dd5297733366819ba7eef841259e011bc9be18717c8f2bb48d5c4cf8e2cd  valtsky-v2.1-release.apk
+# ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f  valtsky-v2.1-release.apk
 ```
 
 ### Windows PowerShell Verification:

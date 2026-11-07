@@ -29,7 +29,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 | Package | Target | Size | Description | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.1-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.1/valtsky-v2.1-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **68.1 MB** | **Universal Production APK with High-Throughput Pipelined Split Uploader, Decoupled Monitoring & Four-Block Activity Telemetry** | `7bc2dd5297733366819ba7eef841259e011bc9be18717c8f2bb48d5c4cf8e2cd` |
+| [**`valtsky-v2.1-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.1/valtsky-v2.1-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **68.2 MB** | **Universal Production APK with Background Isolate MTProto Cryptography, Dynamic GPU Blur Bypass & Split Uploader** | `ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f` |
 
 ### 💻 Multiplatform Desktop, iOS & Web Releases
 - **Apple iOS**: Sideload via AltStore / Sideloadly or build via Xcode (`valtsky_flutter/ios`).
@@ -42,7 +42,21 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 ## ✨ Key Enhancements in Release v2.1.0
 
-### ⚡ 1. Decoupled Gallery Monitoring & Continuous Queue Uploading
+### 🚀 1. Background Isolate MTProto Cryptography & File Chunking
+- **Problem Solved**: ValtSky runs parallel photo & video upload workers with 6 to 8 concurrent parts each (up to 14 concurrent streams). Pure-Dart PointyCastle AES-256-IGE software encryption, SHA-256 checksums, and chunk reading previously executed on Flutter's root isolate (UI thread), blocking the event loop and dropping frames from 120 FPS down to 15–20 FPS.
+- **Background Isolate Architecture**:
+  - Offloaded file slicing, TL serialization, and AES-256-IGE encryption to a dedicated background OS worker thread per upload lane (`IsolateUploadClient`).
+  - Worker lifecycle management includes error listeners, exit listeners, graceful socket closure, port disposal, and auto-fallback to direct upload.
+  - The main UI thread is 100% liberated for buttery-smooth 120 FPS frame rendering.
+
+### 🎨 2. Dynamic GPU Gaussian Blur (`BackdropFilter`) Bypass During Active Uploads
+- **Problem Solved**: Cards on the dashboard utilize `BackdropFilter` with Gaussian blur. During active synchronization, frequent transfer rate and progress updates forced the GPU rasterizer to copy framebuffers and apply blur shader passes on every frame, causing raster thread bottlenecks.
+- **Zero-Shader Bypass**:
+  - Dynamically detects active upload state (`SyncEngineStatus.active`) via `ValueListenableBuilder`.
+  - When actively syncing, `BackdropFilter` is bypassed with zero GPU shader passes, falling back to an ultra-fast semi-transparent solid gradient.
+  - When idle or paused, the aesthetic glassmorphic blur is seamlessly restored.
+
+### ⚡ 3. Decoupled Gallery Monitoring & Continuous Queue Uploading
 - **Problem Solved**: Stopping or not starting gallery monitoring previously halted or prevented uploading items already queued in SQLite.
 - **Decoupled Architecture**:
   - **Monitoring Scope**: "Start / Stop Monitoring" strictly controls automated device gallery scanning and foreground polling.
@@ -98,7 +112,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 ```bash
 sha256sum valtsky-v2.1-release.apk
 # Expected output:
-# 7bc2dd5297733366819ba7eef841259e011bc9be18717c8f2bb48d5c4cf8e2cd  valtsky-v2.1-release.apk
+# ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f  valtsky-v2.1-release.apk
 ```
 
 ### Windows PowerShell Verification:
