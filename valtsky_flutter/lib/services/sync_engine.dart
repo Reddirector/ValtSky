@@ -206,6 +206,7 @@ class SyncEngine {
     return msg.contains('CHAT_ADMIN_REQUIRED') ||
         msg.contains('CHAT_WRITE_FORBIDDEN') ||
         msg.contains('CHANNEL_PRIVATE') ||
+        msg.contains('CHANNEL_INVALID') ||
         msg.contains('USER_BANNED_IN_CHANNEL');
   }
 
@@ -389,8 +390,9 @@ class SyncEngine {
     _isSyncing = true;
     _syncCompleter = Completer<void>();
 
-    // Reset any interrupted uploading state from abrupt app closes
+    // Reset any interrupted uploading state from abrupt app closes and retry failed items
     await DatabaseHelper.instance.resetUploadingToPending();
+    await DatabaseHelper.instance.retryAllFailed();
     await fetchCurrentStats(forceDb: true);
 
     final online = await hasInternetConnection();
@@ -483,7 +485,10 @@ class SyncEngine {
       engineStatusNotifier.value = SyncEngineStatus.idle;
     }
     fetchCurrentStats(forceDb: true);
-    _syncCompleter?.complete();
+    if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
+      _syncCompleter!.complete();
+    }
+    _syncCompleter = null;
   }
 
   /// Self-healing full engine restart:
@@ -493,9 +498,19 @@ class SyncEngine {
     engineStatusNotifier.value = SyncEngineStatus.restarting;
     engineStatusMessageNotifier.value = 'Self-healing: restarting engine & resetting sockets...';
 
-    // 1. Halt workers
+    // 1. Halt workers and await active loop shutdown
     _isSyncing = false;
     _claimedBatchQueue.clear();
+    if (_workerPoolFuture != null) {
+      try {
+        await _workerPoolFuture!.timeout(const Duration(seconds: 3));
+      } catch (_) {}
+      _workerPoolFuture = null;
+    }
+    if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
+      _syncCompleter!.complete();
+    }
+    _syncCompleter = null;
     _liveStatsTimer?.cancel();
     _liveStatsTimer = null;
     _speedMeterTimer?.cancel();
@@ -508,8 +523,9 @@ class SyncEngine {
     // 2. Invalidate and reset MTProto socket pool
     TelegramAuthService.instance.resetClientPool();
 
-    // 3. Reset any stuck UPLOADING items back to PENDING in database
+    // 3. Reset any stuck UPLOADING items back to PENDING and failed items in database
     await DatabaseHelper.instance.resetUploadingToPending();
+    await DatabaseHelper.instance.retryAllFailed();
 
     // 4. Reset speed meters & metrics
     _totalBytesSent = 0;
@@ -587,24 +603,35 @@ class SyncEngine {
   // WORKER POOL & UPLOAD LOGIC
   // ──────────────────────────────────────────────────────────────────────────
 
+  Future<void>? _workerPoolFuture;
+
   Future<void> _runWorkerPool() async {
     engineStatusNotifier.value = SyncEngineStatus.active;
-    final workers = List.generate(_workerCount, (index) => _workerLoop(index));
-    await Future.wait(workers);
-
-    _isSyncing = false;
-    _liveStatsTimer?.cancel();
-    _liveStatsTimer = null;
-    _speedMeterTimer?.cancel();
-    _speedMeterTimer = null;
-    _smoothedSpeedMBps = 0.0;
-    uploadSpeedNotifier.value = '';
-    currentItemNotifier.value = '';
-    if (engineStatusNotifier.value == SyncEngineStatus.active) {
-      engineStatusNotifier.value = SyncEngineStatus.idle;
+    try {
+      final workers = List.generate(_workerCount, (index) => _workerLoop(index));
+      _workerPoolFuture = Future.wait(workers);
+      await _workerPoolFuture;
+    } catch (e) {
+      debugPrint('[SyncEngine] Worker pool caught exception: $e');
+    } finally {
+      _workerPoolFuture = null;
+      _isSyncing = false;
+      _liveStatsTimer?.cancel();
+      _liveStatsTimer = null;
+      _speedMeterTimer?.cancel();
+      _speedMeterTimer = null;
+      _smoothedSpeedMBps = 0.0;
+      uploadSpeedNotifier.value = '';
+      currentItemNotifier.value = '';
+      if (engineStatusNotifier.value == SyncEngineStatus.active) {
+        engineStatusNotifier.value = SyncEngineStatus.idle;
+      }
+      await fetchCurrentStats(forceDb: true);
+      if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
+        _syncCompleter!.complete();
+      }
+      _syncCompleter = null;
     }
-    await fetchCurrentStats(forceDb: true);
-    _syncCompleter?.complete();
   }
 
   static final List<MediaItem> _claimedBatchQueue = [];
@@ -772,12 +799,30 @@ class SyncEngine {
           TelegramAuthService.instance.invalidateClient(workerIndex);
           await _handleOfflineWait();
         } else if (isPermission) {
-          await DatabaseHelper.instance.update(item.copyWith(
-            status: MediaItem.statusFailed,
-            errorReason: 'Channel Permission Denied: ${result.description}',
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ));
-          _updateInFlightFailure();
+          // If error is CHANNEL_PRIVATE or CHAT_ADMIN_REQUIRED, allow retries if retryCount < maxItemRetries
+          // rather than immediately marking permanently failed, as channel access hash may need refreshing.
+          if ((result.description.contains('CHANNEL_PRIVATE') ||
+               result.description.contains('CHANNEL_INVALID') ||
+               result.description.contains('CHAT_ADMIN_REQUIRED')) &&
+              item.retryCount < maxItemRetries) {
+            final nextRetry = item.retryCount + 1;
+            Prefs.channelAccessHash = null;
+            await DatabaseHelper.instance.update(item.copyWith(
+              status: MediaItem.statusPending,
+              retryCount: nextRetry,
+              errorReason: 'Refreshing channel access: ${result.description}',
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ));
+            _updateInFlightRetry();
+            await Future.delayed(Duration(milliseconds: 1000 * nextRetry));
+          } else {
+            await DatabaseHelper.instance.update(item.copyWith(
+              status: MediaItem.statusFailed,
+              errorReason: 'Channel Permission Denied: ${result.description}',
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ));
+            _updateInFlightFailure();
+          }
         } else {
           // Transient error: retry up to maxItemRetries with exponential backoff
           TelegramAuthService.instance.invalidateClient(workerIndex);
@@ -833,6 +878,20 @@ class SyncEngine {
           _updateInFlightRetry();
           TelegramAuthService.instance.invalidateClient(workerIndex);
           await _handleOfflineWait();
+        } else if ((result.message.contains('CHANNEL_PRIVATE') ||
+                    result.message.contains('CHANNEL_INVALID') ||
+                    result.message.contains('CHAT_ADMIN_REQUIRED')) &&
+                   item.retryCount < maxItemRetries) {
+          final nextRetry = item.retryCount + 1;
+          Prefs.channelAccessHash = null;
+          await DatabaseHelper.instance.update(item.copyWith(
+            status: MediaItem.statusPending,
+            retryCount: nextRetry,
+            errorReason: 'Refreshing channel access: ${result.message}',
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          ));
+          _updateInFlightRetry();
+          await Future.delayed(Duration(milliseconds: 1000 * nextRetry));
         } else {
           // Transient failure: retry up to maxItemRetries with backoff
           TelegramAuthService.instance.invalidateClient(workerIndex);

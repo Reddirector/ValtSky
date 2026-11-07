@@ -245,6 +245,51 @@ void main() {
       final page4 = await DatabaseHelper.instance.getAllItems(limit: 2, offset: 6);
       expect(page4.isEmpty, isTrue);
     });
+
+    test('SyncEngine Safe Completer & Auto-Recovery of Failed Items', () async {
+      DatabaseHelper.enableMemoryStoreForTesting();
+      DatabaseHelper.clearMemoryStoreForTesting();
+
+      // Insert 2 failed items
+      await DatabaseHelper.instance.insert(MediaItem(
+        filePath: '/test/fail_item_1.jpg',
+        mimeType: 'image/jpeg',
+        dateTaken: 1000,
+        fileSize: 1024,
+        status: MediaItem.statusFailed,
+        updatedAt: 1000,
+      ));
+      await DatabaseHelper.instance.insert(MediaItem(
+        filePath: '/test/fail_item_2.jpg',
+        mimeType: 'image/jpeg',
+        dateTaken: 2000,
+        fileSize: 2048,
+        status: MediaItem.statusFailed,
+        updatedAt: 2000,
+      ));
+
+      // Repeated stopSync calls must never throw Bad state: Future already completed
+      SyncEngine.instance.stopSync();
+      SyncEngine.instance.stopSync();
+
+      // Trigger restart which resets uploading & failed items
+      await SyncEngine.instance.restartEngine();
+
+      final pendingItems = await DatabaseHelper.instance.getAllItems(statusFilter: MediaItem.statusPending);
+      expect(pendingItems.length, equals(2));
+    });
+
+    test('TelegramAuthService ResolvePeer Channel ID Prefix Normalization', () async {
+      Prefs.channelAccessHash = '1234567890123';
+      
+      // Test channel with -100 prefix
+      final peer1 = await TelegramAuthService.instance.resolvePeer('-1004297507230');
+      expect(peer1, isNotNull);
+
+      // Test channel without prefix
+      final peer2 = await TelegramAuthService.instance.resolvePeer('4297507230');
+      expect(peer2, isNotNull);
+    });
   });
 
   group('TelegramPhoneLoginWidget Interactive Tests', () {

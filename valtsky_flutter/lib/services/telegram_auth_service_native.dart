@@ -226,6 +226,28 @@ class TelegramAuthService {
         authorizationKey: authKey,
         idGenerator: idGenerator,
       );
+
+      // Telegram MTProto mandates calling initConnection on newly connected sockets
+      try {
+        await client.initConnection<t.Config>(
+          apiId: TelegramSecrets.apiId,
+          deviceModel: 'ValtSky Android Client',
+          systemVersion: 'Android 14',
+          appVersion: '1.0.0',
+          systemLangCode: 'en',
+          langPack: '',
+          langCode: 'en',
+          query: const t.HelpGetConfig(),
+        ).timeout(const Duration(seconds: 10));
+      } catch (initErr) {
+        debugPrint('[TelegramMTProto] initConnection failed on client #$workerIndex: $initErr');
+        try {
+          TelegramTransport.closeSocket(socket);
+        } catch (_) {}
+        completer.complete(null);
+        return null;
+      }
+
       _clientPool[workerIndex] = client;
       if (workerIndex == 0) {
         _currentDcId = dcId;
@@ -539,7 +561,7 @@ class TelegramAuthService {
         debugPrint('[TelegramMTProto] Error checking existing dialogs: $e');
       }
 
-      String autoChannelId;
+      String autoChannelId = '';
       String finalChannelTitle = vaultTitle;
 
       if (foundChannelId != null) {
@@ -560,20 +582,39 @@ class TelegramAuthService {
           about: vaultAbout,
         );
 
-        autoChannelId = '-1002891238921';
-        if (channelResponse.result != null) {
-          final updates = channelResponse.result!;
-          if (updates is t.Updates) {
-            for (final chat in updates.chats) {
-              if (chat is t.Channel) {
-                autoChannelId = '-100${chat.id}';
-                if (chat.accessHash != null) {
-                  Prefs.channelAccessHash = chat.accessHash.toString();
-                }
-                break;
-              }
+        if (channelResponse.error != null || channelResponse.result == null) {
+          final err = channelResponse.error?.errorMessage ?? 'Channel creation failed on Telegram';
+          stateNotifier.value = currentState.copyWith(
+            step: AuthStep.enterCode,
+            errorMessage: 'Failed to create Vault channel: $err',
+            isLoading: false,
+          );
+          return false;
+        }
+
+        final updates = channelResponse.result!;
+        List<t.ChatBase> createdChats = [];
+        if (updates is t.Updates) createdChats = updates.chats;
+        if (updates is t.UpdatesCombined) createdChats = updates.chats;
+        for (final chat in createdChats) {
+          if (chat is t.Channel) {
+            autoChannelId = '-100${chat.id}';
+            foundChannelId = chat.id;
+            foundAccessHash = chat.accessHash;
+            if (chat.accessHash != null) {
+              Prefs.channelAccessHash = chat.accessHash.toString();
             }
+            break;
           }
+        }
+
+        if (foundChannelId == null) {
+          stateNotifier.value = currentState.copyWith(
+            step: AuthStep.enterCode,
+            errorMessage: 'Could not resolve newly created channel ID from Telegram response.',
+            isLoading: false,
+          );
+          return false;
         }
       }
 
@@ -641,15 +682,33 @@ class TelegramAuthService {
     return true;
   }
 
-  /// Resolve access hash for a channel ID using MTProto getDialogs
-  Future<int?> getChannelAccessHash(int channelId) async {
-    if (Prefs.channelAccessHash != null) {
-      final cached = int.tryParse(Prefs.channelAccessHash!);
-      if (cached != null) return cached;
+  /// Resolve the proper MTProto InputPeer (Channel or Chat) for the target channel ID.
+  /// If forceRefresh is true or cached accessHash is missing, queries messages.getDialogs.
+  Future<t.InputPeerBase?> resolvePeer(
+    String channelId, {
+    int workerIndex = 0,
+    bool forceRefresh = false,
+  }) async {
+    String cleanId = channelId.trim();
+    if (cleanId.startsWith('-100')) {
+      cleanId = cleanId.substring(4);
+    } else if (cleanId.startsWith('-')) {
+      cleanId = cleanId.substring(1);
     }
+    final intId = int.tryParse(cleanId);
+    if (intId == null) return null;
+
+    if (!forceRefresh && Prefs.channelAccessHash != null) {
+      final cachedHash = int.tryParse(Prefs.channelAccessHash!);
+      if (cachedHash != null) {
+        return t.InputPeerChannel(channelId: intId, accessHash: cachedHash);
+      }
+    }
+
     try {
-      final client = await getClient();
+      final client = await getClient(workerIndex);
       if (client == null) return null;
+
       final dialogsRes = await client.messages.getDialogs(
         excludePinned: false,
         offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
@@ -657,24 +716,60 @@ class TelegramAuthService {
         offsetPeer: const t.InputPeerEmpty(),
         limit: 100,
         hash: 0,
-      );
+      ).timeout(const Duration(seconds: 12));
+
       if (dialogsRes.result != null) {
         final d = dialogsRes.result!;
         List<t.ChatBase> chats = [];
         if (d is t.MessagesDialogs) chats = d.chats;
         if (d is t.MessagesDialogsSlice) chats = d.chats;
+
+        // 1. Direct match by channel ID
         for (final chat in chats) {
-          if (chat is t.Channel && chat.id == channelId) {
+          if (chat is t.Channel && chat.id == intId) {
             if (chat.accessHash != null) {
               Prefs.channelAccessHash = chat.accessHash.toString();
-              return chat.accessHash;
+              return t.InputPeerChannel(channelId: chat.id, accessHash: chat.accessHash!);
+            }
+          } else if (chat is t.Chat && chat.id == intId) {
+            return t.InputPeerChat(chatId: chat.id);
+          }
+        }
+
+        // 2. Secondary fallback: match by Vault title if looking up user's configured vault
+        final isConfiguredVault = channelId.trim() == Prefs.channelId.trim() || Prefs.channelId.isEmpty;
+        if (isConfiguredVault) {
+          for (final chat in chats) {
+            if (chat is t.Channel &&
+                (chat.title == Prefs.channelName || chat.title.contains('ValtSky Vault'))) {
+              if (chat.accessHash != null) {
+                Prefs.channelId = '-100${chat.id}';
+                Prefs.channelAccessHash = chat.accessHash.toString();
+                Prefs.channelName = chat.title;
+                return t.InputPeerChannel(channelId: chat.id, accessHash: chat.accessHash!);
+              }
             }
           }
         }
       }
     } catch (e) {
-      debugPrint('[TelegramMTProto] Error fetching channel access hash: $e');
+      debugPrint('[TelegramMTProto] Error resolving peer for $channelId: $e');
     }
+
+    // Fallback: if cached access hash exists, return it
+    if (Prefs.channelAccessHash != null) {
+      final cachedHash = int.tryParse(Prefs.channelAccessHash!);
+      if (cachedHash != null) {
+        return t.InputPeerChannel(channelId: intId, accessHash: cachedHash);
+      }
+    }
+    return null;
+  }
+
+  /// Resolve access hash for a channel ID using MTProto getDialogs
+  Future<int?> getChannelAccessHash(int channelId, {int workerIndex = 0, bool forceRefresh = false}) async {
+    final peer = await resolvePeer(channelId.toString(), workerIndex: workerIndex, forceRefresh: forceRefresh);
+    if (peer is t.InputPeerChannel) return peer.accessHash;
     return null;
   }
 
@@ -696,21 +791,13 @@ class TelegramAuthService {
       return Failure('Telegram client not connected or session expired. Please connect Telegram in Settings.');
     }
 
-    final cleanId = channelId.replaceAll('-100', '').replaceAll('-', '');
-    final intChannelId = int.tryParse(cleanId);
-    if (intChannelId == null) {
-      return Failure('Invalid Channel ID format: $channelId');
+    t.InputPeerBase? peer = await resolvePeer(channelId, workerIndex: workerIndex);
+    if (peer == null) {
+      peer = await resolvePeer(channelId, workerIndex: workerIndex, forceRefresh: true);
+      if (peer == null) {
+        return Failure('Could not obtain channel access hash for $channelId');
+      }
     }
-
-    final accessHash = await getChannelAccessHash(intChannelId);
-    if (accessHash == null) {
-      return Failure('Could not obtain channel access hash for $channelId');
-    }
-
-    final peer = t.InputPeerChannel(
-      channelId: intChannelId,
-      accessHash: accessHash,
-    );
 
     final fileSize = await file.length();
     final rawName = file.path.split('/').last;
@@ -790,7 +877,7 @@ class TelegramAuthService {
       );
 
       final randomId = Random().nextInt(0x7fffffff);
-      final sendResult = await client.messages.sendMedia(
+      var sendResult = await client.messages.sendMedia(
         silent: false,
         background: false,
         clearDraft: false,
@@ -803,6 +890,33 @@ class TelegramAuthService {
         message: caption ?? '',
         randomId: randomId,
       );
+
+      // Self-healing: If Telegram returns CHANNEL_PRIVATE, CHANNEL_INVALID, or CHAT_ADMIN_REQUIRED,
+      // refresh peer directly from server dialogs and retry sendMedia once.
+      if (sendResult.error != null &&
+          (sendResult.error!.errorMessage.contains('CHANNEL_PRIVATE') ||
+           sendResult.error!.errorMessage.contains('CHAT_ADMIN_REQUIRED') ||
+           sendResult.error!.errorMessage.contains('CHANNEL_INVALID'))) {
+        debugPrint('[TelegramMTProto] Encountered ${sendResult.error!.errorMessage}. Refreshing peer and retrying sendMedia...');
+        Prefs.channelAccessHash = null;
+        final refreshedPeer = await resolvePeer(channelId, workerIndex: workerIndex, forceRefresh: true);
+        if (refreshedPeer != null) {
+          peer = refreshedPeer;
+          sendResult = await client.messages.sendMedia(
+            silent: false,
+            background: false,
+            clearDraft: false,
+            noforwards: false,
+            updateStickersetsOrder: false,
+            invertMedia: false,
+            allowPaidFloodskip: false,
+            peer: peer,
+            media: inputMedia,
+            message: caption ?? '',
+            randomId: Random().nextInt(0x7fffffff),
+          );
+        }
+      }
 
       if (sendResult.error != null) {
         return TelegramError(
@@ -854,24 +968,16 @@ class TelegramAuthService {
       return Failure('Telegram client not connected');
     }
 
-    final cleanId = channelId.replaceAll('-100', '').replaceAll('-', '');
-    final intChannelId = int.tryParse(cleanId);
-    if (intChannelId == null) {
-      return Failure('Invalid Channel ID format: $channelId');
+    t.InputPeerBase? peer = await resolvePeer(channelId);
+    if (peer == null) {
+      peer = await resolvePeer(channelId, forceRefresh: true);
+      if (peer == null) {
+        return Failure('Could not obtain channel access hash for $channelId');
+      }
     }
-
-    final accessHash = await getChannelAccessHash(intChannelId);
-    if (accessHash == null) {
-      return Failure('Could not obtain channel access hash for $channelId');
-    }
-
-    final peer = t.InputPeerChannel(
-      channelId: intChannelId,
-      accessHash: accessHash,
-    );
 
     final randomId = Random().nextInt(0x7fffffff);
-    final sendResult = await client.messages.sendMessage(
+    var sendResult = await client.messages.sendMessage(
       noWebpage: false,
       silent: false,
       background: false,
@@ -884,6 +990,30 @@ class TelegramAuthService {
       message: text,
       randomId: randomId,
     );
+
+    if (sendResult.error != null &&
+        (sendResult.error!.errorMessage.contains('CHANNEL_PRIVATE') ||
+         sendResult.error!.errorMessage.contains('CHAT_ADMIN_REQUIRED') ||
+         sendResult.error!.errorMessage.contains('CHANNEL_INVALID'))) {
+      Prefs.channelAccessHash = null;
+      final refreshedPeer = await resolvePeer(channelId, forceRefresh: true);
+      if (refreshedPeer != null) {
+        peer = refreshedPeer;
+        sendResult = await client.messages.sendMessage(
+          noWebpage: false,
+          silent: false,
+          background: false,
+          clearDraft: false,
+          noforwards: false,
+          updateStickersetsOrder: false,
+          invertMedia: false,
+          allowPaidFloodskip: false,
+          peer: peer,
+          message: text,
+          randomId: Random().nextInt(0x7fffffff),
+        );
+      }
+    }
 
     if (sendResult.error != null) {
       return TelegramError(sendResult.error!.errorCode, sendResult.error!.errorMessage);
@@ -911,5 +1041,8 @@ class TelegramAuthService {
 
   void reset() {
     stateNotifier.value = AuthState.initial();
+    Prefs.channelAccessHash = null;
+    Prefs.telegramAuthKey = null;
+    resetClientPool();
   }
 }
