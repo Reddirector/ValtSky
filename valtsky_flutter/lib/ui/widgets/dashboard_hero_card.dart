@@ -27,7 +27,7 @@ class DashboardHeroCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final engineStatus = SyncEngine.engineStatusNotifier.value;
 
-    final isActive = isMonitoring && !isPaused && engineStatus == SyncEngineStatus.active;
+    final isUploading = !isPaused && (engineStatus == SyncEngineStatus.active || SyncEngine.isPhotoWorkerActive || SyncEngine.isVideoWorkerActive);
     final cardBg = isDark ? const Color(0xFF131B2E) : Colors.white;
     final borderColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
 
@@ -38,15 +38,17 @@ class DashboardHeroCard extends StatelessWidget {
         ? Colors.grey.shade500
         : (isPaused
             ? ValtSkyTheme.warning
-            : (isActive
+            : (isUploading
                 ? const Color(0xFF10B981)
                 : (isMonitoring ? const Color(0xFF0EA5E9) : Colors.grey.shade500)));
 
     final String statusText = !isConfigured
         ? 'SETUP REQUIRED'
-        : (isMonitoring
-            ? (isPaused ? 'UPLOADS PAUSED' : 'MONITORING ACTIVE')
-            : 'IDLE');
+        : (isPaused
+            ? 'UPLOADS PAUSED'
+            : (isUploading
+                ? (isMonitoring ? 'MONITORING & UPLOADING' : 'UPLOADING QUEUE')
+                : (isMonitoring ? 'MONITORING ACTIVE' : 'IDLE')));
 
     return Container(
       decoration: BoxDecoration(
@@ -94,7 +96,7 @@ class DashboardHeroCard extends StatelessWidget {
               ValueListenableBuilder<String>(
                 valueListenable: SyncEngine.uploadSpeedNotifier,
                 builder: (context, currentSpeed, _) {
-                  if (!isActive) return const SizedBox.shrink();
+                  if (!isUploading) return const SizedBox.shrink();
                   final display = currentSpeed.isNotEmpty ? currentSpeed : 'Syncing...';
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -180,7 +182,7 @@ class DashboardHeroCard extends StatelessWidget {
               valueColor: AlwaysStoppedAnimation<Color>(
                 isPaused
                     ? ValtSkyTheme.warning
-                    : (isActive ? const Color(0xFF10B981) : const Color(0xFF0EA5E9)),
+                    : (isUploading ? const Color(0xFF10B981) : const Color(0xFF0EA5E9)),
               ),
             ),
           ),
@@ -189,7 +191,7 @@ class DashboardHeroCard extends StatelessWidget {
           ValueListenableBuilder<String>(
             valueListenable: SyncEngine.currentItemNotifier,
             builder: (context, activeFile, _) {
-              if (activeFile.isEmpty || !isActive) return const SizedBox.shrink();
+              if (activeFile.isEmpty || !isUploading) return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Row(

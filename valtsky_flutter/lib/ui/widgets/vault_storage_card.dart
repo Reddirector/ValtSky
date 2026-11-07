@@ -27,7 +27,7 @@ class VaultStorageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final engineStatus = SyncEngine.engineStatusNotifier.value;
-    final isActive = isMonitoring && !isPaused && engineStatus == SyncEngineStatus.active;
+    final isUploading = !isPaused && (engineStatus == SyncEngineStatus.active || SyncEngine.isPhotoWorkerActive || SyncEngine.isVideoWorkerActive);
 
     final primaryColor = ValtSkyTheme.primary(isDark);
     final secondaryColor = ValtSkyTheme.secondary(isDark);
@@ -42,13 +42,15 @@ class VaultStorageCard extends StatelessWidget {
         ? mutedText
         : (isPaused
             ? ValtSkyTheme.warning
-            : (isActive ? secondaryColor : (isMonitoring ? primaryColor : mutedText)));
+            : (isUploading ? secondaryColor : (isMonitoring ? primaryColor : mutedText)));
 
     final String statusText = !isConfigured
         ? 'SETUP'
-        : (isMonitoring
-            ? (isPaused ? 'PAUSED' : 'MONITORING')
-            : 'STANDBY');
+        : (isPaused
+            ? 'PAUSED'
+            : (isUploading
+                ? (isMonitoring ? 'UPLOADING' : 'QUEUE UPLOAD')
+                : (isMonitoring ? 'MONITORING' : 'STANDBY')));
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -218,7 +220,7 @@ class VaultStorageCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
-                        isActive
+                        isUploading
                             ? Icons.arrow_upward_rounded
                             : (isPaused ? Icons.pause_rounded : Icons.cloud_done_rounded),
                         size: 16,
@@ -241,16 +243,19 @@ class VaultStorageCard extends StatelessWidget {
                           } else if (isPaused) {
                             title = 'UPLOADS PAUSED';
                             subtitle = 'Workers suspended by user';
-                          } else if (isActive && activeFile.isNotEmpty) {
+                          } else if (isUploading && activeFile.isNotEmpty) {
                             final fileName = activeFile.split('/').last;
                             title = 'TRANSFERRING MEDIA';
                             subtitle = fileName;
+                          } else if (isUploading) {
+                            title = 'QUEUE SYNC ACTIVE';
+                            subtitle = 'Uploading pending items...';
                           } else if (isMonitoring) {
                             title = 'MONITORING STANDBY';
                             subtitle = 'All captured media synchronized';
                           } else {
                             title = 'ENGINE IDLE';
-                            subtitle = 'Press Start Monitoring to activate';
+                            subtitle = 'Press Start Monitoring to scan';
                           }
 
                           return Column(
@@ -304,7 +309,7 @@ class VaultStorageCard extends StatelessWidget {
                             displaySpeed = 'Setup';
                           } else if (isPaused) {
                             displaySpeed = 'Paused';
-                          } else if (currentSpeed.isNotEmpty && isActive) {
+                          } else if (currentSpeed.isNotEmpty && isUploading) {
                             displaySpeed = currentSpeed;
                           } else if (isMonitoring) {
                             displaySpeed = '0.0 MB/s';

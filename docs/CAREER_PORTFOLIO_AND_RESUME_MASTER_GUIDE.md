@@ -6,7 +6,7 @@
 SYSTEM: VALTSKY MULTIPLATFORM ZERO-LOSS CLOUD VAULT (v2.1.0)
 TARGET ROLES: Staff / Senior Mobile Systems Engineer · Distributed Storage Architect · Core Infrastructure
 ENGINEERING DOMAINS: Distributed Protocols (MTProto 2.0), Kernel Interop, O(1) Streaming, Concurrent Pipelines
-METRICS: 50/50 Passing Test Suites · 100/100 Security Score · < 28MB RAM at 1.8GB Stream · 0 Analyzer Warnings
+METRICS: 52/52 Passing Test Suites · 100/100 Security Score · < 28MB RAM at 1.8GB Stream · 0 Analyzer Warnings
 ========================================================================================================
 ```
 
@@ -15,10 +15,10 @@ METRICS: 50/50 Passing Test Suites · 100/100 Security Score · < 28MB RAM at 1.
 ## 🎯 1. Professional Profile Summary (For Top of Resume)
 
 ### Option A: Distributed Systems & Mobile Core Infrastructure
-> **Senior / Staff Software Engineer** with deep expertise in cross-platform systems architecture (Flutter/Dart & Android Native), binary network protocols (MTProto 2.0, TLS 1.3), and bounded $O(1)$ media streaming pipelines. Proven track record designing offline-first distributed storage engines with transactional SQLite WAL consistency, zero-loss bit-for-bit sensor preservation, dual-lane concurrent upload pipelines, and comprehensive systems documentation. Engineered zero-overhead multiplatform solutions deployed across Android hardware, desktop platforms, and browser sandboxes.
+> **Senior / Staff Software Engineer** with deep expertise in cross-platform systems architecture (Flutter/Dart & Android Native), binary network protocols (MTProto 2.0, TLS 1.3), and bounded $O(1)$ media streaming pipelines. Proven track record designing offline-first distributed storage engines with transactional SQLite WAL consistency, zero-loss bit-for-bit sensor preservation, dual-lane concurrent upload pipelines, decoupled gallery scanner and queue processing, and comprehensive systems documentation. Engineered zero-overhead multiplatform solutions deployed across Android hardware, desktop platforms, and browser sandboxes.
 
 ### Option B: High-Throughput & Performance Focused
-> **Senior Systems & Mobile Architect** specialized in memory-constrained, high-throughput distributed pipelines. Architected ValtSky, an unmetered cloud vault streaming multi-gigabyte media assets with a bounded memory footprint of $< 28\text{ MB}$ RAM on 1.8 GB payloads. Expert in cryptographic protocol negotiation, custom TCP/WebSocket bridge virtualization, hostile red-team vulnerability defense (100/100 security score), and 100% test automation (50/50 verified test suites).
+> **Senior Systems & Mobile Architect** specialized in memory-constrained, high-throughput distributed pipelines. Architected ValtSky, an unmetered cloud vault streaming multi-gigabyte media assets with a bounded memory footprint of $< 28\text{ MB}$ RAM on 1.8 GB payloads. Expert in cryptographic protocol negotiation, custom TCP/WebSocket bridge virtualization, hostile red-team vulnerability defense (100/100 security score), and 100% test automation (52/52 verified test suites).
 
 ---
 

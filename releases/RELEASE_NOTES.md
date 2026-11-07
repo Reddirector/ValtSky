@@ -29,7 +29,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 | Package | Target | Size | Description | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.1-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.1/valtsky-v2.1-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **68.1 MB** | **Universal Production APK with High-Throughput Pipelined Split Uploader & Four-Block Activity Telemetry** | `bae0bf29df105ab9fcf7c20327afb85ec526547ce6cff39f57cb927fbfb47059` |
+| [**`valtsky-v2.1-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.1/valtsky-v2.1-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **68.1 MB** | **Universal Production APK with High-Throughput Pipelined Split Uploader, Decoupled Monitoring & Four-Block Activity Telemetry** | `7bc2dd5297733366819ba7eef841259e011bc9be18717c8f2bb48d5c4cf8e2cd` |
 
 ### 💻 Multiplatform Desktop, iOS & Web Releases
 - **Apple iOS**: Sideload via AltStore / Sideloadly or build via Xcode (`valtsky_flutter/ios`).
@@ -42,14 +42,21 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 ## ✨ Key Enhancements in Release v2.1.0
 
-### ⚡ 1. Split Loader & Uploader Engine (Dual-Track Coordination)
-- **Problem Solved**: High-resolution video chunk uploads and image uploads previously competed for socket throughput or caused head-of-line blocking and Telegram FLOOD_WAIT errors.
-- **Intelligent Split Coordination**:
-  - **Preparation Concurrency**: While a video is undergoing local staging, storage check, and security verification, the photo loader continuously loads and uploads photos to the Telegram channel.
-  - **Wire Exclusive Upload**: When the video is prepared and ready to upload, the video uploader claims exclusive wire transmission, and the photo loader pauses entirely to allocate 100% bandwidth to the video without socket collision.
-  - **Instant Resume**: Immediately upon video upload completion, the photo loader resumes without idle time.
+### ⚡ 1. Decoupled Gallery Monitoring & Continuous Queue Uploading
+- **Problem Solved**: Stopping or not starting gallery monitoring previously halted or prevented uploading items already queued in SQLite.
+- **Decoupled Architecture**:
+  - **Monitoring Scope**: "Start / Stop Monitoring" strictly controls automated device gallery scanning and foreground polling.
+  - **Independent Queue Draining**: If monitoring is stopped or has not been started, but items are queued (`PENDING`), `SyncEngine` continues uploading them actively until the queue is empty.
+  - **Pause Interlock**: Only an explicit tap on the Pause Upload button (`Prefs.uploadPaused`) or queue depletion suspends uploading. Quick controls allow pausing/resuming uploads independently of monitoring.
+  - **Dual Telemetry Awareness**: Dashboard and Storage cards display real-time status (`MONITORING & UPLOADING`, `UPLOADING QUEUE`, or `MONITORING ACTIVE`), including active transfer speed and filenames even when monitoring is off.
 
-### 📊 2. Four-Block Zero-Lag Telemetry Monitor (`ActivityView`)
+### ⚡ 2. Split Uploader Engine & High-Throughput Pipelining
+- **Problem Solved**: High-resolution video chunk uploads and image uploads previously competed for socket throughput or caused head-of-line blocking.
+- **Concurrent Pipelines**:
+  - Independent photo worker and video worker upload media concurrently.
+  - Pipelined MTProto upload window with concurrent in-flight parts saturates available network bandwidth (30–80+ MB/s) with bounded RAM footprint.
+
+### 📊 3. Four-Block Zero-Lag Telemetry Monitor (`ActivityView`)
 - **Problem Solved**: Rendering hundreds of individual image and video thumbnail cards created severe UI stutter, frame drops, and memory spikes on mobile devices.
 - **High-Performance Architecture**:
   - Completely removed the heavy asset list of cards in favor of **four high-visibility telemetry blocks**:
@@ -57,11 +64,10 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
     2. **Videos in Queue**: Decrements live as each video syncs.
     3. **Photos Synced**: Increments live with bit-for-bit lossless status.
     4. **Videos Synced**: Increments live with original bitrate preserved.
-  - **Split Loader Dual-Track Monitor**: Visual live status for Photo Lane and Video Lane with clear lane states.
   - **Zero-Lag Action Deck**: 1-click `Scan Gallery`, `Clear Queue` (with safe confirmation), and `Retry Failed`.
   - **120 FPS Mobile Experience**: UI render time reduced to < 1ms with 0 memory bloat.
 
-### 🛡️ 2. Cryptographic Salted SHA-256 Vault Privacy Lock
+### 🛡️ 4. Cryptographic Salted SHA-256 Vault Privacy Lock
 - **Salted Hashing**: 4-digit Vault PINs are salted with a 32-byte cryptographic salt and hashed with SHA-256 (`package:crypto`). Plaintext PINs are never stored in memory or on disk.
 - **Lifecycle Interlock**: App minimization and resumption immediately engages a full-screen privacy lock barrier.
 
@@ -92,7 +98,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 ```bash
 sha256sum valtsky-v2.1-release.apk
 # Expected output:
-# bae0bf29df105ab9fcf7c20327afb85ec526547ce6cff39f57cb927fbfb47059  valtsky-v2.1-release.apk
+# 7bc2dd5297733366819ba7eef841259e011bc9be18717c8f2bb48d5c4cf8e2cd  valtsky-v2.1-release.apk
 ```
 
 ### Windows PowerShell Verification:

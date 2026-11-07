@@ -102,21 +102,19 @@ class DashboardViewModel extends ChangeNotifier {
     if (!kIsWeb) {
       if (newStatus) {
         await BackgroundService.start();
-        SyncEngine().startSync();
-        // Fast incremental scan for media taken while monitoring was paused
+        // Fast incremental scan for media taken while monitoring was off
         MediaScanner.scanForNewMedia(forceFull: false).then((_) {
           refreshStats();
         });
       } else {
         await BackgroundService.stop();
-        SyncEngine().stopSync();
       }
-    } else {
-      if (newStatus) {
-        SyncEngine().startSync();
-      } else {
-        SyncEngine().stopSync();
-      }
+    }
+
+    // Monitoring controls automatic gallery scanning.
+    // Queued items continue uploading regardless of monitoring state unless explicitly paused.
+    if (!Prefs.uploadPaused) {
+      SyncEngine().startSync();
     }
     notifyListeners();
   }
@@ -129,12 +127,8 @@ class DashboardViewModel extends ChangeNotifier {
       SyncEngine.engineStatusNotifier.value = SyncEngineStatus.paused;
     } else {
       SyncEngine.uploadSpeedNotifier.value = '';
-      if (Prefs.monitoringEnabled) {
-        SyncEngine.engineStatusNotifier.value = SyncEngineStatus.active;
-        SyncEngine().startSync();
-      } else {
-        SyncEngine.engineStatusNotifier.value = SyncEngineStatus.idle;
-      }
+      SyncEngine.engineStatusNotifier.value = SyncEngineStatus.active;
+      SyncEngine().startSync();
     }
     notifyListeners();
   }

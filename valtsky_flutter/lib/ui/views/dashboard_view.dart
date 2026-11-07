@@ -203,7 +203,7 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                             try {
                               final count = await DatabaseHelper.instance.retryAllFailed();
                               await _viewModel.refreshStats();
-                              if (Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+                              if (!Prefs.uploadPaused) {
                                 SyncEngine().startSync();
                               }
                               if (mounted) {

@@ -30,7 +30,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **68.1 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `bae0bf29df105ab9fcf7c20327afb85ec526547ce6cff39f57cb927fbfb47059` |
+| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **68.1 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `7bc2dd5297733366819ba7eef841259e011bc9be18717c8f2bb48d5c4cf8e2cd` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
 
@@ -47,7 +47,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 ## 📝 Release Notes
 
-- [**ValtSky v2.1.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Dual-Lane Split Uploader (concurrent photo & video pipelines), Salted SHA-256 Vault PIN, two-tier responsive layout, BITE latency ping, SQLite parameterized chunking, 50/50 passing test suites.
+- [**ValtSky v2.1.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Dual-Lane Split Uploader (concurrent photo & video pipelines), Decoupled Gallery Monitoring & Queue Draining, Salted SHA-256 Vault PIN, two-tier responsive layout, BITE latency ping, SQLite parameterized chunking, 52/52 passing test suites.
 
 ---
 
@@ -57,7 +57,7 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 ```bash
 sha256sum valtsky-v2.1-release.apk
 # Expected output:
-# bae0bf29df105ab9fcf7c20327afb85ec526547ce6cff39f57cb927fbfb47059  valtsky-v2.1-release.apk
+# 7bc2dd5297733366819ba7eef841259e011bc9be18717c8f2bb48d5c4cf8e2cd  valtsky-v2.1-release.apk
 ```
 
 ### Windows PowerShell Verification:

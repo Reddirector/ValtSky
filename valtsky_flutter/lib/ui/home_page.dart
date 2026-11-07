@@ -90,8 +90,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _dashboardKey.currentState?.refreshStats();
     _activityKey.currentState?.refreshItems();
 
-    // Auto-resume background monitoring & sync if configured and monitoring was enabled
-    if (Prefs.isConfigured() && Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+    // Auto-resume background monitoring if configured and monitoring was enabled
+    if (Prefs.isConfigured() && Prefs.monitoringEnabled) {
       if (!kIsWeb) {
         try {
           await BackgroundService.start();
@@ -99,6 +99,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           debugPrint('Error starting background service: $e');
         }
       }
+    }
+
+    // Always ensure queue uploader is active for pending items unless explicitly paused
+    if (Prefs.isConfigured() && !Prefs.uploadPaused) {
       SyncEngine().startSync();
     }
   }

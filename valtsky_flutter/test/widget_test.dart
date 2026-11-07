@@ -222,6 +222,32 @@ void main() {
     expect(diagnostics, isTrue);
   });
 
+  testWidgets('DashboardControlDeck Pause button is enabled and clickable when isMonitoring is false', (WidgetTester tester) async {
+    bool paused = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DashboardControlDeck(
+            isConfigured: true,
+            isMonitoring: false, // Monitoring is OFF
+            isPaused: false,
+            isScanning: false,
+            onTogglePause: () => paused = true,
+            onScanGallery: () {},
+            onStopProcess: () {},
+            onShowDiagnostics: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Verify Pause button is clickable even when monitoring is false
+    await tester.tap(find.text('Pause'));
+    expect(paused, isTrue);
+  });
+
   testWidgets('AppWalkthroughGuide displays all 3 tutorial steps correctly', (WidgetTester tester) async {
     bool settingsNavigated = false;
     bool galleryScanned = false;

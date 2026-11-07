@@ -523,7 +523,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                         await refreshItems();
                         if (!mounted) return;
                         widget.onDataChanged();
-                        if (Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+                        if (!Prefs.uploadPaused) {
                           SyncEngine().startSync();
                         }
                         if (!mounted) return;
@@ -658,7 +658,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                         await refreshItems();
                         if (!mounted) return;
                         widget.onDataChanged();
-                        if (Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+                        if (!Prefs.uploadPaused) {
                           SyncEngine().startSync();
                         }
                         if (!mounted) return;

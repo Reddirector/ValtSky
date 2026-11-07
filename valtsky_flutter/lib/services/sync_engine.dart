@@ -564,8 +564,8 @@ class SyncEngine {
       return;
     }
 
-    // 7. Restart workers if monitoring enabled
-    if (Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+    // 7. Restart workers if not paused (queued items upload regardless of monitoring)
+    if (!Prefs.uploadPaused) {
       engineStatusNotifier.value = SyncEngineStatus.active;
       engineStatusMessageNotifier.value = 'Engine restarted. Workers active.';
       await startSync();
@@ -584,7 +584,7 @@ class SyncEngine {
         if (_isSyncing) {
           engineStatusNotifier.value = SyncEngineStatus.active;
           engineStatusMessageNotifier.value = 'Connection restored. Resuming backup...';
-        } else if (Prefs.monitoringEnabled && !Prefs.uploadPaused) {
+        } else if (!Prefs.uploadPaused) {
           startSync();
         } else {
           engineStatusNotifier.value = SyncEngineStatus.idle;

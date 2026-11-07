@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/prefs.dart';
+import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 import 'troubleshooting_sheet.dart';
 
@@ -93,15 +94,18 @@ class HealthStatusBanner extends StatelessWidget {
     }
 
     // 5. Upload Paused
-    if (Prefs.uploadPaused && Prefs.monitoringEnabled) {
+    if (Prefs.uploadPaused) {
       issues.add(SystemIssue(
         title: 'Upload Queue Is Paused',
-        description: 'New media is being detected, but uploads are temporarily paused.',
+        description: 'Upload queue is paused by user. Tap Resume to start uploading items.',
         icon: Icons.pause_circle_filled_rounded,
         color: ValtSkyTheme.warning,
         actionLabel: 'Resume Now',
         onFix: () {
           Prefs.uploadPaused = false;
+          SyncEngine.uploadSpeedNotifier.value = '';
+          SyncEngine.engineStatusNotifier.value = SyncEngineStatus.active;
+          SyncEngine().startSync();
           onDataChanged();
         },
       ));

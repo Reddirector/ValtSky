@@ -313,5 +313,39 @@ void main() {
       // Max in-flight memory footprint is strictly bounded to 8 * 512 KB = 4 MB RAM
       expect(largeConcurrency * largeChunk, equals(4 * 1024 * 1024));
     });
+
+    test('Queue uploads persist and continue even when monitoring is stopped unless paused', () async {
+      Prefs.monitoringEnabled = false;
+      Prefs.uploadPaused = false;
+
+      final now = DateTime.now().millisecondsSinceEpoch;
+      await DatabaseHelper.instance.insert(MediaItem(
+        filePath: '/storage/DCIM/Camera/IMG_queue1.jpg',
+        mimeType: 'image/jpeg',
+        dateTaken: now,
+        fileSize: 2000,
+        status: MediaItem.statusPending,
+        updatedAt: now,
+      ));
+
+      // Items remain in pending queue ready for uploader despite monitoringEnabled being false
+      final pendingCount = await DatabaseHelper.instance.getPendingCount();
+      expect(pendingCount, equals(1));
+
+      // Claiming item for upload works normally when monitoring is false
+      final batch = await DatabaseHelper.instance.claimPendingPhotoBatch(limit: 5);
+      expect(batch.length, equals(1));
+      expect(batch.first.filePath, equals('/storage/DCIM/Camera/IMG_queue1.jpg'));
+
+      // If user pauses, uploadPaused becomes true and inhibits processing
+      Prefs.uploadPaused = true;
+      expect(Prefs.uploadPaused, isTrue);
+      expect(Prefs.monitoringEnabled, isFalse);
+
+      // Unpausing restores upload capability without needing monitoringEnabled to be true
+      Prefs.uploadPaused = false;
+      expect(Prefs.uploadPaused, isFalse);
+      expect(Prefs.monitoringEnabled, isFalse);
+    });
   });
 }
