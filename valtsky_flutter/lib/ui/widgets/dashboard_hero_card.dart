@@ -94,7 +94,8 @@ class DashboardHeroCard extends StatelessWidget {
               ValueListenableBuilder<String>(
                 valueListenable: SyncEngine.uploadSpeedNotifier,
                 builder: (context, currentSpeed, _) {
-                  if (currentSpeed.isEmpty || !isActive) return const SizedBox.shrink();
+                  if (!isActive) return const SizedBox.shrink();
+                  final display = currentSpeed.isNotEmpty ? currentSpeed : 'Syncing...';
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -102,13 +103,24 @@ class DashboardHeroCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFF06B6D4).withAlpha(50)),
                     ),
-                    child: Text(
-                      currentSpeed,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF06B6D4),
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.bolt_rounded,
+                          size: 13,
+                          color: Color(0xFF06B6D4),
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          display,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF06B6D4),
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },

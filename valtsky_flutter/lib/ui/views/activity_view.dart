@@ -21,9 +21,14 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   @override
   bool get wantKeepAlive => true;
 
+  final ScrollController _scrollController = ScrollController();
+  static const int _pageSize = 30;
+
   String _selectedFilter = 'ALL';
   List<MediaItem> _items = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   int _oversizedCount = 0;
   int _stashedCount = 0;
   Map<String, int> _counts = {'total': 0, 'synced': 0, 'inQueue': 0, 'failed': 0, 'uploading': 0};
@@ -31,20 +36,71 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     refreshItems();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (!_hasMore || _isLoading || _isLoadingMore) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 350) {
+      _loadMoreItems();
+    }
+  }
+
+  Future<void> _loadMoreItems() async {
+    if (_isLoadingMore || !_hasMore) return;
+    setState(() => _isLoadingMore = true);
+    final currentRequestedFilter = _selectedFilter;
+    final status = currentRequestedFilter == 'ALL' ? null : currentRequestedFilter;
+    try {
+      final nextBatch = await DatabaseHelper.instance.getAllItems(
+        statusFilter: status,
+        limit: _pageSize,
+        offset: _items.length,
+      );
+      if (mounted && _selectedFilter == currentRequestedFilter) {
+        final existingPaths = _items.map((e) => e.filePath).toSet();
+        final uniqueBatch = nextBatch.where((e) => !existingPaths.contains(e.filePath)).toList();
+        setState(() {
+          _items.addAll(uniqueBatch);
+          _hasMore = nextBatch.length >= _pageSize;
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
+    }
   }
 
   Future<void> refreshItems() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _isLoadingMore = false;
+    });
     final status = _selectedFilter == 'ALL' ? null : _selectedFilter;
-    final items = await DatabaseHelper.instance.getAllItems(statusFilter: status);
+    final items = await DatabaseHelper.instance.getAllItems(
+      statusFilter: status,
+      limit: _pageSize,
+      offset: 0,
+    );
     final oversizedCount = await DatabaseHelper.instance.getOversizedCount();
     final counts = await DatabaseHelper.instance.getAggregatedCounts();
     final stashedCount = await DatabaseHelper.instance.getStashedCount();
     if (mounted) {
       setState(() {
         _items = items;
+        _hasMore = items.length >= _pageSize;
         _oversizedCount = oversizedCount;
         _counts = counts;
         _stashedCount = stashedCount;
@@ -56,7 +112,20 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   Future<void> _handleRemoveItem(MediaItem item) async {
     final fileName = item.filePath.split('/').last;
     await DatabaseHelper.instance.deleteItem(item.filePath);
-    await refreshItems();
+    if (!mounted) return;
+    setState(() {
+      _items.removeWhere((i) => i.filePath == item.filePath);
+    });
+    final oversizedCount = await DatabaseHelper.instance.getOversizedCount();
+    final counts = await DatabaseHelper.instance.getAggregatedCounts();
+    final stashedCount = await DatabaseHelper.instance.getStashedCount();
+    if (mounted) {
+      setState(() {
+        _oversizedCount = oversizedCount;
+        _counts = counts;
+        _stashedCount = stashedCount;
+      });
+    }
     widget.onDataChanged();
 
     if (mounted) {
@@ -76,7 +145,12 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
     if (_selectedFilter != filter) {
       setState(() {
         _selectedFilter = filter;
+        _items = [];
+        _hasMore = true;
       });
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(0.0);
+      }
       refreshItems();
     }
   }
@@ -244,7 +318,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          '${_items.length} Files',
+                          '$_oversizedCount Files',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
@@ -261,7 +335,10 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                         Expanded(
                           flex: 3,
                           child: TactilePress(
-                            onTap: () => _openManualUploadAssistant(_items),
+                            onTap: () async {
+                              final allOversized = await DatabaseHelper.instance.getAllItems(statusFilter: 'OVERSIZED');
+                              if (mounted) _openManualUploadAssistant(allOversized);
+                            },
                             child: Container(
                               height: 48,
                               decoration: BoxDecoration(
@@ -377,7 +454,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                       const Icon(Icons.archive_outlined, size: 20, color: Colors.grey),
                       const SizedBox(width: 10),
                       Text(
-                        '${_items.length} Stashed Files',
+                        '$_stashedCount Stashed Files',
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                       ),
                     ],
@@ -422,22 +499,42 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                           child: RefreshIndicator(
                             onRefresh: refreshItems,
                             child: ListView.builder(
+                              controller: _scrollController,
                               physics: const AlwaysScrollableScrollPhysics(),
-                              itemCount: _items.length,
+                              itemCount: _items.length + (_hasMore ? 1 : 0),
                               itemBuilder: (context, index) {
-                                return StaggeredFadeSlide(
-                                  delayMs: (index * 35).clamp(0, 200),
-                                  child: MediaItemCard(
-                                    key: ValueKey(_items[index].filePath),
-                                    item: _items[index],
-                                    onChanged: () {
-                                      refreshItems();
-                                      widget.onDataChanged();
-                                    },
-                                    onRemove: () => _handleRemoveItem(_items[index]),
-                                    onManualUpload: () => _openManualUploadAssistant([_items[index]]),
-                                  ),
+                                if (index >= _items.length) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 20),
+                                    alignment: Alignment.center,
+                                    child: SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.2,
+                                        color: ValtSkyTheme.primary(isDark),
+                                      ),
+                                    ),
+                                  );
+                                }
+                                final card = MediaItemCard(
+                                  key: ValueKey(_items[index].filePath),
+                                  item: _items[index],
+                                  onChanged: () {
+                                    refreshItems();
+                                    widget.onDataChanged();
+                                  },
+                                  onRemove: () => _handleRemoveItem(_items[index]),
+                                  onManualUpload: () => _openManualUploadAssistant([_items[index]]),
                                 );
+
+                                if (index < 8) {
+                                  return StaggeredFadeSlide(
+                                    delayMs: (index * 30).clamp(0, 200),
+                                    child: card,
+                                  );
+                                }
+                                return card;
                               },
                             ),
                           ),

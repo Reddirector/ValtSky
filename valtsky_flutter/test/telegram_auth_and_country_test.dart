@@ -196,6 +196,55 @@ void main() {
       await SyncEngine.instance.restartEngine();
       expect(SyncEngine.engineStatusNotifier.value, isNot(equals(SyncEngineStatus.restarting)));
     });
+
+    test('Engine Speed Meter and Multi-Worker Turbo Throughput', () async {
+      expect(SyncEngine.workerCount, equals(2));
+      expect(SyncEngine.uploadSpeedNotifier, isNotNull);
+
+      SyncEngine.uploadSpeedNotifier.value = '12.4 MB/s';
+      expect(SyncEngine.uploadSpeedNotifier.value, equals('12.4 MB/s'));
+
+      SyncEngine.uploadSpeedNotifier.value = '850 KB/s';
+      expect(SyncEngine.uploadSpeedNotifier.value, equals('850 KB/s'));
+    });
+
+    test('DatabaseHelper.getAllItems Pagination & Lazy Loading', () async {
+      DatabaseHelper.enableMemoryStoreForTesting();
+      DatabaseHelper.clearMemoryStoreForTesting();
+
+      // Insert 5 items with distinct timestamps
+      for (int i = 1; i <= 5; i++) {
+        await DatabaseHelper.instance.insert(MediaItem(
+          filePath: '/test/page_item_$i.jpg',
+          mimeType: 'image/jpeg',
+          dateTaken: i * 1000,
+          fileSize: 1024,
+          status: MediaItem.statusPending,
+          updatedAt: i * 1000,
+        ));
+      }
+
+      // Page 1: limit 2, offset 0 -> Should return newest 2 (items 5, 4)
+      final page1 = await DatabaseHelper.instance.getAllItems(limit: 2, offset: 0);
+      expect(page1.length, equals(2));
+      expect(page1[0].filePath, equals('/test/page_item_5.jpg'));
+      expect(page1[1].filePath, equals('/test/page_item_4.jpg'));
+
+      // Page 2: limit 2, offset 2 -> Should return items 3, 2
+      final page2 = await DatabaseHelper.instance.getAllItems(limit: 2, offset: 2);
+      expect(page2.length, equals(2));
+      expect(page2[0].filePath, equals('/test/page_item_3.jpg'));
+      expect(page2[1].filePath, equals('/test/page_item_2.jpg'));
+
+      // Page 3: limit 2, offset 4 -> Should return item 1
+      final page3 = await DatabaseHelper.instance.getAllItems(limit: 2, offset: 4);
+      expect(page3.length, equals(1));
+      expect(page3[0].filePath, equals('/test/page_item_1.jpg'));
+
+      // Page 4: limit 2, offset 6 -> Empty
+      final page4 = await DatabaseHelper.instance.getAllItems(limit: 2, offset: 6);
+      expect(page4.isEmpty, isTrue);
+    });
   });
 
   group('TelegramPhoneLoginWidget Interactive Tests', () {

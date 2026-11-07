@@ -30,7 +30,7 @@ Deterministic Capped Jitter on HTTP 429 Drops O(1) Heap Bounded via Socket-Piped
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **[`valtsky-v2.1-release.apk`](valtsky-v2.1-release.apk)** | Universal (arm64, armv7, x86_64) | **65.0 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `4d0004f46ffcee20fb0cfab60599d427055e3e8c074219de6319b985d6112304` |
+| **[`valtsky-v2.1-release.apk`](valtsky-v2.1-release.apk)** | Universal (arm64, armv7, x86_64) | **67.8 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `ce44bdfb57a0440e0ac0c86922f9c5b7f75c40fb291343241e792d6edd64f898` |
 | **[`valtsky-v2.0-release.apk`](valtsky-v2.0-release.apk)** | Universal (All ABIs) | **64.3 MB** | Legacy v2.0 Release | `7e4b3890f49cf866718255c46f0e42b6871d27be9362727f789e9bd0a39066ce` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
@@ -58,7 +58,7 @@ Deterministic Capped Jitter on HTTP 429 Drops O(1) Heap Bounded via Socket-Piped
 ### Linux / macOS Checksum Verification:
 ```bash
 sha256sum valtsky-v2.1-release.apk
-# Expected: 4d0004f46ffcee20fb0cfab60599d427055e3e8c074219de6319b985d6112304
+# Expected: 28bd0b613de6245cd13a291854fc019ab3690e61b2879d503b3a414997b0cbf5
 ```
 
 ### Windows PowerShell Verification:

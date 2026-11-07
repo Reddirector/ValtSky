@@ -150,7 +150,7 @@ class DatabaseHelper {
     return null;
   }
 
-  Future<List<MediaItem>> getAllItems({String? statusFilter, int? limit}) async {
+  Future<List<MediaItem>> getAllItems({String? statusFilter, int? limit, int? offset}) async {
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       var items = _webItems.values.toList();
@@ -159,7 +159,12 @@ class DatabaseHelper {
       } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
         items = items.where((e) => e.status == statusFilter).toList();
       }
-      items.sort((a, b) => b.dateTaken.compareTo(a.dateTaken));
+      items.sort((a, b) {
+        final c = b.dateTaken.compareTo(a.dateTaken);
+        if (c != 0) return c;
+        return b.filePath.compareTo(a.filePath);
+      });
+      if (offset != null) items = items.skip(offset).toList();
       if (limit != null) items = items.take(limit).toList();
       return items;
     }
@@ -170,19 +175,26 @@ class DatabaseHelper {
         'media_items',
         where: 'fileSize >= ?',
         whereArgs: [twoGigabytes],
-        orderBy: 'dateTaken DESC',
+        orderBy: 'dateTaken DESC, filePath DESC',
         limit: limit,
+        offset: offset,
       );
     } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
       maps = await db.query(
         'media_items',
         where: 'status = ?',
         whereArgs: [statusFilter],
-        orderBy: 'dateTaken DESC',
+        orderBy: 'dateTaken DESC, filePath DESC',
         limit: limit,
+        offset: offset,
       );
     } else {
-      maps = await db.query('media_items', orderBy: 'dateTaken DESC', limit: limit);
+      maps = await db.query(
+        'media_items',
+        orderBy: 'dateTaken DESC, filePath DESC',
+        limit: limit,
+        offset: offset,
+      );
     }
     return maps.map((e) => MediaItem.fromMap(e)).toList();
   }
