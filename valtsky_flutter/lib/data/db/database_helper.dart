@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/media_item.dart';
+import '../models/media_breakdown.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -404,6 +405,107 @@ class DatabaseHelper {
     return batch.isNotEmpty ? batch.first : null;
   }
 
+  Future<MediaBreakdown> getMediaBreakdown() async {
+    const int twoGigabytes = 2147483648;
+    if (_useMemoryStore) {
+      int pendingPhotos = 0;
+      int pendingVideos = 0;
+      int syncedPhotos = 0;
+      int syncedVideos = 0;
+      int failedPhotos = 0;
+      int failedVideos = 0;
+      int oversized = 0;
+
+      for (final item in _webItems.values) {
+        final isVid = item.isVideo;
+        final isOversized = item.fileSize >= twoGigabytes;
+        final isQueued = (item.status == MediaItem.statusPending || item.status == MediaItem.statusUploading);
+
+        if (isQueued && isOversized) {
+          oversized++;
+        } else if (isQueued) {
+          if (isVid) {
+            pendingVideos++;
+          } else {
+            pendingPhotos++;
+          }
+        } else if (item.status == MediaItem.statusDone) {
+          if (isVid) {
+            syncedVideos++;
+          } else {
+            syncedPhotos++;
+          }
+        } else if (item.status == MediaItem.statusFailed) {
+          if (isVid) {
+            failedVideos++;
+          } else {
+            failedPhotos++;
+          }
+        }
+      }
+
+      return MediaBreakdown(
+        totalCount: _webItems.length,
+        pendingPhotos: pendingPhotos,
+        pendingVideos: pendingVideos,
+        syncedPhotos: syncedPhotos,
+        syncedVideos: syncedVideos,
+        failedPhotos: failedPhotos,
+        failedVideos: failedVideos,
+        oversizedCount: oversized,
+      );
+    }
+    try {
+      final db = await instance.database;
+      final rows = await db.rawQuery('''
+        SELECT 
+          COUNT(*) as totalCount,
+          SUM(CASE WHEN (status = 'PENDING' OR status = 'UPLOADING') AND fileSize < 2147483648 AND COALESCE(mimeType, '') NOT LIKE '%video%' THEN 1 ELSE 0 END) as pendingPhotos,
+          SUM(CASE WHEN (status = 'PENDING' OR status = 'UPLOADING') AND fileSize < 2147483648 AND COALESCE(mimeType, '') LIKE '%video%' THEN 1 ELSE 0 END) as pendingVideos,
+          SUM(CASE WHEN status = 'DONE' AND COALESCE(mimeType, '') NOT LIKE '%video%' THEN 1 ELSE 0 END) as syncedPhotos,
+          SUM(CASE WHEN status = 'DONE' AND COALESCE(mimeType, '') LIKE '%video%' THEN 1 ELSE 0 END) as syncedVideos,
+          SUM(CASE WHEN status = 'FAILED' AND COALESCE(mimeType, '') NOT LIKE '%video%' THEN 1 ELSE 0 END) as failedPhotos,
+          SUM(CASE WHEN status = 'FAILED' AND COALESCE(mimeType, '') LIKE '%video%' THEN 1 ELSE 0 END) as failedVideos,
+          SUM(CASE WHEN (status = 'PENDING' OR status = 'UPLOADING') AND fileSize >= 2147483648 THEN 1 ELSE 0 END) as oversizedCount
+        FROM media_items
+      ''');
+      if (rows.isNotEmpty) {
+        final r = rows.first;
+        return MediaBreakdown(
+          totalCount: (r['totalCount'] as num?)?.toInt() ?? 0,
+          pendingPhotos: (r['pendingPhotos'] as num?)?.toInt() ?? 0,
+          pendingVideos: (r['pendingVideos'] as num?)?.toInt() ?? 0,
+          syncedPhotos: (r['syncedPhotos'] as num?)?.toInt() ?? 0,
+          syncedVideos: (r['syncedVideos'] as num?)?.toInt() ?? 0,
+          failedPhotos: (r['failedPhotos'] as num?)?.toInt() ?? 0,
+          failedVideos: (r['failedVideos'] as num?)?.toInt() ?? 0,
+          oversizedCount: (r['oversizedCount'] as num?)?.toInt() ?? 0,
+        );
+      }
+    } catch (_) {}
+    return const MediaBreakdown();
+  }
+
+  /// Clears all pending or currently uploading items from the queue.
+  Future<int> clearPendingQueue() async {
+    if (_useMemoryStore) {
+      final pendingKeys = _webItems.entries
+          .where((e) => e.value.status == MediaItem.statusPending || e.value.status == MediaItem.statusUploading)
+          .map((e) => e.key)
+          .toList();
+      for (final key in pendingKeys) {
+        _webItems.remove(key);
+      }
+      return pendingKeys.length;
+    }
+    final db = await instance.database;
+    return await db.delete(
+      'media_items',
+      where: 'status = ? OR status = ?',
+      whereArgs: [MediaItem.statusPending, MediaItem.statusUploading],
+    );
+  }
+
   Future<Map<String, int>> getAggregatedCounts() async {
     if (_useMemoryStore) {
       final total = _webItems.length;
@@ -602,11 +704,17 @@ class DatabaseHelper {
   }
 
   Future<int> retryAllFailed() async {
+    final now = DateTime.now().millisecondsSinceEpoch;
     if (_useMemoryStore) {
       int count = 0;
       for (final item in _webItems.values) {
         if (item.status == MediaItem.statusFailed) {
-          _webItems[item.filePath] = item.copyWith(status: MediaItem.statusPending, retryCount: 0);
+          _webItems[item.filePath] = item.copyWith(
+            status: MediaItem.statusPending,
+            retryCount: 0,
+            errorReason: null,
+            updatedAt: now,
+          );
           count++;
         }
       }
@@ -615,7 +723,12 @@ class DatabaseHelper {
     final db = await instance.database;
     return await db.update(
       'media_items',
-      {'status': MediaItem.statusPending, 'retryCount': 0},
+      {
+        'status': MediaItem.statusPending,
+        'retryCount': 0,
+        'errorReason': null,
+        'updatedAt': now,
+      },
       where: 'status = ?',
       whereArgs: [MediaItem.statusFailed],
     );

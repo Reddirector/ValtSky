@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../data/db/database_helper.dart';
 import '../data/models/media_item.dart';
+import '../data/models/media_breakdown.dart';
 import '../data/prefs.dart';
 import 'telegram_api.dart';
 import 'telegram_auth_service.dart';
@@ -87,6 +88,8 @@ class SyncEngine {
   static final ValueNotifier<String> uploadSpeedNotifier = ValueNotifier<String>('');
   static final ValueNotifier<String> currentItemNotifier = ValueNotifier<String>('');
   static final ValueNotifier<SyncStats?> statsNotifier = ValueNotifier<SyncStats?>(null);
+  static final ValueNotifier<MediaBreakdown> mediaBreakdownNotifier =
+      ValueNotifier<MediaBreakdown>(const MediaBreakdown());
   Timer? _liveStatsTimer;
 
   static SyncStats _cachedStats = const SyncStats(
@@ -113,12 +116,18 @@ class SyncEngine {
     if (now.difference(_lastStatsNotify).inMilliseconds >= 500) {
       _lastStatsNotify = now;
       statsNotifier.value = _cachedStats;
+      DatabaseHelper.instance.getMediaBreakdown().then((b) {
+        mediaBreakdownNotifier.value = b;
+      }).catchError((_) {});
     } else if (!_statsNotifyScheduled) {
       _statsNotifyScheduled = true;
       Future.delayed(const Duration(milliseconds: 500), () {
         _statsNotifyScheduled = false;
         _lastStatsNotify = DateTime.now();
         statsNotifier.value = _cachedStats;
+        DatabaseHelper.instance.getMediaBreakdown().then((b) {
+          mediaBreakdownNotifier.value = b;
+        }).catchError((_) {});
       });
     }
   }
@@ -285,6 +294,10 @@ class SyncEngine {
       progress: progress,
     );
     statsNotifier.value = _cachedStats;
+    try {
+      final breakdown = await DatabaseHelper.instance.getMediaBreakdown();
+      mediaBreakdownNotifier.value = breakdown;
+    } catch (_) {}
     return _cachedStats;
   }
 

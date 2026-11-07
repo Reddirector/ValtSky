@@ -396,20 +396,32 @@ void main() {
 
     // Verify count banner shows pending in queue
     expect(find.textContaining('PENDING IN QUEUE'), findsOneWidget);
-    expect(find.text('IMG_20261106_TEST1.jpg'), findsOneWidget);
-    expect(find.text('IMG_20261106_TEST2.jpg'), findsOneWidget);
 
-    // Verify Delete / Trash button exists for items
+    // Verify Four Telemetry Blocks display live photo and video counts
+    expect(find.text('PHOTOS IN QUEUE'), findsOneWidget);
+    expect(find.text('VIDEOS IN QUEUE'), findsOneWidget);
+    expect(find.text('PHOTOS SYNCED'), findsOneWidget);
+    expect(find.text('VIDEOS SYNCED'), findsOneWidget);
+
+    // Verify count of 2 photos in queue
+    expect(find.text('2'), findsWidgets);
+
+    // Verify Clear Queue button exists with trash icon
     final trashIcons = find.byIcon(Icons.delete_outline_rounded);
     expect(trashIcons, findsWidgets);
 
-    // Tap trash icon on first item to remove it
+    // Tap Clear Queue button to open confirmation dialog
     await tester.tap(trashIcons.first);
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
 
-    // Verify item was removed from database and UI
+    // Confirm dialog
+    expect(find.text('Clear Upload Queue?'), findsOneWidget);
+    await tester.tap(find.text('Clear Queue').last);
+    await tester.pumpAndSettle();
+
+    // Verify items were removed from database and queue cleared
     final remaining = await DatabaseHelper.instance.getAllPending();
-    expect(remaining.length, 1);
+    expect(remaining.length, 0);
   });
 
   testWidgets('Ultra-narrow 320px viewport renders MediaItemCard with all action buttons without overflow', (WidgetTester tester) async {

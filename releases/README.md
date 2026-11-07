@@ -10,13 +10,13 @@ This directory contains release manifests, verification hashes, detailed release
 ```
 ========================================================================================================
 [ VERIFIED AUTOMATION SUITES ]                [ EXIF & SENSOR FIDELITY ]
-46 / 46 Automated Tests Passing (100.0%)      100.0% Raw Sensor Bayer/ICC Data Preservation
+50 / 50 Automated Tests Passing (100.0%)      100.0% Raw Sensor Bayer/ICC Data Preservation
 0 Analyzer Errors · 0 Linter Warnings         0 Bytes Re-encoded · 0 Metadata Tags Stripped
 100 / 100 Hostile Red-Team Security Score     Direct MTProto 2.0 Key Exchange
 --------------------------------------------------------------------------------------------------------
 [ CONCURRENCY & THROUGHPUT ]                  [ RESOURCE & MEMORY FOOTPRINT ]
-Dual-Lane Split Uploader (Photo + Video)      < 28 MB Resident RAM at 1.8 GB Continuous Stream
-Non-blocking Concurrent Photo Transfers       O(1) Heap Bounded via Socket-Piped Slices
+Split Loader & Uploader (Dual-Track)          < 28 MB Resident RAM at 1.8 GB Continuous Stream
+Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped Slices
 ========================================================================================================
 ```
 
@@ -30,7 +30,7 @@ Non-blocking Concurrent Photo Transfers       O(1) Heap Bounded via Socket-Piped
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **67.9 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `acdb21d05e5d8f69a1fd88d4ba9f46310959cb6a05821e4498dcc9a61b59bf50` |
+| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **68.1 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `bae0bf29df105ab9fcf7c20327afb85ec526547ce6cff39f57cb927fbfb47059` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
 
@@ -47,7 +47,7 @@ Non-blocking Concurrent Photo Transfers       O(1) Heap Bounded via Socket-Piped
 
 ## 📝 Release Notes
 
-- [**ValtSky v2.1.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Dual-Lane Split Uploader (concurrent photo & video pipelines), Salted SHA-256 Vault PIN, two-tier responsive layout, BITE latency ping, SQLite parameterized chunking, 46/46 passing test suites.
+- [**ValtSky v2.1.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Dual-Lane Split Uploader (concurrent photo & video pipelines), Salted SHA-256 Vault PIN, two-tier responsive layout, BITE latency ping, SQLite parameterized chunking, 50/50 passing test suites.
 
 ---
 
@@ -57,7 +57,7 @@ Non-blocking Concurrent Photo Transfers       O(1) Heap Bounded via Socket-Piped
 ```bash
 sha256sum valtsky-v2.1-release.apk
 # Expected output:
-# 417edc160df719d4de5cba7e972cb658b8d1f8af00be85cba4810568acc9dbcc  valtsky-v2.1-release.apk
+# bae0bf29df105ab9fcf7c20327afb85ec526547ce6cff39f57cb927fbfb47059  valtsky-v2.1-release.apk
 ```
 
 ### Windows PowerShell Verification:

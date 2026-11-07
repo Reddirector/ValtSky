@@ -10,10 +10,26 @@ class TelegramIoSocket extends tg.SocketAbstraction {
   @override
   final Stream<Uint8List> receiver;
 
+  Future<void>? _lastSend;
+
   @override
   Future<void> send(List<int> data) async {
-    socket.add(data);
-    await socket.flush();
+    final previous = _lastSend;
+    final completer = Completer<void>();
+    _lastSend = completer.future;
+
+    if (previous != null) {
+      try {
+        await previous;
+      } catch (_) {}
+    }
+
+    try {
+      socket.add(data);
+      await socket.flush();
+    } finally {
+      completer.complete();
+    }
   }
 
   Future<void> close() => socket.close();

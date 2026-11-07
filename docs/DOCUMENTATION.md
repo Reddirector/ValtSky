@@ -8,7 +8,7 @@ SYSTEM SPECIFICATION: VALTSKY MULTIPLATFORM PRODUCTION SYSTEM (RELEASE v2.1.0)
 CORE CAPABILITY: Uncompressed, Bit-for-Bit Personal Cloud Vault via Direct Telegram MTProto 2.0
 ARCHITECTURE: Dual-Lane Split Uploader · Bounded O(1) Stream Slices · Transactional SQLite WAL
 PLATFORMS: Android (Universal APK) · iOS · Windows · macOS · Linux · Web (SPA)
-VERIFICATION SUITES: 46 / 46 Passing Automated Tests (100.0% Coverage) · 0 Analyzer Warnings
+VERIFICATION SUITES: 50 / 50 Passing Automated Tests (100.0% Coverage) · 0 Analyzer Warnings
 SECURITY COMPLIANCE: 100/100 Red-Team Security Score · Salted SHA-256 Vault PIN · No Middleman
 ========================================================================================================
 ```
@@ -154,7 +154,7 @@ ValtSky includes integrated diagnostic tools accessible from the user interface:
 
 ## 🧪 6. Automated Verification Envelope
 
-ValtSky maintains 100% test coverage across 46 automated verification suites:
+ValtSky maintains 100% test coverage across 50 automated verification suites:
 1. `telegram_auth_and_country_test.dart` (MTProto authentication, country dial codes, profile storage, rate limits).
 2. `split_uploader_test.dart` (Dual-lane photo/video claim isolation, concurrent queues, status aggregation).
 3. `permission_manager_test.dart` (Android 10+ MediaLocation geotag acquisition).

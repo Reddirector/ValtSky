@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart';
 import '../data/prefs.dart';
 import '../util/file_security_guard.dart';
 
@@ -32,17 +34,32 @@ class TelegramError extends UploadResult {
 
 class TelegramApi {
   // High-performance HTTP client with persistent connection pool & Keep-Alive
-  static final Dio _dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(minutes: 5),
-      receiveTimeout: const Duration(minutes: 5),
-      headers: {
-        'Connection': 'keep-alive',
-        'Keep-Alive': 'timeout=60, max=100',
-      },
-    ),
-  );
+  static final Dio _dio = () {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(minutes: 5),
+        receiveTimeout: const Duration(minutes: 5),
+        headers: {
+          'Connection': 'keep-alive',
+          'Keep-Alive': 'timeout=120, max=500',
+        },
+      ),
+    );
+
+    if (!kIsWeb) {
+      dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () {
+          final client = HttpClient();
+          client.idleTimeout = const Duration(seconds: 120);
+          client.maxConnectionsPerHost = 30;
+          return client;
+        },
+      );
+    }
+
+    return dio;
+  }();
 
   static String get _baseUrl {
     final configured = Prefs.apiBaseUrl;
@@ -87,9 +104,19 @@ class TelegramApi {
     }
 
     try {
+      final fileSize = await file.length();
+      MultipartFile multipartFile;
+      if (fileSize < 32 * 1024 * 1024) {
+        // Direct in-memory buffer stream eliminates OS disk read bottlenecks during network streaming
+        final bytes = await file.readAsBytes();
+        multipartFile = MultipartFile.fromBytes(bytes, filename: fileName);
+      } else {
+        multipartFile = await MultipartFile.fromFile(file.path, filename: fileName);
+      }
+
       final formData = FormData.fromMap({
         'chat_id': channelId,
-        field: await MultipartFile.fromFile(file.path, filename: fileName),
+        field: multipartFile,
         'caption': ?caption,
       });
 
