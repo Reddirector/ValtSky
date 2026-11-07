@@ -29,7 +29,7 @@ Non-blocking Concurrent Photo Transfers       O(1) Heap Bounded via Socket-Piped
 
 | Package | Target | Size | Description | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.1-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.1/valtsky-v2.1-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **67.9 MB** | **Universal Production APK with Dual-Lane Split Uploader & Virtualized Lazy Loading** | `417edc160df719d4de5cba7e972cb658b8d1f8af00be85cba4810568acc9dbcc` |
+| [**`valtsky-v2.1-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.1/valtsky-v2.1-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **67.9 MB** | **Universal Production APK with Dual-Lane Split Uploader & Virtualized Lazy Loading** | `acdb21d05e5d8f69a1fd88d4ba9f46310959cb6a05821e4498dcc9a61b59bf50` |
 
 ### 💻 Multiplatform Desktop, iOS & Web Releases
 - **Apple iOS**: Sideload via AltStore / Sideloadly or build via Xcode (`valtsky_flutter/ios`).

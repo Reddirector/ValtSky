@@ -30,7 +30,7 @@ Non-blocking Concurrent Photo Transfers       O(1) Heap Bounded via Socket-Piped
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **67.9 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `417edc160df719d4de5cba7e972cb658b8d1f8af00be85cba4810568acc9dbcc` |
+| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **67.9 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `acdb21d05e5d8f69a1fd88d4ba9f46310959cb6a05821e4498dcc9a61b59bf50` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
 
