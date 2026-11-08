@@ -1,29 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Light Mode (Warm Ivory & Caramel) -->
-    <color name="light_background">#F7F3ED</color>
-    <color name="light_surface">#EFE7DC</color>
-    <color name="light_border">#B8794E</color> <!-- Brown border for Light Mode -->
-    <color name="light_primary_accent">#B8794E</color>
-    <color name="light_secondary_accent">#966240</color>
-    <color name="light_text_primary">#3C3730</color>
-    <color name="light_text_secondary">#7A746E</color>
-    <color name="light_success">#7EA682</color>
-    <color name="light_error">#D96659</color>
+    <!-- Light Mode (Ink & Paper) -->
+    <color name="light_background">#F2F2F0</color>
+    <color name="light_surface">#FFFFFF</color>
+    <color name="light_elevated_surface">#EAEAE7</color>
+    <color name="light_border">#D4D4D0</color>
+    <color name="light_primary_accent">#0E0E10</color>
+    <color name="light_secondary_accent">#4650D6</color>
+    <color name="light_text_primary">#0E0E10</color>
+    <color name="light_text_secondary">#55555B</color>
+    <color name="light_success">#1F7A52</color>
+    <color name="light_error">#C23838</color>
     <color name="light_warning">#E6A04D</color>
 
-    <!-- Dark Mode (Midnight Black & Cyan Glow) -->
-    <color name="dark_background">#000000</color>
-    <color name="dark_surface">#0A0A0A</color>
-    <color name="dark_elevated_surface">#121212</color>
-    <color name="dark_border">#4169E1</color> <!-- Royal Blue border for Dark Mode -->
-    <color name="dark_primary_accent">#4CC9F0</color>
-    <color name="dark_secondary_accent">#4361EE</color>
-    <color name="dark_text_primary">#E1E5F2</color>
-    <color name="dark_text_secondary">#8B95A5</color>
-    <color name="dark_success">#4895EF</color>
-    <color name="dark_error">#F72585</color>
-    <color name="dark_warning">#B5179E</color>
+    <!-- Dark Mode (Ink & Paper) -->
+    <color name="dark_background">#0A0A0B</color>
+    <color name="dark_surface">#141416</color>
+    <color name="dark_elevated_surface">#1C1C1F</color>
+    <color name="dark_border">#2C2C30</color>
+    <color name="dark_primary_accent">#8C99FF</color>
+    <color name="dark_secondary_accent">#1C1C1F</color>
+    <color name="dark_text_primary">#F1F1EE</color>
+    <color name="dark_text_secondary">#A3A3A8</color>
+    <color name="dark_success">#6FD3A5</color>
+    <color name="dark_error">#FF8A8A</color>
+    <color name="dark_warning">#E6A04D</color>
 
     <!-- Shared / Material Defaults -->
     <color name="black">#FF000000</color>
@@ -32,5 +33,5 @@
 
     <!-- Glass Effect -->
     <color name="glass_bg">#1AFFFFFF</color>
-    <color name="glass_border">#33FFFFFF</color>
+    <color name="glass_border">#1A000000</color>
 </resources>
