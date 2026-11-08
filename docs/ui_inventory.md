@@ -1,40 +1,53 @@
 # ValtSky UI Inventory & Frozen Copy Baseline
 
-**Generated at Phase 0 Baseline (Night-Sky Vault Redesign)**  
-This document establishes the single source of truth for all user-visible strings, controls, state bindings, handlers, test identifiers, and logo-derived palette tokens.
+**Generated at Phase 0 Baseline (Ink & Paper Redesign)**  
+This document establishes the single source of truth for all user-visible strings, controls, state bindings, handlers, test identifiers, and logo-derived palette tokens for the "Ink & Paper" editorial minimalism redesign.
 
 ## 0. Logo-Derived Color Sampling & Palette Mapping
 
 Sampled from authentic repository assets (`valtsky_flutter/assets/images/valtsky_logo.svg` and `valtsky_logo.png`):
-- **Logo Cloud Gradient**: `#4F75FF` to `#3652D9` (sampled dominance: `#4F75FF`, RGB 79, 117, 255; `#4263EC`, RGB 66, 99, 236; `#3652D9`, RGB 54, 82, 217)
-- **Logo Chevron**: `#4F75FF`
-- **Logo Paper Plane Arrow**: `#FFFFFF`
+- **Logo Cloud Gradient Start**: `#4F75FF` (RGB 79, 117, 255)
+- **Logo Cloud Gradient End**: `#3652D9` (RGB 54, 82, 217)
+- **Logo Chevron Accent**: `#4F75FF`
+- **Logo Paper Plane Arrow**: `#FFFFFF` (Paper White)
 - **Logo Dark Container**: `#0D0D0F` (RGB 13, 13, 15)
 
-### Token Mapping:
-- **Dark Canvas (Ink Navy)**: `#070A14` (OLED-friendly, tinted by logo navy)
-- **Dark Surface-1**: `#0D1220`
-- **Dark Surface-2**: `#141B2E`
-- **Dark Surface-3**: `#1C2540`
-- **Dark Overlay**: `#242F52`
-- **Dark Hairline**: `#2A3558` at 60% opacity
-- **Dark Text Primary**: `#E8ECF8` (16.74:1 AAA contrast on canvas)
-- **Dark Text Secondary**: `#9AA4C2` (7.96:1 AAA contrast on canvas)
-- **Dark Text Tertiary (Minimum)**: `#7A85A8` (5.41:1 AA contrast on canvas)
-- **Dark Accent (Logo Indigo brightened)**: `#7C8CFF` (6.64:1 AA contrast on ink `#070A14`)
-- **Dark Accent-2 (Violet gradient end)**: `#A78BFA` (7.26:1 AAA contrast on ink `#070A14`)
-- **In-Flight Aqua**: `#5EE1F0` (active transfer glow only, 12.01:1 AAA contrast)
-- **Status Synced (Mint)**: `#5FD3A0` (10.06:1 AAA contrast)
-- **Status Failed (Coral)**: `#FF7A8A` (7.47:1 AAA contrast)
-- **Light Canvas**: `#F3F5FC`
-- **Light Surface-1**: `#FFFFFF`
-- **Light Surface-2**: `#E8ECF8`
-- **Light Surface-3**: `#DCE2F4`
-- **Light Hairline**: `#D5DBEE`
-- **Light Text Primary**: `#0E1330` (16.70:1 AAA contrast on canvas)
-- **Light Text Secondary**: `#4A5478` (6.81:1 AA contrast on canvas)
-- **Light Accent Fill**: `#4F5BD5` (5.54:1 AA contrast with white text)
-- **Light Accent Text/Icon**: `#3F4BC4` (6.97:1 AA contrast on surface-1)
+### Token Mapping ("Ink & Paper" Concept):
+
+#### LIGHT "PAPER" THEME
+- **Canvas**: `#F2F2F0` (warm textured paper base)
+- **Surface**: `#FFFFFF` (floating white card)
+- **Surface-2**: `#EAEAE7` (secondary card / pill fill)
+- **Surface-3**: `#DADAD6` (recessed track / dividers)
+- **Hairline**: `#D4D4D0` (1px subtle border)
+- **Ink (Text Primary & Primary CTA)**: `#0E0E10` (17.5:1 AAA contrast on surface)
+- **Text-2 (Secondary)**: `#55555B` (6.81:1 AA contrast on canvas)
+- **Text-3 (Tertiary / Min Allowed)**: `#66666C` (5.12:1 AA contrast on canvas)
+- **Cap Slab**: `#0E0E10` with text `#F1F1EE` (17.5:1 AAA contrast)
+- **Accent (Logo Indigo adjusted for white text)**: `#4650D6` (6.15:1 AA contrast with white text)
+- **Status Synced**: `#1F7A52` (muted deep forest sage)
+- **Status Failed**: `#C23838` (restrained editorial crimson)
+
+#### DARK "INK" THEME
+- **Canvas**: `#0A0A0B` (deep matte ink canvas)
+- **Surface**: `#141416` (quiet dark card)
+- **Surface-2**: `#1C1C1F` (secondary dark card / slab)
+- **Surface-3**: `#26262A` (recessed tracks / dividers)
+- **Hairline**: `#2C2C30` (1px hairline outline)
+- **Text Primary**: `#F1F1EE` (16.9:1 AAA contrast on canvas)
+- **Text-2 (Secondary)**: `#A3A3A8` (8.1:1 AAA contrast on canvas)
+- **Text-3 (Tertiary / Dimmest Allowed)**: `#8A8A90` (5.6:1 AA contrast on canvas)
+- **Cap Slab**: `#1C1C1F` with faint 5% inner top highlight
+- **Accent (Logo Indigo brightened for ink text)**: `#8C99FF` (7.66:1 AAA contrast with `#0A0A0B` ink text)
+- **Status Synced**: `#6FD3A5` (soft mint sage)
+- **Status Failed**: `#FF8A8A` (soft editorial coral)
+
+#### ACCENT BUDGET & DESIGN RULES
+- **Accent Budget**: Max ~5% of pixels (ring arc + glowing head dot, active-transfer pulse dot, keyboard focus ring, selected micro-dot).
+- **CTA Buttons**: Ink fill (`#0E0E10`) with paper text in Light; Paper fill (`#F1F1EE`) with ink text in Dark.
+- **Status Indicators**: Always paired with icon + text (never color alone).
+- **Typography**: Display/Titles in `Outfit` (Light 300 numerals, SemiBold 600 titles), Body in `Inter` (400/500/600).
+- **Cap Slab**: Solid ink header slab with bottom radius 40. Floating hero card straddles the slab edge. Wire swirl (~6% opacity) drawn in code behind paper body.
 
 ## 1. Architectural Scope & File Boundaries
 
