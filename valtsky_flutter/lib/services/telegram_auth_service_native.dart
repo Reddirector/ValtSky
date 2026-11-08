@@ -11,6 +11,7 @@ import '../util/file_security_guard.dart';
 import 'telegram_api.dart';
 import 'telegram_transport.dart';
 import 'telegram_upload_isolate.dart';
+import 'sync_engine.dart';
 
 enum AuthStep {
   enterPhone,
@@ -77,7 +78,8 @@ class AuthState {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       phoneCodeHash: phoneCodeHash ?? this.phoneCodeHash,
       errorMessage: errorMessage,
-      provisionedChannelName: provisionedChannelName ?? this.provisionedChannelName,
+      provisionedChannelName:
+          provisionedChannelName ?? this.provisionedChannelName,
       provisionedChannelId: provisionedChannelId ?? this.provisionedChannelId,
       userName: userName ?? this.userName,
       userHandle: userHandle ?? this.userHandle,
@@ -98,7 +100,9 @@ class TelegramAuthService {
   static final TelegramAuthService instance = TelegramAuthService._();
   TelegramAuthService._();
 
-  final ValueNotifier<AuthState> stateNotifier = ValueNotifier<AuthState>(AuthState.initial());
+  final ValueNotifier<AuthState> stateNotifier = ValueNotifier<AuthState>(
+    AuthState.initial(),
+  );
   AuthState get currentState => stateNotifier.value;
 
   tg.Client? _client;
@@ -128,9 +132,14 @@ class TelegramAuthService {
 
     await socket.send(obfuscation.preamble);
 
-    debugPrint('[TelegramMTProto] Performing Diffie-Hellman key exchange with Telegram DC $dcId...');
-    final authKey = await tg.Client.authorize(socket, obfuscation, idGenerator)
-        .timeout(const Duration(seconds: 15));
+    debugPrint(
+      '[TelegramMTProto] Performing Diffie-Hellman key exchange with Telegram DC $dcId...',
+    );
+    final authKey = await tg.Client.authorize(
+      socket,
+      obfuscation,
+      idGenerator,
+    ).timeout(const Duration(seconds: 15));
 
     // Persist session parameters
     Prefs.telegramAuthKey = jsonEncode(authKey.toJson());
@@ -234,7 +243,9 @@ class TelegramAuthService {
       final authKey = tg.AuthorizationKey.fromJson(authMap);
       final dcId = Prefs.telegramDcId;
       final dcIp = Prefs.telegramDcIp ?? defaultDcIps[dcId] ?? '149.154.175.50';
-      debugPrint('[TelegramMTProto] Connecting client #$workerIndex with persistent authKey to DC $dcId ($dcIp)...');
+      debugPrint(
+        '[TelegramMTProto] Connecting client #$workerIndex with persistent authKey to DC $dcId ($dcIp)...',
+      );
       final socket = await TelegramTransport.connect(dcIp, 443);
       final obfuscation = tg.Obfuscation.random(false, dcId);
       final idGenerator = tg.MessageIdGenerator();
@@ -248,18 +259,22 @@ class TelegramAuthService {
 
       // Telegram MTProto mandates calling initConnection on newly connected sockets
       try {
-        await client.initConnection<t.Config>(
-          apiId: TelegramSecrets.apiId,
-          deviceModel: 'ValtSky Android Client',
-          systemVersion: 'Android 14',
-          appVersion: '1.0.0',
-          systemLangCode: 'en',
-          langPack: '',
-          langCode: 'en',
-          query: const t.HelpGetConfig(),
-        ).timeout(const Duration(seconds: 10));
+        await client
+            .initConnection<t.Config>(
+              apiId: TelegramSecrets.apiId,
+              deviceModel: 'ValtSky Android Client',
+              systemVersion: 'Android 14',
+              appVersion: '1.0.0',
+              systemLangCode: 'en',
+              langPack: '',
+              langCode: 'en',
+              query: const t.HelpGetConfig(),
+            )
+            .timeout(const Duration(seconds: 10));
       } catch (initErr) {
-        debugPrint('[TelegramMTProto] initConnection failed on client #$workerIndex: $initErr');
+        debugPrint(
+          '[TelegramMTProto] initConnection failed on client #$workerIndex: $initErr',
+        );
         try {
           TelegramTransport.closeSocket(socket);
         } catch (_) {}
@@ -275,7 +290,9 @@ class TelegramAuthService {
       completer.complete(client);
       return client;
     } catch (e) {
-      debugPrint('[TelegramMTProto] Failed to reconnect client #$workerIndex: $e');
+      debugPrint(
+        '[TelegramMTProto] Failed to reconnect client #$workerIndex: $e',
+      );
       completer.complete(null);
       return null;
     } finally {
@@ -288,7 +305,8 @@ class TelegramAuthService {
     if (!isValidPhoneNumber(cleanPhone)) {
       stateNotifier.value = currentState.copyWith(
         step: AuthStep.enterPhone,
-        errorMessage: 'Please enter a valid international phone number (e.g. +1 555 123 4567)',
+        errorMessage:
+            'Please enter a valid international phone number (e.g. +1 555 123 4567)',
         isLoading: false,
       );
       return false;
@@ -330,8 +348,11 @@ class TelegramAuthService {
 
       final error = sendCodeResponse.error;
       if (error != null && error.errorMessage.startsWith('PHONE_MIGRATE_')) {
-        final targetDcId = int.tryParse(error.errorMessage.split('_').last) ?? 2;
-        debugPrint('[TelegramMTProto] Account resides on DC $targetDcId. Migrating connection...');
+        final targetDcId =
+            int.tryParse(error.errorMessage.split('_').last) ?? 2;
+        debugPrint(
+          '[TelegramMTProto] Account resides on DC $targetDcId. Migrating connection...',
+        );
 
         final targetDc = _dcs[targetDcId];
         client = await _connectToDc(
@@ -356,11 +377,15 @@ class TelegramAuthService {
       }
 
       if (sendCodeResponse.error != null) {
-        throw Exception(_friendlyErrorMessage(sendCodeResponse.error!.errorMessage));
+        throw Exception(
+          _friendlyErrorMessage(sendCodeResponse.error!.errorMessage),
+        );
       }
 
       final sentCode = sendCodeResponse.result as t.AuthSentCode;
-      debugPrint('[TelegramMTProto] OTP sent successfully! Hash: ${sentCode.phoneCodeHash}, Type: ${sentCode.type.runtimeType}, Timeout: ${sentCode.timeout}');
+      debugPrint(
+        '[TelegramMTProto] OTP sent successfully! Hash: ${sentCode.phoneCodeHash}, Type: ${sentCode.type.runtimeType}, Timeout: ${sentCode.timeout}',
+      );
 
       final delivery = _describeDelivery(sentCode.type, cleanPhone);
       final len = _extractCodeLength(sentCode.type);
@@ -402,11 +427,13 @@ class TelegramAuthService {
     );
 
     if (TelegramSecrets.apiId == 0 || TelegramSecrets.apiHash.isEmpty) {
-      final mockHash = 'valtsky_hash_resend_${DateTime.now().millisecondsSinceEpoch}';
+      final mockHash =
+          'valtsky_hash_resend_${DateTime.now().millisecondsSinceEpoch}';
       stateNotifier.value = currentState.copyWith(
         step: AuthStep.enterCode,
         phoneCodeHash: mockHash,
-        deliveryDescription: 'A new verification code was resent via SMS to $phone.',
+        deliveryDescription:
+            'A new verification code was resent via SMS to $phone.',
         timeoutSeconds: 60,
         isLoading: false,
       );
@@ -415,7 +442,9 @@ class TelegramAuthService {
 
     try {
       final client = _client ?? await _connectToDc(_currentDcId);
-      debugPrint('[TelegramMTProto] Calling auth.resendCode for $phone (hash: $hash)...');
+      debugPrint(
+        '[TelegramMTProto] Calling auth.resendCode for $phone (hash: $hash)...',
+      );
 
       final resendResponse = await client.auth.resendCode(
         phoneNumber: phone,
@@ -423,11 +452,15 @@ class TelegramAuthService {
       );
 
       if (resendResponse.error != null) {
-        throw Exception(_friendlyErrorMessage(resendResponse.error!.errorMessage));
+        throw Exception(
+          _friendlyErrorMessage(resendResponse.error!.errorMessage),
+        );
       }
 
       final sentCode = resendResponse.result as t.AuthSentCode;
-      debugPrint('[TelegramMTProto] Resent code successfully! Hash: ${sentCode.phoneCodeHash}, Type: ${sentCode.type.runtimeType}, Timeout: ${sentCode.timeout}');
+      debugPrint(
+        '[TelegramMTProto] Resent code successfully! Hash: ${sentCode.phoneCodeHash}, Type: ${sentCode.type.runtimeType}, Timeout: ${sentCode.timeout}',
+      );
 
       final delivery = _describeDelivery(sentCode.type, phone);
       final len = _extractCodeLength(sentCode.type);
@@ -478,7 +511,8 @@ class TelegramAuthService {
     final trimmed = code.trim();
     if (trimmed.length < 5) {
       stateNotifier.value = currentState.copyWith(
-        errorMessage: 'Please enter the complete verification code sent in Telegram',
+        errorMessage:
+            'Please enter the complete verification code sent in Telegram',
       );
       return false;
     }
@@ -512,7 +546,8 @@ class TelegramAuthService {
           stateNotifier.value = currentState.copyWith(
             step: AuthStep.enterPassword,
             isLoading: false,
-            errorMessage: 'Please enter your Telegram 2-Step Verification password.',
+            errorMessage:
+                'Please enter your Telegram 2-Step Verification password.',
           );
           return false;
         }
@@ -546,7 +581,8 @@ class TelegramAuthService {
       }
 
       final vaultTitle = 'ValtSky Vault ($userName)';
-      const vaultAbout = 'ValtSky Zero-Loss Telegram Cloud Storage — 100% Raw Uncompressed Backups';
+      const vaultAbout =
+          'ValtSky Zero-Loss Telegram Cloud Storage — 100% Raw Uncompressed Backups';
 
       // Check if user already has an existing ValtSky Vault channel
       int? foundChannelId;
@@ -589,9 +625,13 @@ class TelegramAuthService {
         if (foundAccessHash != null) {
           Prefs.channelAccessHash = foundAccessHash.toString();
         }
-        debugPrint('[TelegramMTProto] Found existing vault channel: $foundTitle ($autoChannelId)');
+        debugPrint(
+          '[TelegramMTProto] Found existing vault channel: $foundTitle ($autoChannelId)',
+        );
       } else {
-        debugPrint('[TelegramMTProto] Auto-creating private cloud vault channel for $userName...');
+        debugPrint(
+          '[TelegramMTProto] Auto-creating private cloud vault channel for $userName...',
+        );
         final channelResponse = await client.channels.createChannel(
           broadcast: true,
           megagroup: false,
@@ -602,7 +642,9 @@ class TelegramAuthService {
         );
 
         if (channelResponse.error != null || channelResponse.result == null) {
-          final err = channelResponse.error?.errorMessage ?? 'Channel creation failed on Telegram';
+          final err =
+              channelResponse.error?.errorMessage ??
+              'Channel creation failed on Telegram';
           stateNotifier.value = currentState.copyWith(
             step: AuthStep.enterCode,
             errorMessage: 'Failed to create Vault channel: $err',
@@ -630,7 +672,8 @@ class TelegramAuthService {
         if (foundChannelId == null) {
           stateNotifier.value = currentState.copyWith(
             step: AuthStep.enterCode,
-            errorMessage: 'Could not resolve newly created channel ID from Telegram response.',
+            errorMessage:
+                'Could not resolve newly created channel ID from Telegram response.',
             isLoading: false,
           );
           return false;
@@ -677,8 +720,12 @@ class TelegramAuthService {
       Prefs.channelAccessHash = channelAccessHash;
     }
     if (userId != null && userId.isNotEmpty) Prefs.telegramUserId = userId;
-    if (userName != null && userName.isNotEmpty) Prefs.telegramUserName = userName;
-    if (userHandle != null && userHandle.isNotEmpty) Prefs.telegramUserHandle = userHandle;
+    if (userName != null && userName.isNotEmpty) {
+      Prefs.telegramUserName = userName;
+    }
+    if (userHandle != null && userHandle.isNotEmpty) {
+      Prefs.telegramUserHandle = userHandle;
+    }
     if (isPremium != null) Prefs.telegramIsPremium = isPremium;
 
     if (Prefs.botToken.isEmpty) {
@@ -728,14 +775,16 @@ class TelegramAuthService {
       final client = await getClient(workerIndex);
       if (client == null) return null;
 
-      final dialogsRes = await client.messages.getDialogs(
-        excludePinned: false,
-        offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
-        offsetId: 0,
-        offsetPeer: const t.InputPeerEmpty(),
-        limit: 100,
-        hash: 0,
-      ).timeout(const Duration(seconds: 12));
+      final dialogsRes = await client.messages
+          .getDialogs(
+            excludePinned: false,
+            offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
+            offsetId: 0,
+            offsetPeer: const t.InputPeerEmpty(),
+            limit: 100,
+            hash: 0,
+          )
+          .timeout(const Duration(seconds: 12));
 
       if (dialogsRes.result != null) {
         final d = dialogsRes.result!;
@@ -748,7 +797,10 @@ class TelegramAuthService {
           if (chat is t.Channel && chat.id == intId) {
             if (chat.accessHash != null) {
               Prefs.channelAccessHash = chat.accessHash.toString();
-              return t.InputPeerChannel(channelId: chat.id, accessHash: chat.accessHash!);
+              return t.InputPeerChannel(
+                channelId: chat.id,
+                accessHash: chat.accessHash!,
+              );
             }
           } else if (chat is t.Chat && chat.id == intId) {
             return t.InputPeerChat(chatId: chat.id);
@@ -756,16 +808,22 @@ class TelegramAuthService {
         }
 
         // 2. Secondary fallback: match by Vault title if looking up user's configured vault
-        final isConfiguredVault = channelId.trim() == Prefs.channelId.trim() || Prefs.channelId.isEmpty;
+        final isConfiguredVault =
+            channelId.trim() == Prefs.channelId.trim() ||
+            Prefs.channelId.isEmpty;
         if (isConfiguredVault) {
           for (final chat in chats) {
             if (chat is t.Channel &&
-                (chat.title == Prefs.channelName || chat.title.contains('ValtSky Vault'))) {
+                (chat.title == Prefs.channelName ||
+                    chat.title.contains('ValtSky Vault'))) {
               if (chat.accessHash != null) {
                 Prefs.channelId = '-100${chat.id}';
                 Prefs.channelAccessHash = chat.accessHash.toString();
                 Prefs.channelName = chat.title;
-                return t.InputPeerChannel(channelId: chat.id, accessHash: chat.accessHash!);
+                return t.InputPeerChannel(
+                  channelId: chat.id,
+                  accessHash: chat.accessHash!,
+                );
               }
             }
           }
@@ -786,8 +844,16 @@ class TelegramAuthService {
   }
 
   /// Resolve access hash for a channel ID using MTProto getDialogs
-  Future<int?> getChannelAccessHash(int channelId, {int workerIndex = 0, bool forceRefresh = false}) async {
-    final peer = await resolvePeer(channelId.toString(), workerIndex: workerIndex, forceRefresh: forceRefresh);
+  Future<int?> getChannelAccessHash(
+    int channelId, {
+    int workerIndex = 0,
+    bool forceRefresh = false,
+  }) async {
+    final peer = await resolvePeer(
+      channelId.toString(),
+      workerIndex: workerIndex,
+      forceRefresh: forceRefresh,
+    );
     if (peer is t.InputPeerChannel) return peer.accessHash;
     return null;
   }
@@ -809,7 +875,9 @@ class TelegramAuthService {
 
     final savedAuthKey = Prefs.telegramAuthKey;
     if (savedAuthKey == null || savedAuthKey.isEmpty) {
-      return Failure('Telegram client not connected or session expired. Please connect Telegram in Settings.');
+      return Failure(
+        'Telegram client not connected or session expired. Please connect Telegram in Settings.',
+      );
     }
 
     // Offload MTProto chunking and PointyCastle AES-256-IGE / SHA-256 encryption to background isolate
@@ -822,7 +890,8 @@ class TelegramAuthService {
           _spawningIsolates[workerIndex] = completer;
           try {
             final dcId = Prefs.telegramDcId;
-            final dcIp = Prefs.telegramDcIp ?? defaultDcIps[dcId] ?? '149.154.175.50';
+            final dcIp =
+                Prefs.telegramDcIp ?? defaultDcIps[dcId] ?? '149.154.175.50';
             final client = await IsolateUploadClient.spawn(
               workerIndex: workerIndex,
               dcIp: dcIp,
@@ -855,7 +924,24 @@ class TelegramAuthService {
 
       // If isolate upload returned Failure (e.g. transport error), invalidate worker and trigger fallback
       if (result is Failure) {
-        debugPrint('[TelegramMTProto] Isolate upload returned Failure (${result.message}), falling back to direct upload...');
+        final msg = result.message.toLowerCase();
+        final isCancelled =
+            msg.contains('cancelled') ||
+            msg.contains('disposed') ||
+            msg.contains('terminated') ||
+            msg.contains('closed') ||
+            msg.contains('abort');
+
+        if (isCancelled || !SyncEngine.instance.isSyncing) {
+          debugPrint(
+            '[TelegramMTProto] Isolate upload was cancelled/disposed. Skipping direct fallback.',
+          );
+          return result;
+        }
+
+        debugPrint(
+          '[TelegramMTProto] Isolate upload returned Failure (${result.message}), falling back to direct upload...',
+        );
         invalidateClient(workerIndex);
         return _uploadMediaDirect(
           file: file,
@@ -868,7 +954,12 @@ class TelegramAuthService {
       }
       return result;
     } catch (e) {
-      debugPrint('[TelegramMTProto] Isolate worker error ($e), falling back to direct upload...');
+      if (!SyncEngine.instance.isSyncing) {
+        return Failure('Upload cancelled: engine not syncing');
+      }
+      debugPrint(
+        '[TelegramMTProto] Isolate worker error ($e), falling back to direct upload...',
+      );
       invalidateClient(workerIndex);
       return _uploadMediaDirect(
         file: file,
@@ -895,12 +986,21 @@ class TelegramAuthService {
 
     final client = await getClient(workerIndex);
     if (client == null) {
-      return Failure('Telegram client not connected or session expired. Please connect Telegram in Settings.');
+      return Failure(
+        'Telegram client not connected or session expired. Please connect Telegram in Settings.',
+      );
     }
 
-    t.InputPeerBase? peer = await resolvePeer(channelId, workerIndex: workerIndex);
+    t.InputPeerBase? peer = await resolvePeer(
+      channelId,
+      workerIndex: workerIndex,
+    );
     if (peer == null) {
-      peer = await resolvePeer(channelId, workerIndex: workerIndex, forceRefresh: true);
+      peer = await resolvePeer(
+        channelId,
+        workerIndex: workerIndex,
+        forceRefresh: true,
+      );
       if (peer == null) {
         return Failure('Could not obtain channel access hash for $channelId');
       }
@@ -913,10 +1013,13 @@ class TelegramAuthService {
 
     // High-speed chunk streaming: Telegram MTProto officially supports up to 512 KB (524288 B) per chunk.
     // 512 KB cuts round-trip RPCs by 400% compared to 128 KB, maximizing throughput over mobile & Wi-Fi.
-    final int chunkSize = (fileSize < 1024 * 1024) ? (256 * 1024) : (512 * 1024);
+    final int chunkSize = (fileSize < 1024 * 1024)
+        ? (256 * 1024)
+        : (512 * 1024);
     final totalParts = (fileSize / chunkSize).ceil();
     final isBigFile = fileSize > 10 * 1024 * 1024;
-    final fileId = (Random().nextInt(0x7fffffff) << 16) | Random().nextInt(0xffff);
+    final fileId =
+        (Random().nextInt(0x7fffffff) << 16) | Random().nextInt(0xffff);
 
     RandomAccessFile? raf;
     try {
@@ -928,7 +1031,9 @@ class TelegramAuthService {
       // completely eliminating Stop-and-Wait RTT latency stalls.
       // Speeds scale dynamically with network bandwidth to reach line maximum (30 MB/s - 80+ MB/s),
       // matching the official Telegram client architecture while bounding heap memory to < 4 MB in-flight.
-      final int maxConcurrentParts = (totalParts <= 4) ? totalParts : (isBigFile ? 8 : 6);
+      final int maxConcurrentParts = (totalParts <= 4)
+          ? totalParts
+          : (isBigFile ? 8 : 6);
 
       int nextPartIndex = 0;
       int? abortErrorCode;
@@ -1034,7 +1139,8 @@ class TelegramAuthService {
 
           if (partResult == null || partResult.error != null) {
             abortErrorCode = partResult?.error?.errorCode ?? -1;
-            abortErrorMessage = partResult?.error?.errorMessage ?? 'Unknown upload error';
+            abortErrorMessage =
+                partResult?.error?.errorMessage ?? 'Unknown upload error';
             return;
           }
 
@@ -1050,15 +1156,17 @@ class TelegramAuthService {
       await Future.wait(workers);
 
       if (abortErrorMessage != null) {
-        return TelegramError(
-          abortErrorCode ?? -1,
-          abortErrorMessage!,
-        );
+        return TelegramError(abortErrorCode ?? -1, abortErrorMessage!);
       }
 
       final t.InputFileBase inputFile = isBigFile
           ? t.InputFileBig(id: fileId, parts: totalParts, name: fileName)
-          : t.InputFile(id: fileId, parts: totalParts, name: fileName, md5Checksum: '');
+          : t.InputFile(
+              id: fileId,
+              parts: totalParts,
+              name: fileName,
+              md5Checksum: '',
+            );
 
       final inputMedia = t.InputMediaUploadedDocument(
         nosoundVideo: false,
@@ -1066,9 +1174,7 @@ class TelegramAuthService {
         spoiler: false,
         file: inputFile,
         mimeType: mimeType,
-        attributes: [
-          t.DocumentAttributeFilename(fileName: fileName),
-        ],
+        attributes: [t.DocumentAttributeFilename(fileName: fileName)],
       );
 
       final randomId = Random().nextInt(0x7fffffff);
@@ -1090,11 +1196,17 @@ class TelegramAuthService {
       // refresh peer directly from server dialogs and retry sendMedia once.
       if (sendResult.error != null &&
           (sendResult.error!.errorMessage.contains('CHANNEL_PRIVATE') ||
-           sendResult.error!.errorMessage.contains('CHAT_ADMIN_REQUIRED') ||
-           sendResult.error!.errorMessage.contains('CHANNEL_INVALID'))) {
-        debugPrint('[TelegramMTProto] Encountered ${sendResult.error!.errorMessage}. Refreshing peer and retrying sendMedia...');
+              sendResult.error!.errorMessage.contains('CHAT_ADMIN_REQUIRED') ||
+              sendResult.error!.errorMessage.contains('CHANNEL_INVALID'))) {
+        debugPrint(
+          '[TelegramMTProto] Encountered ${sendResult.error!.errorMessage}. Refreshing peer and retrying sendMedia...',
+        );
         Prefs.channelAccessHash = null;
-        final refreshedPeer = await resolvePeer(channelId, workerIndex: workerIndex, forceRefresh: true);
+        final refreshedPeer = await resolvePeer(
+          channelId,
+          workerIndex: workerIndex,
+          forceRefresh: true,
+        );
         if (refreshedPeer != null) {
           peer = refreshedPeer;
           sendResult = await client.messages.sendMedia(
@@ -1188,8 +1300,8 @@ class TelegramAuthService {
 
     if (sendResult.error != null &&
         (sendResult.error!.errorMessage.contains('CHANNEL_PRIVATE') ||
-         sendResult.error!.errorMessage.contains('CHAT_ADMIN_REQUIRED') ||
-         sendResult.error!.errorMessage.contains('CHANNEL_INVALID'))) {
+            sendResult.error!.errorMessage.contains('CHAT_ADMIN_REQUIRED') ||
+            sendResult.error!.errorMessage.contains('CHANNEL_INVALID'))) {
       Prefs.channelAccessHash = null;
       final refreshedPeer = await resolvePeer(channelId, forceRefresh: true);
       if (refreshedPeer != null) {
@@ -1211,7 +1323,10 @@ class TelegramAuthService {
     }
 
     if (sendResult.error != null) {
-      return TelegramError(sendResult.error!.errorCode, sendResult.error!.errorMessage);
+      return TelegramError(
+        sendResult.error!.errorCode,
+        sendResult.error!.errorMessage,
+      );
     }
 
     return Success(DateTime.now().millisecondsSinceEpoch);
@@ -1241,4 +1356,3 @@ class TelegramAuthService {
     resetClientPool();
   }
 }
-

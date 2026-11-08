@@ -32,25 +32,42 @@ class TelegramIoSocket extends tg.SocketAbstraction {
     }
   }
 
-  Future<void> close() => socket.close();
+  Future<void> close() async {
+    try {
+      socket.destroy();
+    } catch (_) {}
+    try {
+      await socket.close();
+    } catch (_) {}
+  }
 }
 
 class TelegramTransport {
   static void closeSocket(tg.SocketAbstraction socket) {
     if (socket is TelegramIoSocket) {
-      socket.close();
+      unawaited(socket.close());
     }
   }
 
   static Future<tg.SocketAbstraction> connect(String ip, int port) async {
     try {
-      final socket = await Socket.connect(ip, port, timeout: const Duration(seconds: 8));
+      final socket = await Socket.connect(
+        ip,
+        port,
+        timeout: const Duration(seconds: 8),
+      );
       socket.setOption(SocketOption.tcpNoDelay, true);
       return TelegramIoSocket(socket);
     } catch (e) {
       if (port == 443) {
-        debugPrint('[TelegramTransport] Port 443 failed ($e), retrying on port 80...');
-        final socket = await Socket.connect(ip, 80, timeout: const Duration(seconds: 8));
+        debugPrint(
+          '[TelegramTransport] Port 443 failed ($e), retrying on port 80...',
+        );
+        final socket = await Socket.connect(
+          ip,
+          80,
+          timeout: const Duration(seconds: 8),
+        );
         socket.setOption(SocketOption.tcpNoDelay, true);
         return TelegramIoSocket(socket);
       }

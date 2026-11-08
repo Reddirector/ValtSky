@@ -13,14 +13,14 @@ import '../util/file_security_guard.dart';
 import '../util/media_scanner.dart';
 
 enum SyncEngineStatus {
-  idle,             // No active sync; waiting
-  active,           // Actively uploading with worker pool
-  paused,           // Paused by user
-  offline,          // Internet connection lost; auto-reconnecting
-  rateLimited,      // Coordinated Telegram flood wait with live countdown
-  sessionExpired,   // Telegram auth key revoked/expired; user action required
+  idle, // No active sync; waiting
+  active, // Actively uploading with worker pool
+  paused, // Paused by user
+  offline, // Internet connection lost; auto-reconnecting
+  rateLimited, // Coordinated Telegram flood wait with live countdown
+  sessionExpired, // Telegram auth key revoked/expired; user action required
   permissionDenied, // Gallery or storage access denied
-  restarting,       // Engine undergoing clean self-restart & reset
+  restarting, // Engine undergoing clean self-restart & reset
 }
 
 class SyncStats {
@@ -85,9 +85,12 @@ class SyncEngine {
       ValueNotifier<int>(0);
 
   // Real-time speed and status notifier for the UI
-  static final ValueNotifier<String> uploadSpeedNotifier = ValueNotifier<String>('');
-  static final ValueNotifier<String> currentItemNotifier = ValueNotifier<String>('');
-  static final ValueNotifier<SyncStats?> statsNotifier = ValueNotifier<SyncStats?>(null);
+  static final ValueNotifier<String> uploadSpeedNotifier =
+      ValueNotifier<String>('');
+  static final ValueNotifier<String> currentItemNotifier =
+      ValueNotifier<String>('');
+  static final ValueNotifier<SyncStats?> statsNotifier =
+      ValueNotifier<SyncStats?>(null);
   static final ValueNotifier<MediaBreakdown> mediaBreakdownNotifier =
       ValueNotifier<MediaBreakdown>(const MediaBreakdown());
   Timer? _liveStatsTimer;
@@ -104,7 +107,9 @@ class SyncEngine {
   static int _totalBytesSent = 0;
   static int _prevBytesSent = 0;
   static DateTime _lastSpeedSampleTime = DateTime.fromMillisecondsSinceEpoch(0);
-  static DateTime _lastActiveTransferTime = DateTime.fromMillisecondsSinceEpoch(0);
+  static DateTime _lastActiveTransferTime = DateTime.fromMillisecondsSinceEpoch(
+    0,
+  );
   static double _smoothedSpeedMBps = 0.0;
   static Timer? _speedMeterTimer;
 
@@ -117,18 +122,24 @@ class SyncEngine {
     if (now.difference(_lastStatsNotify).inMilliseconds >= throttleMs) {
       _lastStatsNotify = now;
       statsNotifier.value = _cachedStats;
-      DatabaseHelper.instance.getMediaBreakdown().then((b) {
-        mediaBreakdownNotifier.value = b;
-      }).catchError((_) {});
+      DatabaseHelper.instance
+          .getMediaBreakdown()
+          .then((b) {
+            mediaBreakdownNotifier.value = b;
+          })
+          .catchError((_) {});
     } else if (!_statsNotifyScheduled) {
       _statsNotifyScheduled = true;
       Future.delayed(Duration(milliseconds: throttleMs), () {
         _statsNotifyScheduled = false;
         _lastStatsNotify = DateTime.now();
         statsNotifier.value = _cachedStats;
-        DatabaseHelper.instance.getMediaBreakdown().then((b) {
-          mediaBreakdownNotifier.value = b;
-        }).catchError((_) {});
+        DatabaseHelper.instance
+            .getMediaBreakdown()
+            .then((b) {
+              mediaBreakdownNotifier.value = b;
+            })
+            .catchError((_) {});
       });
     }
   }
@@ -144,11 +155,15 @@ class SyncEngine {
   static Future<bool> hasInternetConnection() async {
     if (kIsWeb) return true;
     try {
-      final lookup = await InternetAddress.lookup('dns.google').timeout(const Duration(seconds: 3));
+      final lookup = await InternetAddress.lookup(
+        'dns.google',
+      ).timeout(const Duration(seconds: 3));
       if (lookup.isNotEmpty && lookup[0].rawAddress.isNotEmpty) return true;
     } catch (_) {}
     try {
-      final lookup = await InternetAddress.lookup('telegram.org').timeout(const Duration(seconds: 3));
+      final lookup = await InternetAddress.lookup(
+        'telegram.org',
+      ).timeout(const Duration(seconds: 3));
       if (lookup.isNotEmpty && lookup[0].rawAddress.isNotEmpty) return true;
     } catch (_) {}
     return false;
@@ -218,12 +233,14 @@ class SyncEngine {
       _rateLimitUntil = resumeTime;
     }
     engineStatusNotifier.value = SyncEngineStatus.rateLimited;
-    engineStatusMessageNotifier.value = 'Telegram flood wait active ($seconds s)';
+    engineStatusMessageNotifier.value =
+        'Telegram flood wait active ($seconds s)';
     rateLimitSecondsRemainingNotifier.value = seconds;
 
     _rateLimitTimer?.cancel();
     _rateLimitTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      final remaining = _rateLimitUntil?.difference(DateTime.now()).inSeconds ?? 0;
+      final remaining =
+          _rateLimitUntil?.difference(DateTime.now()).inSeconds ?? 0;
       if (remaining <= 0) {
         timer.cancel();
         _rateLimitTimer = null;
@@ -372,7 +389,8 @@ class SyncEngine {
     Prefs.monitoringEnabled = true;
     Prefs.uploadPaused = false;
     engineStatusNotifier.value = SyncEngineStatus.active;
-    engineStatusMessageNotifier.value = 'Telegram linked. Starting vault backup...';
+    engineStatusMessageNotifier.value =
+        'Telegram linked. Starting vault backup...';
 
     // 3. Scan camera roll cleanly into fresh database
     await MediaScanner.scanForNewMedia();
@@ -395,6 +413,7 @@ class SyncEngine {
     }
 
     _isSyncing = true;
+    final generation = ++_syncGeneration;
     _syncCompleter = Completer<void>();
 
     // Reset any interrupted uploading state from abrupt app closes
@@ -402,13 +421,15 @@ class SyncEngine {
     await fetchCurrentStats(forceDb: true);
 
     final online = await hasInternetConnection();
-    if (!_isSyncing) return;
+    if (!_isSyncing || _syncGeneration != generation) return;
     if (!online) {
       engineStatusNotifier.value = SyncEngineStatus.offline;
-      engineStatusMessageNotifier.value = 'Offline. Waiting for internet connection...';
+      engineStatusMessageNotifier.value =
+          'Offline. Waiting for internet connection...';
     } else {
       engineStatusNotifier.value = SyncEngineStatus.active;
-      engineStatusMessageNotifier.value = 'Turbo upload workers active (2x parallel).';
+      engineStatusMessageNotifier.value =
+          'Turbo upload workers active (2x parallel).';
     }
 
     _totalBytesSent = 0;
@@ -423,7 +444,7 @@ class SyncEngine {
         ? const Duration(milliseconds: 1000)
         : const Duration(milliseconds: 500);
     _speedMeterTimer = Timer.periodic(sampleWindow, (_) {
-      if (!_isSyncing) return;
+      if (!_isSyncing || _syncGeneration != generation) return;
       final now = DateTime.now();
       final elapsedMs = now.difference(_lastSpeedSampleTime).inMilliseconds;
       if (elapsedMs < 100) return;
@@ -471,21 +492,28 @@ class SyncEngine {
     // Light periodic consistency check every 10 seconds (in WAL mode, 1 fast query)
     _liveStatsTimer?.cancel();
     _liveStatsTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
-      if (_isSyncing) {
+      if (_isSyncing && _syncGeneration == generation) {
         await DatabaseHelper.instance.flushPendingUpdates();
         await fetchCurrentStats(forceDb: true);
       }
     });
 
-    _runWorkerPool();
+    _runWorkerPool(generation);
   }
 
   Future<void> stopSync() async {
     _isSyncing = false;
-    _isPhotoWorkerActive = false;
-    _isVideoWorkerActive = false;
+    _syncGeneration++;
     _claimedPhotoQueue.clear();
     _claimedVideoQueue.clear();
+    if (_photoRefillCompleter != null && !_photoRefillCompleter!.isCompleted) {
+      _photoRefillCompleter!.complete();
+    }
+    _photoRefillCompleter = null;
+    if (_videoRefillCompleter != null && !_videoRefillCompleter!.isCompleted) {
+      _videoRefillCompleter!.complete();
+    }
+    _videoRefillCompleter = null;
     _activePhotoFileName = null;
     _activeVideoFileName = null;
     _liveStatsTimer?.cancel();
@@ -513,15 +541,26 @@ class SyncEngine {
   Future<void> restartEngine() async {
     if (engineStatusNotifier.value == SyncEngineStatus.restarting) return;
     engineStatusNotifier.value = SyncEngineStatus.restarting;
-    engineStatusMessageNotifier.value = 'Self-healing: restarting engine & resetting sockets...';
+    engineStatusMessageNotifier.value =
+        'Self-healing: restarting engine & resetting sockets...';
 
-    // 1. Halt workers and await active loop shutdown
+    // 1. Advance sync generation to immediately abort all running worker loops
     _isSyncing = false;
+    _syncGeneration++;
     _claimedPhotoQueue.clear();
     _claimedVideoQueue.clear();
+    if (_photoRefillCompleter != null && !_photoRefillCompleter!.isCompleted) {
+      _photoRefillCompleter!.complete();
+    }
+    _photoRefillCompleter = null;
+    if (_videoRefillCompleter != null && !_videoRefillCompleter!.isCompleted) {
+      _videoRefillCompleter!.complete();
+    }
+    _videoRefillCompleter = null;
+
     if (_workerPoolFuture != null) {
       try {
-        await _workerPoolFuture!.timeout(const Duration(seconds: 3));
+        await _workerPoolFuture!.timeout(const Duration(milliseconds: 500));
       } catch (_) {}
       _workerPoolFuture = null;
     }
@@ -552,13 +591,14 @@ class SyncEngine {
     uploadSpeedNotifier.value = '';
     currentItemNotifier.value = '';
 
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 100));
 
     // 5. Check internet connectivity
     final online = await hasInternetConnection();
     if (!online) {
       engineStatusNotifier.value = SyncEngineStatus.offline;
-      engineStatusMessageNotifier.value = 'No internet connection. Waiting for network...';
+      engineStatusMessageNotifier.value =
+          'No internet connection. Waiting for network...';
       await fetchCurrentStats(forceDb: true);
       return;
     }
@@ -566,7 +606,8 @@ class SyncEngine {
     // 6. Check Telegram configuration
     if (!Prefs.isConfigured()) {
       engineStatusNotifier.value = SyncEngineStatus.idle;
-      engineStatusMessageNotifier.value = 'Telegram credentials not configured.';
+      engineStatusMessageNotifier.value =
+          'Telegram credentials not configured.';
       await fetchCurrentStats(forceDb: true);
       return;
     }
@@ -577,7 +618,9 @@ class SyncEngine {
       engineStatusMessageNotifier.value = 'Engine restarted. Workers active.';
       await startSync();
     } else {
-      engineStatusNotifier.value = Prefs.uploadPaused ? SyncEngineStatus.paused : SyncEngineStatus.idle;
+      engineStatusNotifier.value = Prefs.uploadPaused
+          ? SyncEngineStatus.paused
+          : SyncEngineStatus.idle;
       engineStatusMessageNotifier.value = 'Engine restarted successfully.';
       await fetchCurrentStats(forceDb: true);
     }
@@ -590,7 +633,8 @@ class SyncEngine {
       if (engineStatusNotifier.value == SyncEngineStatus.offline) {
         if (_isSyncing) {
           engineStatusNotifier.value = SyncEngineStatus.active;
-          engineStatusMessageNotifier.value = 'Connection restored. Resuming backup...';
+          engineStatusMessageNotifier.value =
+              'Connection restored. Resuming backup...';
         } else if (!Prefs.uploadPaused) {
           startSync();
         } else {
@@ -604,7 +648,8 @@ class SyncEngine {
 
   static Future<void> _handleOfflineWait() async {
     engineStatusNotifier.value = SyncEngineStatus.offline;
-    engineStatusMessageNotifier.value = 'No internet connection. Waiting for network to resume...';
+    engineStatusMessageNotifier.value =
+        'No internet connection. Waiting for network to resume...';
     uploadSpeedNotifier.value = 'Offline';
 
     while (instance._isSyncing && !await hasInternetConnection()) {
@@ -613,7 +658,8 @@ class SyncEngine {
 
     if (instance._isSyncing) {
       engineStatusNotifier.value = SyncEngineStatus.active;
-      engineStatusMessageNotifier.value = 'Connection restored. Resuming backup...';
+      engineStatusMessageNotifier.value =
+          'Connection restored. Resuming backup...';
       uploadSpeedNotifier.value = '';
     }
   }
@@ -623,15 +669,23 @@ class SyncEngine {
   // ──────────────────────────────────────────────────────────────────────────
 
   Future<void>? _workerPoolFuture;
-  static bool _isPhotoWorkerActive = false;
-  static bool _isVideoWorkerActive = false;
-  static bool get isPhotoWorkerActive => _isPhotoWorkerActive;
-  static bool get isVideoWorkerActive => _isVideoWorkerActive;
+  static int _activePhotoWorkerCount = 0;
+  static int _activeVideoWorkerCount = 0;
+  static int get activePhotoWorkerCount => _activePhotoWorkerCount;
+  static int get activeVideoWorkerCount => _activeVideoWorkerCount;
+  static bool get isPhotoWorkerActive => _activePhotoWorkerCount > 0;
+  static bool get isVideoWorkerActive => _activeVideoWorkerCount > 0;
+
+  static int _syncGeneration = 0;
+  static int get syncGeneration => _syncGeneration;
 
   static String? _activePhotoFileName;
   static String? _activeVideoFileName;
 
-  static void updateWorkerItemStatus({required bool isVideo, required String fileName}) {
+  static void updateWorkerItemStatus({
+    required bool isVideo,
+    required String fileName,
+  }) {
     if (isVideo) {
       _activeVideoFileName = fileName;
     } else {
@@ -651,7 +705,8 @@ class SyncEngine {
 
   static void _refreshCurrentItemNotifier() {
     if (_activePhotoFileName != null && _activeVideoFileName != null) {
-      currentItemNotifier.value = '📷 $_activePhotoFileName | 🎥 $_activeVideoFileName';
+      currentItemNotifier.value =
+          '📷 $_activePhotoFileName | 🎥 $_activeVideoFileName';
     } else if (_activePhotoFileName != null) {
       currentItemNotifier.value = '📷 $_activePhotoFileName';
     } else if (_activeVideoFileName != null) {
@@ -661,38 +716,36 @@ class SyncEngine {
     }
   }
 
-  Future<void> _runWorkerPool() async {
+  Future<void> _runWorkerPool(int generation) async {
     engineStatusNotifier.value = SyncEngineStatus.active;
     try {
-      _isPhotoWorkerActive = true;
-      _isVideoWorkerActive = true;
-      final photoWorker = _photoWorkerLoop(0).whenComplete(() => _isPhotoWorkerActive = false);
-      final videoWorker = _videoWorkerLoop(1).whenComplete(() => _isVideoWorkerActive = false);
+      final photoWorker = _photoWorkerLoop(0, generation);
+      final videoWorker = _videoWorkerLoop(1, generation);
       _workerPoolFuture = Future.wait([photoWorker, videoWorker]);
       await _workerPoolFuture;
     } catch (e) {
       debugPrint('[SyncEngine] Worker pool caught exception: $e');
     } finally {
-      _workerPoolFuture = null;
-      _isSyncing = false;
-      _isPhotoWorkerActive = false;
-      _isVideoWorkerActive = false;
-      _liveStatsTimer?.cancel();
-      _liveStatsTimer = null;
-      _speedMeterTimer?.cancel();
-      _speedMeterTimer = null;
-      _smoothedSpeedMBps = 0.0;
-      uploadSpeedNotifier.value = '';
-      currentItemNotifier.value = '';
-      if (engineStatusNotifier.value == SyncEngineStatus.active) {
-        engineStatusNotifier.value = SyncEngineStatus.idle;
+      if (_syncGeneration == generation) {
+        _workerPoolFuture = null;
+        _isSyncing = false;
+        _liveStatsTimer?.cancel();
+        _liveStatsTimer = null;
+        _speedMeterTimer?.cancel();
+        _speedMeterTimer = null;
+        _smoothedSpeedMBps = 0.0;
+        uploadSpeedNotifier.value = '';
+        currentItemNotifier.value = '';
+        if (engineStatusNotifier.value == SyncEngineStatus.active) {
+          engineStatusNotifier.value = SyncEngineStatus.idle;
+        }
+        await DatabaseHelper.instance.flushPendingUpdates();
+        await fetchCurrentStats(forceDb: true);
+        if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
+          _syncCompleter!.complete();
+        }
+        _syncCompleter = null;
       }
-      await DatabaseHelper.instance.flushPendingUpdates();
-      await fetchCurrentStats(forceDb: true);
-      if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
-        _syncCompleter!.complete();
-      }
-      _syncCompleter = null;
     }
   }
 
@@ -702,13 +755,14 @@ class SyncEngine {
   static final List<MediaItem> _claimedVideoQueue = [];
   static Completer<void>? _videoRefillCompleter;
 
-  Future<MediaItem?> _getNextPendingPhotoItem() async {
-    while (_isSyncing) {
+  Future<MediaItem?> _getNextPendingPhotoItem(int generation) async {
+    while (_isSyncing && _syncGeneration == generation) {
       if (_claimedPhotoQueue.isNotEmpty) {
         return _claimedPhotoQueue.removeAt(0);
       }
       if (_photoRefillCompleter != null) {
         await _photoRefillCompleter!.future;
+        if (!_isSyncing || _syncGeneration != generation) return null;
         if (_claimedPhotoQueue.isNotEmpty) {
           return _claimedPhotoQueue.removeAt(0);
         }
@@ -716,27 +770,34 @@ class SyncEngine {
       }
       _photoRefillCompleter = Completer<void>();
       try {
-        final batch = await DatabaseHelper.instance.claimPendingPhotoBatch(limit: 16);
+        final batch = await DatabaseHelper.instance.claimPendingPhotoBatch(
+          limit: 16,
+        );
+        if (!_isSyncing || _syncGeneration != generation) return null;
         if (batch.isEmpty) {
           return null;
         }
         _claimedPhotoQueue.addAll(batch);
         return _claimedPhotoQueue.removeAt(0);
       } finally {
-        _photoRefillCompleter?.complete();
+        if (_photoRefillCompleter != null &&
+            !_photoRefillCompleter!.isCompleted) {
+          _photoRefillCompleter!.complete();
+        }
         _photoRefillCompleter = null;
       }
     }
     return null;
   }
 
-  Future<MediaItem?> _getNextPendingVideoItem() async {
-    while (_isSyncing) {
+  Future<MediaItem?> _getNextPendingVideoItem(int generation) async {
+    while (_isSyncing && _syncGeneration == generation) {
       if (_claimedVideoQueue.isNotEmpty) {
         return _claimedVideoQueue.removeAt(0);
       }
       if (_videoRefillCompleter != null) {
         await _videoRefillCompleter!.future;
+        if (!_isSyncing || _syncGeneration != generation) return null;
         if (_claimedVideoQueue.isNotEmpty) {
           return _claimedVideoQueue.removeAt(0);
         }
@@ -744,80 +805,116 @@ class SyncEngine {
       }
       _videoRefillCompleter = Completer<void>();
       try {
-        final batch = await DatabaseHelper.instance.claimPendingVideoBatch(limit: 8);
+        final batch = await DatabaseHelper.instance.claimPendingVideoBatch(
+          limit: 8,
+        );
+        if (!_isSyncing || _syncGeneration != generation) return null;
         if (batch.isEmpty) {
           return null;
         }
         _claimedVideoQueue.addAll(batch);
         return _claimedVideoQueue.removeAt(0);
       } finally {
-        _videoRefillCompleter?.complete();
+        if (_videoRefillCompleter != null &&
+            !_videoRefillCompleter!.isCompleted) {
+          _videoRefillCompleter!.complete();
+        }
         _videoRefillCompleter = null;
       }
     }
     return null;
   }
 
-  Future<void> _photoWorkerLoop(int workerIndex) async {
-    while (_isSyncing) {
-      if (_rateLimitUntil != null && DateTime.now().isBefore(_rateLimitUntil!)) {
-        final waitSeconds = _rateLimitUntil!.difference(DateTime.now()).inSeconds;
-        await Future.delayed(Duration(seconds: waitSeconds.clamp(1, 60)));
-        continue;
-      }
-      if (Prefs.uploadPaused) {
-        uploadSpeedNotifier.value = 'Paused';
-        engineStatusNotifier.value = SyncEngineStatus.paused;
-        await Future.delayed(const Duration(seconds: 2));
-        continue;
-      }
-      if (!await hasInternetConnection()) {
-        await _handleOfflineWait();
-        continue;
-      }
-
-      final item = await _getNextPendingPhotoItem();
-      if (item == null) {
-        if (_isVideoWorkerActive) {
-          await Future.delayed(const Duration(seconds: 2));
-          final retryBatch = await DatabaseHelper.instance.claimPendingPhotoBatch(limit: 16);
-          if (retryBatch.isNotEmpty) {
-            _claimedPhotoQueue.addAll(retryBatch);
-            continue;
-          }
-        }
-        break;
-      }
-
-      await _uploadMediaItem(item, workerIndex: workerIndex, isVideo: false);
-    }
-  }
-
-  Future<void> _videoWorkerLoop(int workerIndex) async {
-    _isVideoWorkerActive = true;
+  Future<void> _photoWorkerLoop(int workerIndex, int generation) async {
+    _activePhotoWorkerCount++;
     try {
-      while (_isSyncing) {
-        if (_rateLimitUntil != null && DateTime.now().isBefore(_rateLimitUntil!)) {
-          final waitSeconds = _rateLimitUntil!.difference(DateTime.now()).inSeconds;
+      while (_isSyncing && _syncGeneration == generation) {
+        if (_rateLimitUntil != null &&
+            DateTime.now().isBefore(_rateLimitUntil!)) {
+          final waitSeconds = _rateLimitUntil!
+              .difference(DateTime.now())
+              .inSeconds;
           await Future.delayed(Duration(seconds: waitSeconds.clamp(1, 60)));
+          if (!_isSyncing || _syncGeneration != generation) return;
           continue;
         }
         if (Prefs.uploadPaused) {
           uploadSpeedNotifier.value = 'Paused';
           engineStatusNotifier.value = SyncEngineStatus.paused;
           await Future.delayed(const Duration(seconds: 2));
+          if (!_isSyncing || _syncGeneration != generation) return;
           continue;
         }
         if (!await hasInternetConnection()) {
           await _handleOfflineWait();
+          if (!_isSyncing || _syncGeneration != generation) return;
           continue;
         }
 
-        final item = await _getNextPendingVideoItem();
+        final item = await _getNextPendingPhotoItem(generation);
+        if (!_isSyncing || _syncGeneration != generation) return;
         if (item == null) {
-          if (_isPhotoWorkerActive) {
+          if (isVideoWorkerActive) {
             await Future.delayed(const Duration(seconds: 2));
-            final retryBatch = await DatabaseHelper.instance.claimPendingVideoBatch(limit: 8);
+            if (!_isSyncing || _syncGeneration != generation) return;
+            final retryBatch = await DatabaseHelper.instance
+                .claimPendingPhotoBatch(limit: 16);
+            if (!_isSyncing || _syncGeneration != generation) return;
+            if (retryBatch.isNotEmpty) {
+              _claimedPhotoQueue.addAll(retryBatch);
+              continue;
+            }
+          }
+          break;
+        }
+
+        await _uploadMediaItem(
+          item,
+          workerIndex: workerIndex,
+          isVideo: false,
+          generation: generation,
+        );
+      }
+    } finally {
+      _activePhotoWorkerCount = (_activePhotoWorkerCount - 1).clamp(0, 999);
+    }
+  }
+
+  Future<void> _videoWorkerLoop(int workerIndex, int generation) async {
+    _activeVideoWorkerCount++;
+    try {
+      while (_isSyncing && _syncGeneration == generation) {
+        if (_rateLimitUntil != null &&
+            DateTime.now().isBefore(_rateLimitUntil!)) {
+          final waitSeconds = _rateLimitUntil!
+              .difference(DateTime.now())
+              .inSeconds;
+          await Future.delayed(Duration(seconds: waitSeconds.clamp(1, 60)));
+          if (!_isSyncing || _syncGeneration != generation) return;
+          continue;
+        }
+        if (Prefs.uploadPaused) {
+          uploadSpeedNotifier.value = 'Paused';
+          engineStatusNotifier.value = SyncEngineStatus.paused;
+          await Future.delayed(const Duration(seconds: 2));
+          if (!_isSyncing || _syncGeneration != generation) return;
+          continue;
+        }
+        if (!await hasInternetConnection()) {
+          await _handleOfflineWait();
+          if (!_isSyncing || _syncGeneration != generation) return;
+          continue;
+        }
+
+        final item = await _getNextPendingVideoItem(generation);
+        if (!_isSyncing || _syncGeneration != generation) return;
+        if (item == null) {
+          if (isPhotoWorkerActive) {
+            await Future.delayed(const Duration(seconds: 2));
+            if (!_isSyncing || _syncGeneration != generation) return;
+            final retryBatch = await DatabaseHelper.instance
+                .claimPendingVideoBatch(limit: 8);
+            if (!_isSyncing || _syncGeneration != generation) return;
             if (retryBatch.isNotEmpty) {
               _claimedVideoQueue.addAll(retryBatch);
               continue;
@@ -826,10 +923,15 @@ class SyncEngine {
           break;
         }
 
-        await _uploadMediaItem(item, workerIndex: workerIndex, isVideo: true);
+        await _uploadMediaItem(
+          item,
+          workerIndex: workerIndex,
+          isVideo: true,
+          generation: generation,
+        );
       }
     } finally {
-      _isVideoWorkerActive = false;
+      _activeVideoWorkerCount = (_activeVideoWorkerCount - 1).clamp(0, 999);
     }
   }
 
@@ -837,33 +939,43 @@ class SyncEngine {
     MediaItem item, {
     required int workerIndex,
     required bool isVideo,
+    required int generation,
   }) async {
+    if (!_isSyncing || _syncGeneration != generation) return;
     final fileName = item.filePath.split('/').last;
     updateWorkerItemStatus(isVideo: isVideo, fileName: fileName);
     _updateInFlightClaim();
 
     try {
       await Future.delayed(Duration.zero);
+      if (!_isSyncing || _syncGeneration != generation) return;
 
       final file = File(item.filePath);
       if (!await file.exists()) {
-        await DatabaseHelper.instance.update(item.copyWith(
-          status: MediaItem.statusFailed,
-          errorReason: 'File not found on storage',
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+        DatabaseHelper.instance.enqueueUpdate(
+          item.copyWith(
+            status: MediaItem.statusFailed,
+            errorReason: 'File not found on storage',
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
         _updateInFlightFailure();
+        await Future.delayed(const Duration(milliseconds: 30));
         return;
       }
 
       final validation = await FileSecurityGuard.validateFile(file);
+      if (!_isSyncing || _syncGeneration != generation) return;
       if (!validation.isValid) {
-        await DatabaseHelper.instance.update(item.copyWith(
-          status: MediaItem.statusFailed,
-          errorReason: '🛡️ Security Guard: ${validation.error}',
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+        DatabaseHelper.instance.enqueueUpdate(
+          item.copyWith(
+            status: MediaItem.statusFailed,
+            errorReason: '🛡️ Security Guard: ${validation.error}',
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
         _updateInFlightFailure();
+        await Future.delayed(const Duration(milliseconds: 30));
         return;
       }
 
@@ -894,48 +1006,70 @@ class SyncEngine {
           _totalBytesSent += (fileLen - workerItemBytesSent);
           workerItemBytesSent = fileLen;
         }
-        DatabaseHelper.instance.enqueueUpdate(item.copyWith(
-          status: MediaItem.statusDone,
-          telegramMessageId: result.telegramMessageId,
-          errorReason: null,
-          retryCount: 0,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+        DatabaseHelper.instance.enqueueUpdate(
+          item.copyWith(
+            status: MediaItem.statusDone,
+            telegramMessageId: result.telegramMessageId,
+            errorReason: null,
+            retryCount: 0,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
         Prefs.lastSyncedTs = DateTime.now().millisecondsSinceEpoch;
         _updateInFlightSuccess();
       } else if (result is TelegramError) {
-        final isAuthExpired = isSessionExpiredError(result.code, result.description);
+        final isAuthExpired = isSessionExpiredError(
+          result.code,
+          result.description,
+        );
         final isRateLimit = isRateLimitError(result.code, result.description);
         final isNetwork = isNetworkError(result.description);
-        final isPermission = isChannelPermissionError(result.code, result.description);
+        final isPermission = isChannelPermissionError(
+          result.code,
+          result.description,
+        );
 
         if (isAuthExpired) {
-          debugPrint('[SyncEngine] Telegram session expired or revoked: ${result.description}');
-          await DatabaseHelper.instance.update(item.copyWith(
-            status: MediaItem.statusPending,
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ));
+          debugPrint(
+            '[SyncEngine] Telegram session expired or revoked: ${result.description}',
+          );
+          await DatabaseHelper.instance.update(
+            item.copyWith(
+              status: MediaItem.statusPending,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
           _updateInFlightRetry();
           engineStatusNotifier.value = SyncEngineStatus.sessionExpired;
-          engineStatusMessageNotifier.value = 'Telegram session expired. Please re-authenticate.';
+          engineStatusMessageNotifier.value =
+              'Telegram session expired. Please re-authenticate.';
           TelegramAuthService.instance.resetClientPool();
           stopSync();
           return;
         } else if (isRateLimit) {
-          final waitSec = extractFloodWaitSeconds(result.description, result.retryAfterSeconds);
-          debugPrint('[SyncEngine] Telegram Rate Limit FLOOD_WAIT: ${waitSec}s');
-          await DatabaseHelper.instance.update(item.copyWith(
-            status: MediaItem.statusPending,
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ));
+          final waitSec = extractFloodWaitSeconds(
+            result.description,
+            result.retryAfterSeconds,
+          );
+          debugPrint(
+            '[SyncEngine] Telegram Rate Limit FLOOD_WAIT: ${waitSec}s',
+          );
+          await DatabaseHelper.instance.update(
+            item.copyWith(
+              status: MediaItem.statusPending,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
           _updateInFlightRetry();
           triggerGlobalRateLimit(waitSec);
           await Future.delayed(Duration(seconds: waitSec.clamp(1, 60)));
         } else if (isNetwork) {
-          await DatabaseHelper.instance.update(item.copyWith(
-            status: MediaItem.statusPending,
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ));
+          await DatabaseHelper.instance.update(
+            item.copyWith(
+              status: MediaItem.statusPending,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
           _updateInFlightRetry();
           TelegramAuthService.instance.invalidateClient(workerIndex);
           await _handleOfflineWait();
@@ -946,73 +1080,92 @@ class SyncEngine {
               item.retryCount < maxItemRetries) {
             final nextRetry = item.retryCount + 1;
             Prefs.channelAccessHash = null;
-            await DatabaseHelper.instance.update(item.copyWith(
-              status: MediaItem.statusPending,
-              retryCount: nextRetry,
-              errorReason: 'Refreshing channel access: ${result.description}',
-              updatedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
+            await DatabaseHelper.instance.update(
+              item.copyWith(
+                status: MediaItem.statusPending,
+                retryCount: nextRetry,
+                errorReason: 'Refreshing channel access: ${result.description}',
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
             _updateInFlightRetry();
             await Future.delayed(Duration(milliseconds: 1000 * nextRetry));
           } else {
-            await DatabaseHelper.instance.update(item.copyWith(
-              status: MediaItem.statusFailed,
-              errorReason: 'Channel Permission Denied: ${result.description}',
-              updatedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
+            await DatabaseHelper.instance.update(
+              item.copyWith(
+                status: MediaItem.statusFailed,
+                errorReason: 'Channel Permission Denied: ${result.description}',
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
             _updateInFlightFailure();
           }
         } else {
           TelegramAuthService.instance.invalidateClient(workerIndex);
           if (item.retryCount < maxItemRetries) {
             final nextRetry = item.retryCount + 1;
-            await DatabaseHelper.instance.update(item.copyWith(
-              status: MediaItem.statusPending,
-              retryCount: nextRetry,
-              errorReason: 'Retrying ($nextRetry/$maxItemRetries): ${result.description}',
-              updatedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
+            await DatabaseHelper.instance.update(
+              item.copyWith(
+                status: MediaItem.statusPending,
+                retryCount: nextRetry,
+                errorReason:
+                    'Retrying ($nextRetry/$maxItemRetries): ${result.description}',
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
             _updateInFlightRetry();
-            await Future.delayed(Duration(milliseconds: 500 * (1 << nextRetry)));
+            await Future.delayed(
+              Duration(milliseconds: 500 * (1 << nextRetry)),
+            );
           } else {
-            await DatabaseHelper.instance.update(item.copyWith(
-              status: MediaItem.statusFailed,
-              errorReason: result.description,
-              updatedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
+            await DatabaseHelper.instance.update(
+              item.copyWith(
+                status: MediaItem.statusFailed,
+                errorReason: result.description,
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
             _updateInFlightFailure();
           }
         }
       } else if (result is Failure) {
         final isAuthExpired = isSessionExpiredError(null, result.message);
         final isRateLimit = isRateLimitError(null, result.message);
-        final isNetwork = isNetworkError(result.message) || !await hasInternetConnection();
+        final isNetwork =
+            isNetworkError(result.message) || !await hasInternetConnection();
 
         if (isAuthExpired) {
-          await DatabaseHelper.instance.update(item.copyWith(
-            status: MediaItem.statusPending,
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ));
+          await DatabaseHelper.instance.update(
+            item.copyWith(
+              status: MediaItem.statusPending,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
           _updateInFlightRetry();
           engineStatusNotifier.value = SyncEngineStatus.sessionExpired;
-          engineStatusMessageNotifier.value = 'Telegram session expired. Please re-authenticate.';
+          engineStatusMessageNotifier.value =
+              'Telegram session expired. Please re-authenticate.';
           TelegramAuthService.instance.resetClientPool();
           stopSync();
           return;
         } else if (isRateLimit) {
           final waitSec = extractFloodWaitSeconds(result.message);
-          await DatabaseHelper.instance.update(item.copyWith(
-            status: MediaItem.statusPending,
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ));
+          await DatabaseHelper.instance.update(
+            item.copyWith(
+              status: MediaItem.statusPending,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
           _updateInFlightRetry();
           triggerGlobalRateLimit(waitSec);
           await Future.delayed(Duration(seconds: waitSec.clamp(1, 60)));
         } else if (isNetwork) {
-          await DatabaseHelper.instance.update(item.copyWith(
-            status: MediaItem.statusPending,
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ));
+          await DatabaseHelper.instance.update(
+            item.copyWith(
+              status: MediaItem.statusPending,
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
           _updateInFlightRetry();
           TelegramAuthService.instance.invalidateClient(workerIndex);
           await _handleOfflineWait();
@@ -1022,32 +1175,41 @@ class SyncEngine {
             item.retryCount < maxItemRetries) {
           final nextRetry = item.retryCount + 1;
           Prefs.channelAccessHash = null;
-          await DatabaseHelper.instance.update(item.copyWith(
-            status: MediaItem.statusPending,
-            retryCount: nextRetry,
-            errorReason: 'Refreshing channel access: ${result.message}',
-            updatedAt: DateTime.now().millisecondsSinceEpoch,
-          ));
+          await DatabaseHelper.instance.update(
+            item.copyWith(
+              status: MediaItem.statusPending,
+              retryCount: nextRetry,
+              errorReason: 'Refreshing channel access: ${result.message}',
+              updatedAt: DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
           _updateInFlightRetry();
           await Future.delayed(Duration(milliseconds: 1000 * nextRetry));
         } else {
           TelegramAuthService.instance.invalidateClient(workerIndex);
           if (item.retryCount < maxItemRetries) {
             final nextRetry = item.retryCount + 1;
-            await DatabaseHelper.instance.update(item.copyWith(
-              status: MediaItem.statusPending,
-              retryCount: nextRetry,
-              errorReason: 'Retrying ($nextRetry/$maxItemRetries): ${result.message}',
-              updatedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
+            await DatabaseHelper.instance.update(
+              item.copyWith(
+                status: MediaItem.statusPending,
+                retryCount: nextRetry,
+                errorReason:
+                    'Retrying ($nextRetry/$maxItemRetries): ${result.message}',
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
             _updateInFlightRetry();
-            await Future.delayed(Duration(milliseconds: 500 * (1 << nextRetry)));
+            await Future.delayed(
+              Duration(milliseconds: 500 * (1 << nextRetry)),
+            );
           } else {
-            await DatabaseHelper.instance.update(item.copyWith(
-              status: MediaItem.statusFailed,
-              errorReason: result.message,
-              updatedAt: DateTime.now().millisecondsSinceEpoch,
-            ));
+            await DatabaseHelper.instance.update(
+              item.copyWith(
+                status: MediaItem.statusFailed,
+                errorReason: result.message,
+                updatedAt: DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
             _updateInFlightFailure();
           }
         }
@@ -1068,16 +1230,17 @@ class SyncEngine {
     final fileName = FileSecurityGuard.sanitizeFileName(rawName);
     final fileSize = await file.length();
     final maxSingleBytes = Prefs.maxChunkSizeMb * 1024 * 1024;
-    final dateStr = DateFormat('dd/MM/yyyy HH:mm:ss').format(
-      DateTime.fromMillisecondsSinceEpoch(item.dateTaken),
-    );
+    final dateStr = DateFormat(
+      'dd/MM/yyyy HH:mm:ss',
+    ).format(DateTime.fromMillisecondsSinceEpoch(item.dateTaken));
 
     // Direct upload if within limit (Bot API 50MB, or MTProto native up to 2000MB)
     final isBotApi = Prefs.botToken.contains(':');
     final limitBytes = isBotApi ? maxSingleBytes : (2000 * 1024 * 1024);
 
     if (fileSize <= limitBytes || !Prefs.enableChunking) {
-      final caption = '$fileName\nDate: $dateStr\nSize: ${_formatSize(fileSize)}';
+      final caption =
+          '$fileName\nDate: $dateStr\nSize: ${_formatSize(fileSize)}';
       if (isBotApi) {
         return await TelegramApi.sendMedia(
           Prefs.botToken,
@@ -1135,13 +1298,17 @@ class SyncEngine {
           }
         }
 
-        final partFileName = '$originalName.part${part.toString().padLeft(3, '0')}';
-        final bytesToRead = (part == totalParts) ? (totalBytes - (part - 1) * chunkBytes) : chunkBytes;
+        final partFileName =
+            '$originalName.part${part.toString().padLeft(3, '0')}';
+        final bytesToRead = (part == totalParts)
+            ? (totalBytes - (part - 1) * chunkBytes)
+            : chunkBytes;
 
         // In-memory buffer read: 0 disk overhead
         final buffer = await raf.read(bytesToRead);
 
-        final partCaption = '📦 $originalName [Part $part/$totalParts]\n'
+        final partCaption =
+            '📦 $originalName [Part $part/$totalParts]\n'
             'Part Size: ${_formatSize(bytesToRead)} / ${_formatSize(totalBytes)}\n'
             'Date: $dateStr';
 
@@ -1166,7 +1333,8 @@ class SyncEngine {
       }
 
       // Send completion manifest
-      final manifestText = '✅ *Upload Complete: $originalName*\n'
+      final manifestText =
+          '✅ *Upload Complete: $originalName*\n'
           '📁 Total Parts: $totalParts\n'
           '📊 Full Size: ${_formatSize(totalBytes)}\n'
           '🕒 Date: $dateStr\n'
@@ -1174,7 +1342,11 @@ class SyncEngine {
           '💡 _Preserved in exact chronological order._';
 
       if (Prefs.botToken.contains(':')) {
-        await TelegramApi.sendMessage(Prefs.botToken, Prefs.channelId, manifestText);
+        await TelegramApi.sendMessage(
+          Prefs.botToken,
+          Prefs.channelId,
+          manifestText,
+        );
       } else {
         await TelegramAuthService.instance.sendMessage(
           channelId: Prefs.channelId,
