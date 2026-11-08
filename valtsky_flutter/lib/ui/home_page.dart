@@ -178,6 +178,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   }
 
   void _switchPage(int targetIndex) {
+    if (!mounted) return;
     if (targetIndex == _currentIndex && _pageController.hasClients && _pageController.page?.round() == targetIndex) {
       return;
     }
