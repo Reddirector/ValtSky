@@ -266,8 +266,7 @@ ValtSky/
 │   │   │   ├── views/dashboard_view.dart               # Telemetry dashboard & slideshow reel
 │   │   │   ├── views/settings_view.dart                # Credentials, profile, PIN & diagnostic toggles
 │   │   │   └── widgets/
-│   │   │       ├── dashboard_control_deck.dart         # Tactile sync controls & scan trigger
-│   │   │       ├── diagnostics_sheet.dart              # Round-trip latency ping & self-healing
+│   │   │       ├── dashboard_control_deck.dart         # Tactile sync controls (Pause/Resume & Stop)
 │   │   │       ├── media_item_card.dart                # Two-tier 320px responsive media card
 │   │   │       ├── manual_upload_assistant_sheet.dart  # 4-Click 2GB+ manual upload assistant
 │   │   │       ├── telegram_phone_login_widget.dart    # Country selector & digit-limited login

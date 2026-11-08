@@ -4,11 +4,17 @@ import '../data/db/database_helper.dart';
 import '../data/models/media_item.dart';
 
 class MediaScanner {
+  @visibleForTesting
+  static Future<int> Function({bool forceFull})? scanHookForTesting;
+
   /// Scans device storage for new photos & videos in strict chronological order.
   /// If [forceFull] is false and items already exist in the database, performs a blazing-fast
   /// incremental scan using [DatabaseHelper.getLatestDateTaken].
   /// Returns the number of newly discovered and queued items.
   static Future<int> scanForNewMedia({bool forceFull = false}) async {
+    if (scanHookForTesting != null) {
+      return await scanHookForTesting!(forceFull: forceFull);
+    }
     if (kIsWeb) {
       if (await DatabaseHelper.instance.getTotalCount() == 0) {
         final now = DateTime.now();
@@ -90,10 +96,16 @@ class MediaScanner {
       );
     }
 
-    final List<AssetPathEntity> paths = await PhotoManager.getAssetPathList(
-      type: RequestType.common,
-      filterOption: filterOption,
-    );
+    final List<AssetPathEntity> paths;
+    try {
+      paths = await PhotoManager.getAssetPathList(
+        type: RequestType.common,
+        filterOption: filterOption,
+      );
+    } catch (e) {
+      debugPrint('[MediaScanner] PhotoManager not available on this platform/test runner: $e');
+      return 0;
+    }
 
     if (paths.isEmpty) {
       debugPrint('[MediaScanner] No asset paths returned by PhotoManager');

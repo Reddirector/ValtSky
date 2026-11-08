@@ -1,28 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../util/theme.dart';
 
-/// 2x2 Quick Controls Outlined Cards (Min 64pt tall)
+/// Quick Controls Outlined Cards (Min 64pt tall)
 /// Leading icon circle + full label. Stop Process has a failed-color icon only.
+/// Houses Pause (or Resume) and Stop Process side-by-side.
 class DashboardControlDeck extends StatelessWidget {
   final bool isConfigured;
-  final bool isMonitoring;
   final bool isPaused;
-  final bool isScanning;
   final VoidCallback onTogglePause;
-  final VoidCallback onScanGallery;
   final VoidCallback onStopProcess;
-  final VoidCallback onShowDiagnostics;
 
   const DashboardControlDeck({
     super.key,
     required this.isConfigured,
-    required this.isMonitoring,
     required this.isPaused,
-    required this.isScanning,
     required this.onTogglePause,
-    required this.onScanGallery,
     required this.onStopProcess,
-    required this.onShowDiagnostics,
   });
 
   @override
@@ -61,39 +54,12 @@ class DashboardControlDeck extends StatelessWidget {
                 SizedBox(width: spacing),
                 Expanded(
                   child: _buildActionCard(
-                    title: 'Scan Gallery',
-                    icon: Icons.photo_camera_back_outlined,
-                    iconColor: ValtSkyTheme.textPrimary(isDark),
-                    isDark: isDark,
-                    isNarrow: isNarrow,
-                    isLoading: isScanning,
-                    onTap: isScanning ? null : onScanGallery,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: spacing),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildActionCard(
                     title: 'Stop Process',
                     icon: Icons.stop_circle_outlined,
                     iconColor: ValtSkyTheme.failed(isDark), // Failed-color icon only
                     isDark: isDark,
                     isNarrow: isNarrow,
                     onTap: onStopProcess,
-                  ),
-                ),
-                SizedBox(width: spacing),
-                Expanded(
-                  child: _buildActionCard(
-                    title: 'Diagnostics',
-                    icon: Icons.terminal_rounded,
-                    iconColor: ValtSkyTheme.textPrimary(isDark),
-                    isDark: isDark,
-                    isNarrow: isNarrow,
-                    onTap: onShowDiagnostics,
                   ),
                 ),
               ],
@@ -111,7 +77,6 @@ class DashboardControlDeck extends StatelessWidget {
     required bool isDark,
     required bool isNarrow,
     required VoidCallback? onTap,
-    bool isLoading = false,
     bool isEnabled = true,
   }) {
     final bg = ValtSkyTheme.surface(isDark);
@@ -147,16 +112,7 @@ class DashboardControlDeck extends StatelessWidget {
                       color: ValtSkyTheme.surface(isDark, level: 2),
                     ),
                     alignment: Alignment.center,
-                    child: isLoading
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(iconColor),
-                            ),
-                          )
-                        : Icon(icon, size: 20, color: iconColor),
+                    child: Icon(icon, size: 20, color: iconColor),
                   ),
                   SizedBox(width: isNarrow ? 10 : 12),
                   Expanded(

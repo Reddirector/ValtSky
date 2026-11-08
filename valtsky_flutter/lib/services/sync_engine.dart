@@ -393,7 +393,7 @@ class SyncEngine {
         'Telegram linked. Starting vault backup...';
 
     // 3. Scan camera roll cleanly into fresh database
-    await MediaScanner.scanForNewMedia();
+    await MediaScanner.scanForNewMedia(forceFull: true);
 
     // 4. Populate live stats from database and activate sync
     await fetchCurrentStats(forceDb: true);

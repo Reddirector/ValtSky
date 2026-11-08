@@ -56,9 +56,8 @@ Sampled from authentic repository assets (`valtsky_flutter/assets/images/valtsky
 - `valtsky_flutter/lib/ui/views/dashboard_view.dart` (Dashboard page layout)
 - `valtsky_flutter/lib/ui/widgets/vault_storage_card.dart` (Monolithic vault card / hero cut-out)
 - `valtsky_flutter/lib/ui/widgets/vault_metric_deck.dart` (2x2 stats metrics)
-- `valtsky_flutter/lib/ui/widgets/dashboard_control_deck.dart` (2x2 tactical quick controls)
+- `valtsky_flutter/lib/ui/widgets/dashboard_control_deck.dart` (Quick controls: Pause & Stop Process)
 - `valtsky_flutter/lib/ui/widgets/dashboard_status_banner.dart` (Offline/rate limit alerts)
-- `valtsky_flutter/lib/ui/widgets/diagnostics_sheet.dart` (Diagnostics sheet modal)
 - `valtsky_flutter/lib/ui/widgets/failed_item_card.dart` (Failed item card & retry)
 - `valtsky_flutter/lib/ui/views/activity_view.dart` (Queue & Activity view, filter pills, summary, telemetry)
 - `valtsky_flutter/lib/ui/widgets/media_item_card.dart` (Media item list element)
@@ -96,9 +95,7 @@ Sampled from authentic repository assets (`valtsky_flutter/assets/images/valtsky
 | **Metric: In Queue** | Dashboard: Metrics | `onNavigateToActivity('PENDING')` | Value: `$pendingCount` | `find.text('IN QUEUE')` |
 | **Metric: Failed** | Dashboard: Metrics | `onNavigateToActivity('FAILED')` | Value: `$failedCount` | `find.text('FAILED')` |
 | **Quick Control: Pause/Resume** | Dashboard: Quick Controls | `onTogglePause` | Enabled only when `isConfigured == true` | `find.text('Pause')` / `find.text('Resume')` |
-| **Quick Control: Scan Gallery** | Dashboard: Quick Controls | `onScanGallery` | Disabled / spinner when `isScanning == true` | `find.text('Scan Gallery')` |
 | **Quick Control: Stop Process** | Dashboard: Quick Controls | `onStopProcess` | Subtle coral icon, stops sync process | `find.text('Stop Process')` |
-| **Quick Control: Diagnostics** | Dashboard: Quick Controls | `onShowDiagnostics` | Always clickable, shows diagnostic modal | `find.text('Diagnostics')` |
 | **Filter Chip: All** | Queue & Activity: Filters | `setFilter('ALL')` | Badge count: `_breakdown.totalCount` | `find.text('All')` |
 | **Filter Chip: Queued** | Queue & Activity: Filters | `setFilter(MediaItem.statusPending)` | Badge count: `_breakdown.totalPending` | `find.text('Queued')` |
 | **Filter Chip: Synced** | Queue & Activity: Filters | `setFilter(MediaItem.statusDone)` | Badge count: `_breakdown.totalSynced` | `find.text('Synced')` |
@@ -179,14 +176,12 @@ This list contains every user-visible string extracted from the presentation lay
 | 66 | title | `IN QUEUE` |
 | 78 | title | `FAILED` |
 
-### `valtsky_flutter/lib/ui/widgets/dashboard_control_deck.dart` (4 strings)
+### `valtsky_flutter/lib/ui/widgets/dashboard_control_deck.dart` (2 strings)
 
 | Line | Type | Verbatim String |
 |---|---|---|
-| 44 | Text | `QUICK CONTROLS` |
-| 70 | title | `Scan Gallery` |
-| 86 | title | `Stop Process` |
-| 97 | title | `Diagnostics` |
+| 37 | Text | `QUICK CONTROLS` |
+| 57 | title | `Stop Process` |
 
 ### `valtsky_flutter/lib/ui/widgets/dashboard_status_banner.dart` (3 strings)
 
@@ -195,13 +190,6 @@ This list contains every user-visible string extracted from the presentation lay
 | 39 | Text | `${rateLimitRemaining}s remaining` |
 | 53 | Text | `Retry` |
 | 75 | Text | `Sign In` |
-
-### `valtsky_flutter/lib/ui/widgets/diagnostics_sheet.dart` (2 strings)
-
-| Line | Type | Verbatim String |
-|---|---|---|
-| 90 | Text | `Engine Diagnostics` |
-| 168 | Text | `Restart Sockets` |
 
 ### `valtsky_flutter/lib/ui/widgets/failed_item_card.dart` (9 strings)
 

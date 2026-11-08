@@ -178,22 +178,16 @@ void main() {
 
   testWidgets('DashboardControlDeck displays Stop Process and Quick Controls', (WidgetTester tester) async {
     bool stopped = false;
-    bool scanned = false;
     bool paused = false;
-    bool diagnostics = false;
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: DashboardControlDeck(
             isConfigured: true,
-            isMonitoring: true,
             isPaused: false,
-            isScanning: false,
             onTogglePause: () => paused = true,
-            onScanGallery: () => scanned = true,
             onStopProcess: () => stopped = true,
-            onShowDiagnostics: () => diagnostics = true,
           ),
         ),
       ),
@@ -203,28 +197,20 @@ void main() {
     // Verify buttons are rendered
     expect(find.text('QUICK CONTROLS'), findsOneWidget);
     expect(find.text('Pause'), findsOneWidget);
-    expect(find.text('Scan Gallery'), findsOneWidget);
     expect(find.text('Stop Process'), findsOneWidget);
-    expect(find.text('Diagnostics'), findsOneWidget);
+    expect(find.text('Scan Gallery'), findsNothing);
+    expect(find.text('Diagnostics'), findsNothing);
 
     // Tap Stop Process
     await tester.tap(find.text('Stop Process'));
     expect(stopped, isTrue);
 
-    // Tap Scan Gallery
-    await tester.tap(find.text('Scan Gallery'));
-    expect(scanned, isTrue);
-
     // Tap Pause
     await tester.tap(find.text('Pause'));
     expect(paused, isTrue);
-
-    // Tap Diagnostics
-    await tester.tap(find.text('Diagnostics'));
-    expect(diagnostics, isTrue);
   });
 
-  testWidgets('DashboardControlDeck Pause button is enabled and clickable when isMonitoring is false', (WidgetTester tester) async {
+  testWidgets('DashboardControlDeck Pause button is enabled and clickable when isConfigured is true', (WidgetTester tester) async {
     bool paused = false;
 
     await tester.pumpWidget(
@@ -232,20 +218,16 @@ void main() {
         home: Scaffold(
           body: DashboardControlDeck(
             isConfigured: true,
-            isMonitoring: false, // Monitoring is OFF
             isPaused: false,
-            isScanning: false,
             onTogglePause: () => paused = true,
-            onScanGallery: () {},
             onStopProcess: () {},
-            onShowDiagnostics: () {},
           ),
         ),
       ),
     );
     await tester.pump();
 
-    // Verify Pause button is clickable even when monitoring is false
+    // Verify Pause button is clickable
     await tester.tap(find.text('Pause'));
     expect(paused, isTrue);
   });

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../data/prefs.dart';
+import 'sync_engine.dart';
 import 'telegram_api.dart';
 
 enum AuthStep {
@@ -332,8 +333,9 @@ class TelegramAuthService {
     if (Prefs.botToken.isEmpty) {
       Prefs.botToken = 'mtproto_session_active';
     }
-    // Enable monitoring by default on account link so camera captures sync automatically
+    // Enable monitoring and auto-scan gallery by default on Telegram channel configuration
     Prefs.monitoringEnabled = true;
+    unawaited(SyncEngine.instance.initializeNewVaultSession());
 
     stateNotifier.value = currentState.copyWith(
       step: AuthStep.completed,

@@ -17,9 +17,7 @@ class DashboardViewModel extends ChangeNotifier {
   int uploadingCount = 0;
   double progress = 0.0;
 
-  bool isScanning = false;
   bool isRefreshing = false;
-  bool isRestarting = false;
   List<MediaItem> cachedFailedItems = [];
   List<MediaItem> recentItems = [];
 
@@ -133,52 +131,6 @@ class DashboardViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> handleScanGallery(BuildContext context) async {
-    if (isScanning) return;
-    isScanning = true;
-    notifyListeners();
-
-    try {
-      final newCount = await MediaScanner.scanForNewMedia(forceFull: false);
-      await refreshStats();
-      if (context.mounted) {
-        final total = totalCount;
-        final msg = newCount > 0
-            ? 'Scan complete: $newCount new captures queued ($total total)'
-            : 'Gallery up to date ($total media items indexed)';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: ValtSkyTheme.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            content: Row(
-              children: [
-                const Icon(Icons.photo_library_rounded, color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(child: Text(msg)),
-              ],
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: ValtSkyTheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            content: Text('Scan error: $e'),
-          ),
-        );
-      }
-    } finally {
-      isScanning = false;
-      notifyListeners();
-    }
-  }
-
   Future<void> handleStopProcess(BuildContext context) async {
     try {
       SyncEngine.instance.stopSync();
@@ -219,48 +171,6 @@ class DashboardViewModel extends ChangeNotifier {
       }
     }
     notifyListeners();
-  }
-
-  Future<void> handleRestartEngine(BuildContext context) async {
-    if (isRestarting) return;
-    isRestarting = true;
-    notifyListeners();
-
-    try {
-      await SyncEngine.instance.restartEngine();
-      await refreshStats();
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: ValtSkyTheme.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            content: const Row(
-              children: [
-                Icon(Icons.restart_alt_rounded, color: Colors.white, size: 20),
-                SizedBox(width: 10),
-                Expanded(child: Text('Engine self-healed: sockets & workers refreshed')),
-              ],
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: ValtSkyTheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            content: Text('Restart error: $e'),
-          ),
-        );
-      }
-    } finally {
-      isRestarting = false;
-      notifyListeners();
-    }
   }
 
   void _showNotConfiguredDialog(BuildContext context, {required VoidCallback onNavigateToSettings}) {

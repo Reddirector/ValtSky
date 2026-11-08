@@ -8,7 +8,6 @@ import '../widgets/vault_storage_card.dart';
 import '../widgets/vault_metric_deck.dart';
 import '../widgets/dashboard_control_deck.dart';
 import '../widgets/dashboard_status_banner.dart';
-import '../widgets/diagnostics_sheet.dart';
 import '../widgets/failed_item_card.dart';
 
 class DashboardView extends StatefulWidget {
@@ -140,18 +139,9 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                 // 5. Tactical Quick Action Controls
                 DashboardControlDeck(
                   isConfigured: isConfigured,
-                  isMonitoring: isMonitoring,
                   isPaused: isPaused,
-                  isScanning: _viewModel.isScanning,
                   onTogglePause: _viewModel.togglePauseUpload,
-                  onScanGallery: () => _viewModel.handleScanGallery(context),
                   onStopProcess: () => _viewModel.handleStopProcess(context),
-                  onShowDiagnostics: () {
-                    DiagnosticsSheet.show(
-                      context,
-                      onRestartEngine: () => _viewModel.handleRestartEngine(context),
-                    );
-                  },
                 ),
 
                 // 6. Failed Items Alert (Conditional)
