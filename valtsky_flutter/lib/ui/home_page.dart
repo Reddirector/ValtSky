@@ -304,11 +304,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                   children: [
                     NavigationRail(
                       selectedIndex: _currentIndex,
-                      onDestinationSelected: (index) {
-                        _switchPage(index);
-                        if (index == 0) _dashboardKey.currentState?.refreshStats();
-                        if (index == 1) _activityKey.currentState?.refreshItems();
-                      },
+                      onDestinationSelected: _switchPage,
                       backgroundColor: ValtSkyTheme.surface(isDark),
                       indicatorColor: ValtSkyTheme.amber,
                       labelType: NavigationRailLabelType.all,
@@ -380,11 +376,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                     bottomNavigationBar: SafeArea(
                       child: ValtSkyNavigationDock(
                         selectedIndex: _currentIndex,
-                        onDestinationSelected: (index) {
-                          _switchPage(index);
-                          if (index == 0) _dashboardKey.currentState?.refreshStats();
-                          if (index == 1) _activityKey.currentState?.refreshItems();
-                        },
+                        onDestinationSelected: _switchPage,
                       ),
                     ),
                   ),
