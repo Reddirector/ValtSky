@@ -25,9 +25,11 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   late final PageController _pageController;
+  late final AnimationController _tabFadeController;
+  late final Animation<double> _tabFadeAnimation;
   final GlobalKey<DashboardViewState> _dashboardKey = GlobalKey<DashboardViewState>();
   final GlobalKey<ActivityViewState> _activityKey = GlobalKey<ActivityViewState>();
   bool _isRefreshing = false;
@@ -42,6 +44,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _currentIndex);
+    _tabFadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 140),
+      value: 1.0,
+    );
+    _tabFadeAnimation = CurvedAnimation(
+      parent: _tabFadeController,
+      curve: Curves.easeInOutCubic,
+    );
     if (Prefs.vaultPinEnabled && Prefs.hasVaultPin && !_isTest) {
       _isLocked = true;
     }
@@ -79,6 +90,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _tabFadeController.dispose();
     _pageController.dispose();
     _unlockPinController.dispose();
     super.dispose();
@@ -157,18 +169,37 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  void _switchPage(int index) {
-    setState(() => _currentIndex = index);
-    if (_pageController.hasClients) {
-      if (_isTest) {
-        _pageController.jumpToPage(index);
-      } else {
-        _pageController.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 260),
-          curve: Curves.easeInOutCubic,
-        );
+  void _switchPage(int targetIndex) async {
+    if (targetIndex == _currentIndex && _pageController.hasClients && _pageController.page?.round() == targetIndex) {
+      return;
+    }
+
+    if (_isTest || (context.mounted && MediaQuery.of(context).disableAnimations)) {
+      setState(() => _currentIndex = targetIndex);
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(targetIndex);
       }
+      if (targetIndex == 0) _dashboardKey.currentState?.refreshStats();
+      if (targetIndex == 1) _activityKey.currentState?.refreshItems();
+      return;
+    }
+
+    // 1. Smooth Fade Out of current tab
+    await _tabFadeController.reverse();
+
+    if (!mounted) return;
+
+    // 2. Switch page while completely faded out
+    setState(() => _currentIndex = targetIndex);
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(targetIndex);
+    }
+    if (targetIndex == 0) _dashboardKey.currentState?.refreshStats();
+    if (targetIndex == 1) _activityKey.currentState?.refreshItems();
+
+    // 3. Smooth Fade In of incoming tab
+    if (mounted) {
+      await _tabFadeController.forward();
     }
   }
 
@@ -219,28 +250,34 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth > 1024;
 
-          final content = PageView(
-            controller: _pageController,
-            physics: const ClampingScrollPhysics(),
-            onPageChanged: (index) {
-              setState(() => _currentIndex = index);
-              if (index == 0) _dashboardKey.currentState?.refreshStats();
-              if (index == 1) _activityKey.currentState?.refreshItems();
-            },
-            children: [
-              DashboardView(
-                key: _dashboardKey,
-                onNavigateToSettings: () => _switchPage(2),
-                onNavigateToActivity: _navigateToActivityWithFilter,
-              ),
-              ActivityView(
-                key: _activityKey,
-                onDataChanged: _onDataChanged,
-              ),
-              SettingsView(
-                onDataChanged: _onDataChanged,
-              ),
-            ],
+          final content = FadeTransition(
+            opacity: _tabFadeAnimation,
+            child: PageView(
+              controller: _pageController,
+              physics: const ClampingScrollPhysics(),
+              onPageChanged: (index) {
+                setState(() => _currentIndex = index);
+                if (index == 0) _dashboardKey.currentState?.refreshStats();
+                if (index == 1) _activityKey.currentState?.refreshItems();
+                if (_tabFadeController.value < 1.0) {
+                  _tabFadeController.forward();
+                }
+              },
+              children: [
+                DashboardView(
+                  key: _dashboardKey,
+                  onNavigateToSettings: () => _switchPage(2),
+                  onNavigateToActivity: _navigateToActivityWithFilter,
+                ),
+                ActivityView(
+                  key: _activityKey,
+                  onDataChanged: _onDataChanged,
+                ),
+                SettingsView(
+                  onDataChanged: _onDataChanged,
+                ),
+              ],
+            ),
           );
 
           if (isDesktop) {
