@@ -358,13 +358,11 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
     bool isActiveTrack = false,
   }) {
     final cardBg = ValtSkyTheme.surface(isDark);
-    final borderColor = isActiveTrack
-        ? ValtSkyTheme.amber.withValues(alpha: 0.45)
-        : ValtSkyTheme.hairline(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
     final mutedText = ValtSkyTheme.textSecondary(isDark);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
@@ -376,68 +374,73 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // 40pt square ink chip with white glyph
               Container(
-                width: 34,
-                height: 34,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  color: isDark ? ValtSkyTheme.darkSurface3 : ValtSkyTheme.lightInk,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: color, size: 18),
+                alignment: Alignment.center,
+                child: Icon(icon, color: Colors.white, size: 20),
               ),
               if (isActiveTrack)
                 ValueListenableBuilder<SyncEngineStatus>(
                   valueListenable: SyncEngine.engineStatusNotifier,
                   builder: (context, engineStatus, _) {
                     final isLive = engineStatus == SyncEngineStatus.active;
+                    if (!isLive) return const SizedBox.shrink();
                     return Container(
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: isLive ? ValtSkyTheme.darkAqua : ValtSkyTheme.darkAccent.withValues(alpha: 0.5),
+                        color: ValtSkyTheme.accent(isDark),
                         shape: BoxShape.circle,
-                        boxShadow: isLive
-                            ? [
-                                BoxShadow(
-                                  color: ValtSkyTheme.darkAqua.withValues(alpha: 0.75),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: ValtSkyTheme.accent(isDark).withValues(alpha: 0.70),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
                     );
                   },
                 ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            '$count',
-            style: TextStyle(
-              fontFamily: ValtSkyTheme.fontFamily,
-              fontSize: 32,
-              fontWeight: FontWeight.w300,
-              letterSpacing: -0.5,
-              color: ValtSkyTheme.textPrimary(isDark),
-              height: 1.05,
+          const SizedBox(height: 12),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '$count',
+              style: ValtSkyTheme.statNumeral(isDark: isDark),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
+          // 16x2 Dash Divider
+          Container(
+            width: 16,
+            height: 2,
+            decoration: BoxDecoration(
+              color: ValtSkyTheme.hairline(isDark),
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+          const SizedBox(height: 6),
           Text(
             title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: ValtSkyTheme.capsLabel(
-              isDark: isDark,
-              color: isDark ? color : (isActiveTrack ? ValtSkyTheme.accentText(isDark) : ValtSkyTheme.textSecondary(isDark)),
-            ),
+            style: ValtSkyTheme.capsLabel(isDark: isDark),
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
             style: TextStyle(
-              fontFamily: ValtSkyTheme.fontFamily,
+              fontFamily: ValtSkyTheme.fontFamilyBody,
               fontSize: 11,
               fontWeight: FontWeight.w500,
               color: mutedText,
@@ -462,6 +465,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                 label: 'Scan Gallery',
                 icon: Icons.sync_rounded,
                 variant: PillButtonVariant.primary,
+                showTrailingArrow: true,
                 isLoading: _isScanning,
                 onPressed: _isScanning
                     ? null
@@ -697,6 +701,9 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
     final borderColor = ValtSkyTheme.hairline(isDark);
     final mutedText = ValtSkyTheme.textSecondary(isDark);
 
+    final chipSelectedBg = isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk;
+    final chipSelectedFg = isDark ? ValtSkyTheme.darkCanvas : ValtSkyTheme.paper;
+
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
       child: Center(
@@ -711,23 +718,17 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? ValtSkyTheme.ink.withValues(alpha: 0.14)
-                        : (filterKey == 'OVERSIZED' && badgeCount > 0
-                            ? ValtSkyTheme.amber.withValues(alpha: 0.25)
-                            : ValtSkyTheme.raised(isDark)),
+                        ? (isDark ? Colors.black.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.22))
+                        : ValtSkyTheme.surface(isDark, level: 3),
                     borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
                   ),
                   child: Text(
                     '$badgeCount',
                     style: TextStyle(
-                      fontFamily: ValtSkyTheme.fontFamily,
+                      fontFamily: ValtSkyTheme.fontFamilyDisplay,
                       fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: isSelected
-                          ? ValtSkyTheme.ink
-                          : (filterKey == 'OVERSIZED' && badgeCount > 0
-                              ? ValtSkyTheme.accentText(isDark)
-                              : mutedText),
+                      fontWeight: FontWeight.w700,
+                      color: isSelected ? chipSelectedFg : mutedText,
                     ),
                   ),
                 ),
@@ -742,15 +743,15 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
             }
           },
           labelStyle: TextStyle(
-            fontFamily: ValtSkyTheme.fontFamily,
+            fontFamily: ValtSkyTheme.fontFamilyBody,
             fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? ValtSkyTheme.ink : mutedText,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? chipSelectedFg : mutedText,
           ),
-          selectedColor: ValtSkyTheme.amber,
+          selectedColor: chipSelectedBg,
           backgroundColor: cardBg,
           side: BorderSide(
-            color: isSelected ? ValtSkyTheme.amber : borderColor,
+            color: isSelected ? chipSelectedBg : borderColor,
             width: 1.0,
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill)),

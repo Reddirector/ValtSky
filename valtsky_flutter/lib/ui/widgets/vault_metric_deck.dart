@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../util/theme.dart';
 import 'valtsky_components.dart';
 
+/// 2x2 Bento Stat Cards:
+/// Each = 40pt ink icon chip with white glyph, 36 Light Outfit numeral,
+/// 16x2 dash divider, and small-caps label.
 class VaultMetricDeck extends StatelessWidget {
   final int totalCount;
   final int uploadedCount;
@@ -20,62 +23,62 @@ class VaultMetricDeck extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 360;
         final spacing = isNarrow ? 8.0 : 12.0;
 
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Bento Left: Tall Tile for TOTAL MEDIA (biggest numeral)
-              Expanded(
-                flex: 5,
-                child: StatTile(
-                  label: 'TOTAL MEDIA',
-                  value: totalCount,
-                  icon: Icons.photo_library_outlined,
-                  isTall: true,
-                  onTap: () => onNavigateToActivity('ALL'),
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: StatTile(
+                    label: 'TOTAL MEDIA',
+                    value: totalCount,
+                    icon: Icons.photo_library_outlined,
+                    onTap: () => onNavigateToActivity('ALL'),
+                  ),
                 ),
-              ),
-
-              SizedBox(width: spacing),
-
-              // Bento Right: Stacked Tiles for SYNCED, IN QUEUE, FAILED
-              Expanded(
-                flex: 6,
-                child: Column(
-                  children: [
-                    StatTile(
-                      label: 'SYNCED',
-                      value: uploadedCount,
-                      icon: Icons.cloud_done_rounded,
-                      accentColor: uploadedCount > 0 ? ValtSkyTheme.statusSynced : null,
-                      onTap: () => onNavigateToActivity('DONE'),
-                    ),
-                    SizedBox(height: spacing),
-                    StatTile(
-                      label: 'IN QUEUE',
-                      value: pendingCount,
-                      icon: Icons.hourglass_top_rounded,
-                      onTap: () => onNavigateToActivity('PENDING'),
-                    ),
-                    SizedBox(height: spacing),
-                    StatTile(
-                      label: 'FAILED',
-                      value: failedCount,
-                      icon: Icons.error_outline_rounded,
-                      accentColor: failedCount > 0 ? ValtSkyTheme.statusFailed : null,
-                      hasAlert: failedCount > 0,
-                      onTap: () => onNavigateToActivity('FAILED'),
-                    ),
-                  ],
+                SizedBox(width: spacing),
+                Expanded(
+                  child: StatTile(
+                    label: 'SYNCED',
+                    value: uploadedCount,
+                    icon: Icons.cloud_done_rounded,
+                    accentColor: uploadedCount > 0 ? ValtSkyTheme.synced(isDark) : null,
+                    onTap: () => onNavigateToActivity('DONE'),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+            SizedBox(height: spacing),
+            Row(
+              children: [
+                Expanded(
+                  child: StatTile(
+                    label: 'IN QUEUE',
+                    value: pendingCount,
+                    icon: Icons.hourglass_top_rounded,
+                    onTap: () => onNavigateToActivity('PENDING'),
+                  ),
+                ),
+                SizedBox(width: spacing),
+                Expanded(
+                  child: StatTile(
+                    label: 'FAILED',
+                    value: failedCount,
+                    icon: Icons.error_outline_rounded,
+                    accentColor: failedCount > 0 ? ValtSkyTheme.failed(isDark) : null,
+                    hasAlert: failedCount > 0,
+                    onTap: () => onNavigateToActivity('FAILED'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         );
       },
     );

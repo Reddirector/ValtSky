@@ -211,34 +211,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       backgroundColor: surfaceBg,
       body: Stack(
         children: [
-          // Pre-rendered soft indigo ambient glow blob (Night-Sky atmosphere)
-          Positioned(
-            top: -120,
-            left: 0,
-            right: 0,
-            height: 380,
-            child: IgnorePointer(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(0.0, -0.6),
-                    radius: 1.1,
-                    colors: isDark
-                        ? [
-                            ValtSkyTheme.darkAccent.withValues(alpha: 0.18),
-                            ValtSkyTheme.darkSurface3.withValues(alpha: 0.05),
-                            Colors.transparent,
-                          ]
-                        : [
-                            ValtSkyTheme.lightAccentFill.withValues(alpha: 0.12),
-                            ValtSkyTheme.lightSurface3.withValues(alpha: 0.04),
-                            Colors.transparent,
-                          ],
-                    stops: const [0.0, 0.55, 1.0],
-                  ),
-                ),
-              ),
-            ),
+          // Decorative thin line-art swirl behind content (~6% opacity, drawn in code)
+          Positioned.fill(
+            child: LineArtSwirl(opacity: isDark ? 0.05 : 0.06),
           ),
           LayoutBuilder(
         builder: (context, constraints) {
@@ -374,68 +349,96 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   PreferredSizeWidget _buildAppBar(bool isDark, Color secondaryColor, Color trackBg, Color borderColor) {
-    return AppBar(
-      titleSpacing: 20,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      backgroundColor: Colors.transparent,
-      title: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: trackBg,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor),
-            ),
-            child: const ValtSkyLogo(size: 28),
+    final slabColor = ValtSkyTheme.capSlab(isDark);
+    final slabTextColor = ValtSkyTheme.capSlabText(isDark);
+
+    return PreferredSize(
+      preferredSize: const Size.fromHeight(68),
+      child: Container(
+        decoration: BoxDecoration(
+          color: slabColor,
+          borderRadius: const BorderRadius.only(
+            bottomLeft: Radius.circular(ValtSkyTheme.radiusCapSlab),
+            bottomRight: Radius.circular(ValtSkyTheme.radiusCapSlab),
           ),
-          const SizedBox(width: 12),
-          Text(
-            'ValtSky',
-            style: TextStyle(
-              fontFamily: ValtSkyTheme.fontFamily,
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              color: ValtSkyTheme.textPrimary(isDark),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          tooltip: 'Interactive Guide',
-          icon: Icon(Icons.help_outline_rounded, color: secondaryColor, size: 21),
-          onPressed: _openGuide,
-        ),
-        IconButton(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          tooltip: 'Refresh Live Counts',
-          icon: _isRefreshing
-              ? SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: secondaryColor),
+          border: isDark
+              ? Border(
+                  top: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    width: 1.0,
+                  ),
                 )
-              : Icon(Icons.sync_rounded, color: secondaryColor, size: 21),
-          onPressed: _handleGlobalRefresh,
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        IconButton(
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
-          icon: Icon(
-            isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-            color: secondaryColor,
-            size: 21,
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isDark ? ValtSkyTheme.darkSurface3 : const Color(0xFF1E1E22),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isDark ? borderColor : Colors.white12),
+                  ),
+                  child: const ValtSkyLogo(size: 28),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'ValtSky',
+                  style: TextStyle(
+                    fontFamily: ValtSkyTheme.fontFamilyDisplay,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: slabTextColor,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  tooltip: 'Interactive Guide',
+                  icon: Icon(Icons.help_outline_rounded, color: slabTextColor, size: 21),
+                  onPressed: _openGuide,
+                ),
+                IconButton(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  tooltip: 'Refresh Live Counts',
+                  icon: _isRefreshing
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: slabTextColor),
+                        )
+                      : Icon(Icons.sync_rounded, color: slabTextColor, size: 21),
+                  onPressed: _handleGlobalRefresh,
+                ),
+                IconButton(
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
+                  icon: Icon(
+                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    color: slabTextColor,
+                    size: 21,
+                  ),
+                  onPressed: () => context.read<ThemeProvider>().toggleTheme(),
+                ),
+              ],
+            ),
           ),
-          onPressed: () => context.read<ThemeProvider>().toggleTheme(),
         ),
-        const SizedBox(width: 8),
-      ],
+      ),
     );
   }
 

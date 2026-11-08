@@ -6,9 +6,95 @@ import '../../util/theme.dart';
 export 'sky_orb_hero.dart';
 export 'valtsky_navigation_dock.dart';
 
-// ─── 1. PILL BUTTON ────────────────────────────────────────────────────────
-/// Tactile Pill Button with Spring Scale (0.96), Light Haptic feedback on mobile,
-/// Focus ring for keyboard, and min 48x48 hit area.
+// ─── 1. CAP SLAB (SOLID INK HEADER SLAB WITH R=40) ─────────────────────────
+/// Solid ink cap slab positioned at the top of every screen
+class CapSlab extends StatelessWidget {
+  final Widget child;
+  final double bottomRadius;
+  final EdgeInsetsGeometry padding;
+
+  const CapSlab({
+    super.key,
+    required this.child,
+    this.bottomRadius = ValtSkyTheme.radiusCapSlab,
+    this.padding = const EdgeInsets.fromLTRB(20, 16, 20, 36),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final slabColor = ValtSkyTheme.capSlab(isDark);
+
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: slabColor,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(bottomRadius),
+          bottomRight: Radius.circular(bottomRadius),
+        ),
+        border: isDark
+            ? Border(
+                top: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  width: 1.0,
+                ),
+              )
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: DefaultTextStyle(
+        style: TextStyle(
+          color: ValtSkyTheme.capSlabText(isDark),
+          fontFamily: ValtSkyTheme.fontFamilyBody,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
+// ─── 2. STRADDLE HERO CARD ─────────────────────────────────────────────────
+/// Surface/white card straddling the cap slab edge (overlapping)
+class StraddleCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? padding;
+  final double? width;
+
+  const StraddleCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.width,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: width,
+      padding: padding ?? const EdgeInsets.all(20),
+      decoration: ValtSkyTheme.cardDecoration(
+        isDark: isDark,
+        surfaceLevel: 1,
+        radius: ValtSkyTheme.radiusCard,
+      ),
+      child: child,
+    );
+  }
+}
+
+// ─── 3. PILL BUTTON ────────────────────────────────────────────────────────
+/// Tactile Pill Button with Spring Scale (0.97), Light Haptic feedback on mobile,
+/// Trailing circular arrow support, Focus ring for keyboard, and min 48x48 hit area.
 enum PillButtonVariant { primary, secondary, outline, destructive }
 
 class PillButton extends StatefulWidget {
@@ -19,6 +105,7 @@ class PillButton extends StatefulWidget {
   final bool isLoading;
   final double height;
   final double? width;
+  final bool showTrailingArrow;
 
   const PillButton({
     super.key,
@@ -29,6 +116,7 @@ class PillButton extends StatefulWidget {
     this.isLoading = false,
     this.height = 48.0,
     this.width,
+    this.showTrailingArrow = false,
   });
 
   @override
@@ -65,17 +153,16 @@ class _PillButtonState extends State<PillButton> {
 
     Color bg = Colors.transparent;
     Color fg = ValtSkyTheme.textPrimary(isDark);
-    Gradient? gradient;
     BorderSide border = BorderSide.none;
 
     switch (widget.variant) {
       case PillButtonVariant.primary:
         if (isEnabled) {
-          gradient = ValtSkyTheme.primaryCtaGradient(isDark);
-          fg = isDark ? ValtSkyTheme.ink : Colors.white;
+          bg = ValtSkyTheme.primaryCtaFill(isDark);
+          fg = ValtSkyTheme.primaryCtaText(isDark);
         } else {
-          bg = ValtSkyTheme.darkAccent.withValues(alpha: 0.35);
-          fg = isDark ? ValtSkyTheme.ink : Colors.white70;
+          bg = ValtSkyTheme.primaryCtaFill(isDark).withValues(alpha: 0.35);
+          fg = ValtSkyTheme.primaryCtaText(isDark).withValues(alpha: 0.45);
         }
         break;
 
@@ -97,16 +184,16 @@ class _PillButtonState extends State<PillButton> {
         break;
 
       case PillButtonVariant.destructive:
-        bg = _isPressed ? ValtSkyTheme.statusFailed.withValues(alpha: 0.20) : Colors.transparent;
-        fg = isEnabled ? ValtSkyTheme.statusFailed : ValtSkyTheme.statusFailed.withValues(alpha: 0.40);
+        bg = _isPressed ? ValtSkyTheme.failed(isDark).withValues(alpha: 0.20) : Colors.transparent;
+        fg = isEnabled ? ValtSkyTheme.failed(isDark) : ValtSkyTheme.failed(isDark).withValues(alpha: 0.40);
         border = BorderSide(
-          color: isEnabled ? ValtSkyTheme.statusFailed.withValues(alpha: 0.60) : ValtSkyTheme.statusFailed.withValues(alpha: 0.25),
+          color: isEnabled ? ValtSkyTheme.failed(isDark).withValues(alpha: 0.60) : ValtSkyTheme.failed(isDark).withValues(alpha: 0.25),
           width: 1.0,
         );
         break;
     }
 
-    final scale = (reduceMotion || !_isPressed) ? 1.0 : 0.96;
+    final scale = (reduceMotion || !_isPressed) ? 1.0 : 0.97;
 
     return Semantics(
       button: true,
@@ -136,18 +223,17 @@ class _PillButtonState extends State<PillButton> {
                 width: widget.width,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
-                  color: gradient == null ? bg : null,
-                  gradient: gradient,
+                  color: bg,
                   borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
                   border: border != BorderSide.none
                       ? Border.fromBorderSide(border)
                       : (_isFocused
-                          ? Border.all(color: ValtSkyTheme.darkAccent, width: 2.0)
+                          ? Border.all(color: ValtSkyTheme.accent(isDark), width: 2.0)
                           : null),
                   boxShadow: [
                     if (widget.variant == PillButtonVariant.primary && isEnabled)
                       BoxShadow(
-                        color: ValtSkyTheme.darkAccent.withValues(alpha: isDark ? 0.30 : 0.22),
+                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
                         blurRadius: _isHovered ? 14 : 8,
                         offset: const Offset(0, 3),
                       ),
@@ -178,13 +264,28 @@ class _PillButtonState extends State<PillButton> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontFamily: ValtSkyTheme.fontFamilyBody,
-                                fontSize: 12.5,
+                                fontSize: 13.0,
                                 fontWeight: FontWeight.w700,
-                                letterSpacing: 0.6,
+                                letterSpacing: 0.5,
                                 color: fg,
                               ),
                             ),
                           ),
+                          if (widget.showTrailingArrow) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isDark
+                                    ? Colors.black.withValues(alpha: 0.20)
+                                    : Colors.white.withValues(alpha: 0.22),
+                              ),
+                              alignment: Alignment.center,
+                              child: Icon(Icons.arrow_forward_rounded, size: 14, color: fg),
+                            ),
+                          ],
                         ],
                       ),
               ),
@@ -196,7 +297,7 @@ class _PillButtonState extends State<PillButton> {
   }
 }
 
-// ─── 2. CUSTOM MORPHING TOGGLE ROW ─────────────────────────────────────────
+// ─── 4. CUSTOM MORPHING TOGGLE ROW ─────────────────────────────────────────
 /// Pill track with thumb that stretches slightly on press and spring animates.
 class MorphingToggleRow extends StatefulWidget {
   final String title;
@@ -222,6 +323,17 @@ class _MorphingToggleRowState extends State<MorphingToggleRow> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final trackBg = widget.value
+        ? (isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk)
+        : Colors.transparent;
+    final trackBorder = Border.all(
+      color: widget.value ? Colors.transparent : ValtSkyTheme.hairline(isDark),
+      width: 1.5,
+    );
+    final thumbColor = widget.value
+        ? (isDark ? ValtSkyTheme.darkCanvas : Colors.white)
+        : ValtSkyTheme.textTertiary(isDark);
 
     return Semantics(
       toggled: widget.value,
@@ -278,28 +390,21 @@ class _MorphingToggleRowState extends State<MorphingToggleRow> {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                  color: widget.value
-                      ? (isDark ? ValtSkyTheme.darkAccent : ValtSkyTheme.lightAccentFill)
-                      : ValtSkyTheme.surface(isDark, level: 3),
-                  border: Border.all(
-                    color: ValtSkyTheme.hairline(isDark),
-                    width: 1.0,
-                  ),
+                  color: trackBg,
+                  border: trackBorder,
                 ),
                 child: Align(
                   alignment: widget.value ? Alignment.centerRight : Alignment.centerLeft,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
-                    width: _isPressed ? 30 : 24,
-                    height: 24,
+                    width: _isPressed ? 30 : 22,
+                    height: 22,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                      color: widget.value
-                          ? (isDark ? ValtSkyTheme.ink : Colors.white)
-                          : ValtSkyTheme.textSecondary(isDark),
+                      color: thumbColor,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.25),
+                          color: Colors.black.withValues(alpha: 0.20),
                           blurRadius: 4,
                           offset: const Offset(0, 1),
                         ),
@@ -316,7 +421,7 @@ class _MorphingToggleRowState extends State<MorphingToggleRow> {
   }
 }
 
-// ─── 3. SLIDING SEGMENTED CONTROL ──────────────────────────────────────────
+// ─── 5. SLIDING SEGMENTED CONTROL ──────────────────────────────────────────
 class SegmentOption<T> {
   final T value;
   final String label;
@@ -362,13 +467,13 @@ class SegmentedPillControl<T> extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? (isDark ? ValtSkyTheme.darkAccent : ValtSkyTheme.lightAccentFill)
+                      ? (isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
                   boxShadow: isSelected
                       ? [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.20),
+                            color: Colors.black.withValues(alpha: 0.18),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
@@ -383,7 +488,7 @@ class SegmentedPillControl<T> extends StatelessWidget {
                     fontSize: 12.0,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     color: isSelected
-                        ? (isDark ? ValtSkyTheme.ink : Colors.white)
+                        ? (isDark ? ValtSkyTheme.darkCanvas : ValtSkyTheme.paper)
                         : ValtSkyTheme.textSecondary(isDark),
                   ),
                 ),
@@ -396,7 +501,7 @@ class SegmentedPillControl<T> extends StatelessWidget {
   }
 }
 
-// ─── 4. FILTER PILL ────────────────────────────────────────────────────────
+// ─── 6. FILTER PILL ────────────────────────────────────────────────────────
 class FilterPill extends StatelessWidget {
   final String label;
   final int? count;
@@ -416,10 +521,10 @@ class FilterPill extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final bg = isSelected
-        ? (isDark ? ValtSkyTheme.darkAccent : ValtSkyTheme.lightAccentFill)
-        : ValtSkyTheme.surface(isDark, level: 2);
+        ? (isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk)
+        : Colors.transparent;
     final fg = isSelected
-        ? (isDark ? ValtSkyTheme.ink : Colors.white)
+        ? (isDark ? ValtSkyTheme.darkCanvas : ValtSkyTheme.paper)
         : ValtSkyTheme.textSecondary(isDark);
     final border = isSelected
         ? BorderSide.none
@@ -443,7 +548,7 @@ class FilterPill extends StatelessWidget {
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: ValtSkyTheme.darkAccent.withValues(alpha: isDark ? 0.28 : 0.16),
+                        color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.10),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -468,7 +573,7 @@ class FilterPill extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? (isDark ? Colors.black.withValues(alpha: 0.22) : Colors.white.withValues(alpha: 0.25))
+                          ? (isDark ? Colors.black.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.20))
                           : ValtSkyTheme.surface(isDark, level: 3),
                       borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
                     ),
@@ -492,7 +597,8 @@ class FilterPill extends StatelessWidget {
   }
 }
 
-// ─── 5. BENTO STAT TILE ────────────────────────────────────────────────────
+// ─── 7. BENTO STAT TILE ────────────────────────────────────────────────────
+/// Numeral in Outfit Light 36, 16x2 dash divider, 40pt square ink chip with white glyph
 class StatTile extends StatelessWidget {
   final String? label;
   final String? title;
@@ -526,7 +632,9 @@ class StatTile extends StatelessWidget {
     if (accentColor != null && intValue > 0) {
       numeralColor = accentColor!;
     } else if (hasAlert && intValue > 0) {
-      numeralColor = ValtSkyTheme.statusFailed;
+      numeralColor = ValtSkyTheme.failed(isDark);
+    } else if (effectiveLabel.contains('SYNCED') && intValue > 0) {
+      numeralColor = ValtSkyTheme.synced(isDark);
     }
 
     return Material(
@@ -546,21 +654,19 @@ class StatTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        effectiveLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: ValtSkyTheme.capsLabel(isDark: isDark),
-                      ),
-                    ),
-                    Icon(icon, size: 16, color: ValtSkyTheme.textTertiary(isDark)),
-                  ],
+                // 40pt Square Ink Icon Chip with White Glyph
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: isDark ? ValtSkyTheme.darkSurface3 : ValtSkyTheme.lightInk,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, size: 20, color: Colors.white),
                 ),
-                SizedBox(height: isTall ? 24 : 8),
+                SizedBox(height: isTall ? 20 : 10),
+                // Numeral in Outfit Light 300 36pt (wrapped in FittedBox)
                 TweenAnimationBuilder<int>(
                   tween: IntTween(begin: 0, end: intValue),
                   duration: const Duration(milliseconds: 500),
@@ -578,6 +684,24 @@ class StatTile extends StatelessWidget {
                     );
                   },
                 ),
+                const SizedBox(height: 6),
+                // 16x2 Dash Divider
+                Container(
+                  width: 16,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: ValtSkyTheme.hairline(isDark),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Small-Caps Label
+                Text(
+                  effectiveLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: ValtSkyTheme.capsLabel(isDark: isDark),
+                ),
               ],
             ),
           ),
@@ -587,7 +711,99 @@ class StatTile extends StatelessWidget {
   }
 }
 
-// ─── 6. SECTION CARD ───────────────────────────────────────────────────────
+// ─── 8. QUICK CONTROL CARD (2x2 OUTLINED, MIN 64PT TALL) ───────────────────
+class QuickControlCard extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool isDestructive;
+  final bool isSecondary;
+  final bool disabled;
+
+  const QuickControlCard({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.isDestructive = false,
+    this.isSecondary = false,
+    this.disabled = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEnabled = onTap != null && !disabled;
+
+    Color iconCol;
+    if (isDestructive) {
+      iconCol = ValtSkyTheme.failed(isDark);
+    } else if (!isEnabled) {
+      iconCol = ValtSkyTheme.textTertiary(isDark);
+    } else {
+      iconCol = ValtSkyTheme.textPrimary(isDark);
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: isEnabled
+              ? ValtSkyTheme.surface(isDark, level: 1)
+              : ValtSkyTheme.surface(isDark, level: 1).withValues(alpha: 0.40),
+          borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
+          border: Border.all(
+            color: isDestructive && isEnabled
+                ? ValtSkyTheme.failed(isDark).withValues(alpha: 0.35)
+                : ValtSkyTheme.hairline(isDark),
+            width: 1.0,
+          ),
+        ),
+        child: InkWell(
+          onTap: isEnabled ? onTap : null,
+          borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 64),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                // Leading Icon Circle
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: ValtSkyTheme.surface(isDark, level: 2),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, size: 18, color: iconCol),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: ValtSkyTheme.fontFamilyBody,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: isEnabled
+                          ? ValtSkyTheme.textPrimary(isDark)
+                          : ValtSkyTheme.textTertiary(isDark),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── 9. SECTION CARD ───────────────────────────────────────────────────────
 class SectionCard extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -621,37 +837,49 @@ class SectionCard extends StatelessWidget {
             children: [
               if (icon != null) ...[
                 Container(
-                  padding: const EdgeInsets.all(7),
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: ValtSkyTheme.surface(isDark, level: 2),
+                    color: isDark ? ValtSkyTheme.darkSurface2 : ValtSkyTheme.lightInk,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(icon, size: 18, color: ValtSkyTheme.accent(isDark)),
+                  alignment: Alignment.center,
+                  child: Icon(icon, size: 18, color: Colors.white),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
               ],
               Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: ValtSkyTheme.fontFamilyDisplay,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.2,
-                    color: ValtSkyTheme.textPrimary(isDark),
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title.toUpperCase(),
+                      style: ValtSkyTheme.capsLabel(isDark: isDark, color: ValtSkyTheme.textPrimary(isDark)),
+                    ),
+                    const SizedBox(height: 6),
+                    // 16x2 Dash Divider
+                    Container(
+                      width: 16,
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: ValtSkyTheme.hairline(isDark),
+                        borderRadius: BorderRadius.circular(1),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Text(
               subtitle!,
               style: TextStyle(
                 fontFamily: ValtSkyTheme.fontFamilyBody,
                 fontSize: 12.5,
                 color: ValtSkyTheme.textSecondary(isDark),
+                height: 1.35,
               ),
             ),
           ],
@@ -663,7 +891,7 @@ class SectionCard extends StatelessWidget {
   }
 }
 
-// ─── 7. HERO CUT-OUT CONTAINER (COMPATIBILITY) ────────────────────────────
+// ─── 10. HERO CUT-OUT CONTAINER (COMPATIBILITY) ────────────────────────────
 class HeroCutoutContainer extends StatelessWidget {
   final Widget child;
   final Color backgroundColor;
@@ -687,8 +915,8 @@ class HeroCutoutContainer extends StatelessWidget {
         border: Border.all(color: borderColor, width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.20),
-            blurRadius: 20,
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 18,
             offset: const Offset(0, 6),
           ),
         ],

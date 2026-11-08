@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../util/theme.dart';
 
-// ─── VALTSKY FLOATING NAVIGATION DOCK ──────────────────────────────────────
-/// Floating Glass Pill Navigation Dock with Indigo Glow Indicator,
-/// Responsive constraints, and full semantics support.
+// ─── VALTSKY FLOATING INK NAVIGATION DOCK ──────────────────────────────────
+/// Floating Ink Pill Navigation Dock with White Active Circle Indicator,
+/// Editorial minimalism, responsive constraints, and full semantics support.
 class ValtSkyNavigationDock extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onDestinationSelected;
@@ -25,19 +25,20 @@ class ValtSkyNavigationDock extends StatelessWidget {
       (Icons.tune_outlined, Icons.tune_rounded, 'Settings'),
     ];
 
+    final dockBg = isDark ? ValtSkyTheme.darkSurface2 : ValtSkyTheme.lightInk;
+    final dockBorder = isDark ? ValtSkyTheme.darkHairline : const Color(0xFF2C2C30);
+
     return Container(
       margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark
-            ? ValtSkyTheme.darkOverlay.withValues(alpha: 0.92)
-            : ValtSkyTheme.lightSurface1.withValues(alpha: 0.94),
+        color: dockBg,
         borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-        border: Border.all(color: ValtSkyTheme.hairline(isDark), width: 1.0),
+        border: Border.all(color: dockBorder, width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.08),
-            blurRadius: 22,
+            color: Colors.black.withValues(alpha: 0.28),
+            blurRadius: 20,
             offset: const Offset(0, 6),
           ),
         ],
@@ -66,22 +67,27 @@ class ValtSkyNavigationDock extends StatelessWidget {
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 240),
                       curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: isSelected ? ValtSkyTheme.activeDockGradient(isDark) : null,
-                        color: isSelected ? null : Colors.transparent,
-                        borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            isSelected ? item.$2 : item.$1,
-                            size: 20,
-                            color: isSelected
-                                ? (isDark ? ValtSkyTheme.ink : Colors.white)
-                                : ValtSkyTheme.textSecondary(isDark),
+                          // White/Paper Active Circle for the selected icon
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOutCubic,
+                            width: isSelected ? 36 : 28,
+                            height: isSelected ? 36 : 28,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isSelected ? ValtSkyTheme.paper : Colors.transparent,
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              isSelected ? item.$2 : item.$1,
+                              size: 19,
+                              color: isSelected ? ValtSkyTheme.ink : const Color(0xFFA3A3A8),
+                            ),
                           ),
                           const SizedBox(height: 2),
                           FittedBox(
@@ -91,11 +97,9 @@ class ValtSkyNavigationDock extends StatelessWidget {
                               maxLines: 1,
                               style: TextStyle(
                                 fontFamily: ValtSkyTheme.fontFamilyBody,
-                                fontSize: 11,
+                                fontSize: 10.5,
                                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                color: isSelected
-                                    ? (isDark ? ValtSkyTheme.ink : Colors.white)
-                                    : ValtSkyTheme.textSecondary(isDark),
+                                color: isSelected ? ValtSkyTheme.paper : const Color(0xFFA3A3A8),
                               ),
                             ),
                           ),
