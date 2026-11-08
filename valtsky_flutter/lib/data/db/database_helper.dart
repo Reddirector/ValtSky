@@ -222,7 +222,12 @@ class DatabaseHelper {
     return null;
   }
 
-  Future<List<MediaItem>> getAllItems({String? statusFilter, int? limit, int? offset}) async {
+  Future<List<MediaItem>> getAllItems({
+    String? statusFilter,
+    bool? isVideo,
+    int? limit,
+    int? offset,
+  }) async {
     if (_writeQueue.isNotEmpty) {
       await flushPendingUpdates();
     }
@@ -231,9 +236,18 @@ class DatabaseHelper {
       var items = _webItems.values.toList();
       if (statusFilter == 'OVERSIZED' || statusFilter == '> 2 GB') {
         items = items.where((e) => e.fileSize >= twoGigabytes).toList();
+      } else if (statusFilter == 'FAILED_PHOTOS') {
+        items = items.where((e) => e.status == MediaItem.statusFailed && !e.isVideo).toList();
+      } else if (statusFilter == 'FAILED_VIDEOS') {
+        items = items.where((e) => e.status == MediaItem.statusFailed && e.isVideo).toList();
       } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
         items = items.where((e) => e.status == statusFilter).toList();
       }
+
+      if (isVideo != null) {
+        items = items.where((e) => isVideo ? e.isVideo : !e.isVideo).toList();
+      }
+
       items.sort((a, b) {
         final c = b.dateTaken.compareTo(a.dateTaken);
         if (c != 0) return c;
@@ -243,35 +257,110 @@ class DatabaseHelper {
       if (limit != null) items = items.take(limit).toList();
       return items;
     }
+
     final db = await instance.database;
-    final List<Map<String, dynamic>> maps;
+    final whereClauses = <String>[];
+    final whereArgs = <dynamic>[];
+
     if (statusFilter == 'OVERSIZED' || statusFilter == '> 2 GB') {
-      maps = await db.query(
-        'media_items',
-        where: 'fileSize >= ?',
-        whereArgs: [twoGigabytes],
-        orderBy: 'dateTaken DESC, filePath DESC',
-        limit: limit,
-        offset: offset,
-      );
+      whereClauses.add('fileSize >= ?');
+      whereArgs.add(twoGigabytes);
+    } else if (statusFilter == 'FAILED_PHOTOS') {
+      whereClauses.add('status = ?');
+      whereArgs.add(MediaItem.statusFailed);
+      whereClauses.add("COALESCE(mimeType, '') NOT LIKE '%video%'");
+    } else if (statusFilter == 'FAILED_VIDEOS') {
+      whereClauses.add('status = ?');
+      whereArgs.add(MediaItem.statusFailed);
+      whereClauses.add("mimeType LIKE '%video%'");
     } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
-      maps = await db.query(
-        'media_items',
-        where: 'status = ?',
-        whereArgs: [statusFilter],
-        orderBy: 'dateTaken DESC, filePath DESC',
-        limit: limit,
-        offset: offset,
-      );
-    } else {
-      maps = await db.query(
-        'media_items',
-        orderBy: 'dateTaken DESC, filePath DESC',
-        limit: limit,
-        offset: offset,
-      );
+      whereClauses.add('status = ?');
+      whereArgs.add(statusFilter);
     }
+
+    if (isVideo != null) {
+      if (isVideo) {
+        whereClauses.add("mimeType LIKE '%video%'");
+      } else {
+        whereClauses.add("COALESCE(mimeType, '') NOT LIKE '%video%'");
+      }
+    }
+
+    final whereString = whereClauses.isNotEmpty ? whereClauses.join(' AND ') : null;
+
+    final maps = await db.query(
+      'media_items',
+      where: whereString,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+      orderBy: 'dateTaken DESC, filePath DESC',
+      limit: limit,
+      offset: offset,
+    );
     return maps.map((e) => MediaItem.fromMap(e)).toList();
+  }
+
+  Future<int> getItemCount({
+    String? statusFilter,
+    bool? isVideo,
+  }) async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
+    const int twoGigabytes = 2147483648;
+    if (_useMemoryStore) {
+      var items = _webItems.values.toList();
+      if (statusFilter == 'OVERSIZED' || statusFilter == '> 2 GB') {
+        items = items.where((e) => e.fileSize >= twoGigabytes).toList();
+      } else if (statusFilter == 'FAILED_PHOTOS') {
+        items = items.where((e) => e.status == MediaItem.statusFailed && !e.isVideo).toList();
+      } else if (statusFilter == 'FAILED_VIDEOS') {
+        items = items.where((e) => e.status == MediaItem.statusFailed && e.isVideo).toList();
+      } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
+        items = items.where((e) => e.status == statusFilter).toList();
+      }
+      if (isVideo != null) {
+        items = items.where((e) => isVideo ? e.isVideo : !e.isVideo).toList();
+      }
+      return items.length;
+    }
+
+    final db = await instance.database;
+    final whereClauses = <String>[];
+    final whereArgs = <dynamic>[];
+
+    if (statusFilter == 'OVERSIZED' || statusFilter == '> 2 GB') {
+      whereClauses.add('fileSize >= ?');
+      whereArgs.add(twoGigabytes);
+    } else if (statusFilter == 'FAILED_PHOTOS') {
+      whereClauses.add('status = ?');
+      whereArgs.add(MediaItem.statusFailed);
+      whereClauses.add("COALESCE(mimeType, '') NOT LIKE '%video%'");
+    } else if (statusFilter == 'FAILED_VIDEOS') {
+      whereClauses.add('status = ?');
+      whereArgs.add(MediaItem.statusFailed);
+      whereClauses.add("mimeType LIKE '%video%'");
+    } else if (statusFilter != null && statusFilter.isNotEmpty && statusFilter != 'ALL') {
+      whereClauses.add('status = ?');
+      whereArgs.add(statusFilter);
+    }
+
+    if (isVideo != null) {
+      if (isVideo) {
+        whereClauses.add("mimeType LIKE '%video%'");
+      } else {
+        whereClauses.add("COALESCE(mimeType, '') NOT LIKE '%video%'");
+      }
+    }
+
+    final whereString = whereClauses.isNotEmpty ? whereClauses.join(' AND ') : null;
+    final res = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM media_items ${whereString != null ? 'WHERE $whereString' : ''}',
+      whereArgs.isNotEmpty ? whereArgs : null,
+    );
+    if (res.isNotEmpty && res.first['count'] != null) {
+      return (res.first['count'] as num).toInt();
+    }
+    return 0;
   }
 
   Future<int> getOversizedCount({int minSizeBytes = 2147483648}) async {
@@ -795,12 +884,13 @@ class DatabaseHelper {
     return maps.isNotEmpty;
   }
 
-  Future<int> retryAllFailed() async {
+  Future<int> retryAllFailed({bool? isVideo}) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     if (_useMemoryStore) {
       int count = 0;
       for (final item in _webItems.values) {
         if (item.status == MediaItem.statusFailed) {
+          if (isVideo != null && item.isVideo != isVideo) continue;
           _webItems[item.filePath] = item.copyWith(
             status: MediaItem.statusPending,
             retryCount: 0,
@@ -813,6 +903,15 @@ class DatabaseHelper {
       return count;
     }
     final db = await instance.database;
+    String where = 'status = ?';
+    List<dynamic> whereArgs = [MediaItem.statusFailed];
+    if (isVideo != null) {
+      if (isVideo) {
+        where += " AND mimeType LIKE '%video%'";
+      } else {
+        where += " AND COALESCE(mimeType, '') NOT LIKE '%video%'";
+      }
+    }
     return await db.update(
       'media_items',
       {
@@ -821,8 +920,8 @@ class DatabaseHelper {
         'errorReason': null,
         'updatedAt': now,
       },
-      where: 'status = ?',
-      whereArgs: [MediaItem.statusFailed],
+      where: where,
+      whereArgs: whereArgs,
     );
   }
 

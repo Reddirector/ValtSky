@@ -61,6 +61,8 @@ class ValtSkyTheme {
   static const Color telegramBlue = darkAccent;
   static const Color primaryAccent = darkAccent;
   static const Color primaryAccentLight = lightAccent;
+  static const Color mediaPhoto = Color(0xFF38BDF8);        // Electric Cyan / Sky
+  static const Color mediaVideo = Color(0xFF8B5CF6);        // Royal Violet
 
   // Backward surface mappings
   static const Color darkSurface = darkSurface1;
