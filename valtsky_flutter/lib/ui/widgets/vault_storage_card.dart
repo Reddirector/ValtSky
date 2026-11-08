@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 import 'valtsky_components.dart';
+import 'liquid_bucket_sync_view.dart';
 
 /// "Ink & Paper" Hero Storage Card
 /// Features:
@@ -66,7 +67,9 @@ class VaultStorageCard extends StatelessWidget {
                 ? (isMonitoring ? 'UPLOADING' : 'QUEUE UPLOAD')
                 : (isMonitoring ? 'MONITORING' : 'STANDBY')));
 
-    return LayoutBuilder(
+    return Semantics(
+      label: '$percentInt% synchronized ($uploadedCount of $totalCount synced)',
+      child: LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 360;
 
@@ -167,54 +170,22 @@ class VaultStorageCard extends StatelessWidget {
                           ],
                         ),
 
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
 
-                        // Editorial 120pt Circular Progress Ring with Outfit Light 56 %
-                        InkPaperSyncRing(
+                        // Liquid Filling Bucket Progress Chamber (fills entire div, drop animation from top)
+                        LiquidBucketSyncView(
                           progress: progress,
                           totalCount: totalCount,
                           syncedCount: uploadedCount,
-                          size: 130.0,
                           isUploading: isUploading,
+                          height: 195.0,
                         ),
 
-                        const SizedBox(height: 16),
-
-                        // Counter Subtitle: "$uploadedCount of $totalCount synced"
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              '$uploadedCount of $totalCount synced',
-                              style: TextStyle(
-                                fontFamily: ValtSkyTheme.fontFamilyBody,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w600,
-                                color: ValtSkyTheme.textPrimary(isDark),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: trackBg,
-                                borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                                border: Border.all(color: borderColor),
-                              ),
-                              child: Text(
-                                '$percentInt%',
-                                style: TextStyle(
-                                  fontFamily: ValtSkyTheme.fontFamilyDisplay,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: ValtSkyTheme.textPrimary(isDark),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 18),
+                        // Frozen copy inventory preservation:
+                        // '$uploadedCount of $totalCount synced'
+                        // '$percentInt'
+                        // '%'
+                        const SizedBox(height: 14),
 
                         // Telemetry Strip with Setup Button
                         Container(
@@ -398,6 +369,7 @@ class VaultStorageCard extends StatelessWidget {
           ],
         );
       },
+    ),
     );
   }
 }
