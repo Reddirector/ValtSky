@@ -74,6 +74,9 @@ flutter:
     - assets/fonts/
 
   fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit-VariableFont_wght.ttf
     - family: Sora
       fonts:
         - asset: assets/fonts/Sora-VariableFont_wght.ttf
