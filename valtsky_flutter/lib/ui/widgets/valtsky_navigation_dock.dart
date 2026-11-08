@@ -26,7 +26,7 @@ class ValtSkyNavigationDock extends StatelessWidget {
     ];
 
     final dockBg = isDark ? ValtSkyTheme.darkSurface2 : ValtSkyTheme.lightInk;
-    final dockBorder = isDark ? ValtSkyTheme.darkHairline : const Color(0xFF2C2C30);
+    final dockBorder = ValtSkyTheme.darkHairline;
 
     return Container(
       margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
@@ -86,7 +86,7 @@ class ValtSkyNavigationDock extends StatelessWidget {
                             child: Icon(
                               isSelected ? item.$2 : item.$1,
                               size: 19,
-                              color: isSelected ? ValtSkyTheme.ink : const Color(0xFFA3A3A8),
+                              color: isSelected ? ValtSkyTheme.ink : ValtSkyTheme.darkText2,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -99,7 +99,7 @@ class ValtSkyNavigationDock extends StatelessWidget {
                                 fontFamily: ValtSkyTheme.fontFamilyBody,
                                 fontSize: 10.5,
                                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                color: isSelected ? ValtSkyTheme.paper : const Color(0xFFA3A3A8),
+                                color: isSelected ? ValtSkyTheme.paper : ValtSkyTheme.darkText2,
                               ),
                             ),
                           ),

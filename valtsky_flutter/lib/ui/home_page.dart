@@ -388,7 +388,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   height: 36,
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: isDark ? ValtSkyTheme.darkSurface3 : const Color(0xFF1E1E22),
+                    color: isDark ? ValtSkyTheme.darkSurface3 : ValtSkyTheme.darkSurface2,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: isDark ? borderColor : Colors.white12),
                   ),
