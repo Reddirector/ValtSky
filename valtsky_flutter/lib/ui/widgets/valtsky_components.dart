@@ -597,8 +597,10 @@ class FilterPill extends StatelessWidget {
   }
 }
 
-// ─── 7. BENTO STAT TILE ────────────────────────────────────────────────────
-/// Numeral in Outfit Light 36, 16x2 dash divider, 40pt square ink chip with white glyph
+// ─── 7. BENTO STAT TILE (ICONIC EDITORIAL MEDIA REDESIGN) ────────────────────
+/// Redesigned to showcase media with an enlarged formatted logo,
+/// bold grayish background watermark numeral on the right side,
+/// and iconic ambient geometry filling the tab.
 class StatTile extends StatelessWidget {
   final String? label;
   final String? title;
@@ -628,81 +630,161 @@ class StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    Color numeralColor = ValtSkyTheme.textPrimary(isDark);
-    if (accentColor != null && intValue > 0) {
-      numeralColor = accentColor!;
-    } else if (hasAlert && intValue > 0) {
-      numeralColor = ValtSkyTheme.failed(isDark);
+    Color effectiveAccent = accentColor ?? (isDark ? Colors.white : ValtSkyTheme.lightInk);
+    if (hasAlert && intValue > 0) {
+      effectiveAccent = ValtSkyTheme.failed(isDark);
     } else if (effectiveLabel.contains('SYNCED') && intValue > 0) {
-      numeralColor = ValtSkyTheme.synced(isDark);
+      effectiveAccent = ValtSkyTheme.synced(isDark);
+    } else if (effectiveLabel.contains('QUEUE') && intValue > 0) {
+      effectiveAccent = ValtSkyTheme.warning;
+    } else if (effectiveLabel.contains('TOTAL') && intValue > 0) {
+      effectiveAccent = ValtSkyTheme.accent(isDark);
     }
 
-    return Material(
-      color: Colors.transparent,
-      child: Ink(
-        decoration: ValtSkyTheme.cardDecoration(
-          isDark: isDark,
-          surfaceLevel: 1,
-          radius: ValtSkyTheme.radiusTile,
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(ValtSkyTheme.radiusTile),
-          child: Padding(
-            padding: EdgeInsets.all(isTall ? 18 : 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // 40pt Square Ink Icon Chip with White Glyph
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: isDark ? ValtSkyTheme.darkSurface3 : ValtSkyTheme.lightInk,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(icon, size: 20, color: Colors.white),
-                ),
-                SizedBox(height: isTall ? 20 : 10),
-                // Numeral in Outfit Light 300 36pt (wrapped in FittedBox)
-                TweenAnimationBuilder<int>(
-                  tween: IntTween(begin: 0, end: intValue),
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, animatedVal, _) {
-                    return FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '$animatedVal',
-                        style: isTall
-                            ? ValtSkyTheme.heroNumeral(isDark: isDark, color: numeralColor)
-                            : ValtSkyTheme.statNumeral(isDark: isDark, color: numeralColor),
+    final cardMinHeight = isTall ? 140.0 : 116.0;
+
+    return Semantics(
+      label: '$effectiveLabel: $intValue',
+      button: onTap != null,
+      child: Material(
+        color: Colors.transparent,
+        child: Ink(
+          decoration: ValtSkyTheme.cardDecoration(
+            isDark: isDark,
+            surfaceLevel: 1,
+            radius: ValtSkyTheme.radiusTile,
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(ValtSkyTheme.radiusTile),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(ValtSkyTheme.radiusTile),
+              child: Container(
+                constraints: BoxConstraints(minHeight: cardMinHeight),
+                child: Stack(
+                  children: [
+                    // 1. Ambient Formatted Watermark covering the tab background
+                    Positioned(
+                      right: -8,
+                      bottom: -10,
+                      child: Icon(
+                        icon,
+                        size: isTall ? 92 : 80,
+                        color: effectiveAccent.withValues(
+                          alpha: isDark ? 0.06 : 0.04,
+                        ),
                       ),
-                    );
-                  },
+                    ),
+
+                    // 2. Bold Grayish Faded Number on the Right Side
+                    Positioned.fill(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 14),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 82),
+                            child: TweenAnimationBuilder<int>(
+                              tween: IntTween(begin: 0, end: intValue),
+                              duration: const Duration(milliseconds: 500),
+                              curve: Curves.easeOutCubic,
+                              builder: (context, animatedVal, _) {
+                                return FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    '$animatedVal',
+                                    style: TextStyle(
+                                      fontFamily: ValtSkyTheme.fontFamilyDisplay,
+                                      fontSize: isTall ? 60 : 48,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -1.5,
+                                      color: isDark
+                                          ? const Color(0xFF8E95A5).withValues(alpha: 0.22)
+                                          : const Color(0xFF4A5478).withValues(alpha: 0.18),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // 3. Foreground Content: Formatted Logo + Dash + Small-Caps Label
+                    Padding(
+                      padding: EdgeInsets.all(isTall ? 16 : 13),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Enlarged & Formatted Logo Container (Quite big, iconic showcase)
+                          Container(
+                            width: isTall ? 54 : 46,
+                            height: isTall ? 54 : 46,
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? (intValue > 0 && effectiveAccent != Colors.white
+                                      ? effectiveAccent.withValues(alpha: 0.14)
+                                      : ValtSkyTheme.darkSurface2)
+                                  : (intValue > 0 && effectiveAccent != ValtSkyTheme.lightInk
+                                      ? effectiveAccent.withValues(alpha: 0.10)
+                                      : ValtSkyTheme.lightInk),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: (intValue > 0 && effectiveAccent != (isDark ? Colors.white : ValtSkyTheme.lightInk)
+                                    ? effectiveAccent.withValues(alpha: isDark ? 0.45 : 0.6)
+                                    : ValtSkyTheme.hairline(isDark)),
+                                width: 0.9,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isDark ? 0.30 : 0.06),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              icon,
+                              size: isTall ? 30 : 25,
+                              color: intValue > 0 && effectiveAccent != (isDark ? Colors.white : ValtSkyTheme.lightInk)
+                                  ? effectiveAccent
+                                  : Colors.white,
+                            ),
+                          ),
+
+                          SizedBox(height: isTall ? 16 : 10),
+
+                          // 16x2.5 Capsule Dash Divider
+                          Container(
+                            width: 16,
+                            height: 2.5,
+                            decoration: BoxDecoration(
+                              color: (intValue > 0 && effectiveAccent != (isDark ? Colors.white : ValtSkyTheme.lightInk)
+                                  ? effectiveAccent
+                                  : ValtSkyTheme.hairline(isDark)),
+                              borderRadius: BorderRadius.circular(1.5),
+                            ),
+                          ),
+
+                          const SizedBox(height: 5),
+
+                          // Small-Caps Label
+                          Text(
+                            effectiveLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: ValtSkyTheme.capsLabel(isDark: isDark),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                // 16x2 Dash Divider
-                Container(
-                  width: 16,
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: ValtSkyTheme.hairline(isDark),
-                    borderRadius: BorderRadius.circular(1),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                // Small-Caps Label
-                Text(
-                  effectiveLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: ValtSkyTheme.capsLabel(isDark: isDark),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -38,7 +38,8 @@ class VaultMetricDeck extends StatelessWidget {
                   child: StatTile(
                     label: 'TOTAL MEDIA',
                     value: totalCount,
-                    icon: Icons.photo_library_outlined,
+                    icon: Icons.photo_library_rounded,
+                    accentColor: totalCount > 0 ? ValtSkyTheme.accent(isDark) : null,
                     onTap: () => onNavigateToActivity('ALL'),
                   ),
                 ),
@@ -62,6 +63,7 @@ class VaultMetricDeck extends StatelessWidget {
                     label: 'IN QUEUE',
                     value: pendingCount,
                     icon: Icons.hourglass_top_rounded,
+                    accentColor: pendingCount > 0 ? ValtSkyTheme.warning : null,
                     onTap: () => onNavigateToActivity('PENDING'),
                   ),
                 ),
