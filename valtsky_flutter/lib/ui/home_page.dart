@@ -28,8 +28,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   int _currentIndex = 0;
   late final PageController _pageController;
-  late final AnimationController _tabFadeController;
+  late final AnimationController _tabTransitionController;
+  late final CurvedAnimation _tabCurve;
   late final Animation<double> _tabFadeAnimation;
+  late Animation<Offset> _tabSlideAnimation;
   final GlobalKey<DashboardViewState> _dashboardKey = GlobalKey<DashboardViewState>();
   final GlobalKey<ActivityViewState> _activityKey = GlobalKey<ActivityViewState>();
   bool _isRefreshing = false;
@@ -44,15 +46,20 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _currentIndex);
-    _tabFadeController = AnimationController(
+    _tabTransitionController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 140),
+      duration: const Duration(milliseconds: 260),
       value: 1.0,
     );
-    _tabFadeAnimation = CurvedAnimation(
-      parent: _tabFadeController,
-      curve: Curves.easeInOutCubic,
+    _tabCurve = CurvedAnimation(
+      parent: _tabTransitionController,
+      curve: Curves.easeOutCubic,
     );
+    _tabFadeAnimation = _tabCurve;
+    _tabSlideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: Offset.zero,
+    ).animate(_tabCurve);
     if (Prefs.vaultPinEnabled && Prefs.hasVaultPin && !_isTest) {
       _isLocked = true;
     }
@@ -90,7 +97,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _tabFadeController.dispose();
+    _tabCurve.dispose();
+    _tabTransitionController.dispose();
     _pageController.dispose();
     _unlockPinController.dispose();
     super.dispose();
@@ -169,10 +177,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     }
   }
 
-  void _switchPage(int targetIndex) async {
+  void _switchPage(int targetIndex) {
     if (targetIndex == _currentIndex && _pageController.hasClients && _pageController.page?.round() == targetIndex) {
       return;
     }
+
+    final isForward = targetIndex >= _currentIndex;
 
     if (_isTest || (context.mounted && MediaQuery.of(context).disableAnimations)) {
       setState(() => _currentIndex = targetIndex);
@@ -181,15 +191,16 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
       }
       if (targetIndex == 0) _dashboardKey.currentState?.refreshStats();
       if (targetIndex == 1) _activityKey.currentState?.refreshItems();
+      _tabTransitionController.value = 1.0;
       return;
     }
 
-    // 1. Smooth Fade Out of current tab
-    await _tabFadeController.reverse();
+    // Direction-aware smooth slide and fade in
+    _tabSlideAnimation = Tween<Offset>(
+      begin: isForward ? const Offset(0.08, 0.0) : const Offset(-0.08, 0.0),
+      end: Offset.zero,
+    ).animate(_tabCurve);
 
-    if (!mounted) return;
-
-    // 2. Switch page while completely faded out
     setState(() => _currentIndex = targetIndex);
     if (_pageController.hasClients) {
       _pageController.jumpToPage(targetIndex);
@@ -197,10 +208,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     if (targetIndex == 0) _dashboardKey.currentState?.refreshStats();
     if (targetIndex == 1) _activityKey.currentState?.refreshItems();
 
-    // 3. Smooth Fade In of incoming tab
-    if (mounted) {
-      await _tabFadeController.forward();
-    }
+    _tabTransitionController.forward(from: 0.0);
   }
 
   void _openGuide() {
@@ -250,33 +258,40 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth > 1024;
 
-          final content = FadeTransition(
-            opacity: _tabFadeAnimation,
-            child: PageView(
-              controller: _pageController,
-              physics: const ClampingScrollPhysics(),
-              onPageChanged: (index) {
-                setState(() => _currentIndex = index);
-                if (index == 0) _dashboardKey.currentState?.refreshStats();
-                if (index == 1) _activityKey.currentState?.refreshItems();
-                if (_tabFadeController.value < 1.0) {
-                  _tabFadeController.forward();
-                }
-              },
-              children: [
-                DashboardView(
-                  key: _dashboardKey,
-                  onNavigateToSettings: () => _switchPage(2),
-                  onNavigateToActivity: _navigateToActivityWithFilter,
+          final content = ClipRect(
+            child: SlideTransition(
+              position: _tabSlideAnimation,
+              child: FadeTransition(
+                opacity: _tabFadeAnimation,
+                child: PageView(
+                  controller: _pageController,
+                  physics: const ClampingScrollPhysics(),
+                  onPageChanged: (index) {
+                    if (index != _currentIndex) {
+                      setState(() => _currentIndex = index);
+                      if (index == 0) _dashboardKey.currentState?.refreshStats();
+                      if (index == 1) _activityKey.currentState?.refreshItems();
+                    }
+                    if (_tabTransitionController.value < 1.0) {
+                      _tabTransitionController.value = 1.0;
+                    }
+                  },
+                  children: [
+                    DashboardView(
+                      key: _dashboardKey,
+                      onNavigateToSettings: () => _switchPage(2),
+                      onNavigateToActivity: _navigateToActivityWithFilter,
+                    ),
+                    ActivityView(
+                      key: _activityKey,
+                      onDataChanged: _onDataChanged,
+                    ),
+                    SettingsView(
+                      onDataChanged: _onDataChanged,
+                    ),
+                  ],
                 ),
-                ActivityView(
-                  key: _activityKey,
-                  onDataChanged: _onDataChanged,
-                ),
-                SettingsView(
-                  onDataChanged: _onDataChanged,
-                ),
-              ],
+              ),
             ),
           );
 
