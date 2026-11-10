@@ -413,28 +413,32 @@ class _ScheduledBackupTimerCardState extends State<ScheduledBackupTimerCard> {
 
               const SizedBox(height: 12),
 
-              // Test Alarm / Run Now Button
+              // Save Alarm Schedule Button
               SizedBox(
                 width: double.infinity,
                 child: PillButton(
-                  label: isExecuting ? 'Running Scheduled Backup...' : 'Test Alarm / Run Backup Now',
-                  icon: isExecuting ? Icons.hourglass_top_rounded : Icons.play_arrow_rounded,
-                  variant: PillButtonVariant.secondary,
-                  isLoading: isExecuting,
-                  onPressed: isExecuting
-                      ? null
-                      : () async {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Triggering automated alarm backup workflow...'),
-                              behavior: SnackBarBehavior.floating,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                          await BackupSchedulerService.instance.executeBackupWorkflow();
-                          if (!mounted) return;
-                          widget.onDataChanged?.call();
-                        },
+                  label: 'Save Alarm Schedule',
+                  icon: Icons.check_circle_rounded,
+                  variant: PillButtonVariant.primary,
+                  onPressed: () async {
+                    await BackupSchedulerService.instance.setSchedule(
+                      state.hour,
+                      state.minute,
+                      repeatDaily: state.repeatDaily,
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Alarm schedule saved for ${state.formattedTime}'),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                    if (widget.isModal && Navigator.canPop(context)) {
+                      Navigator.of(context).pop();
+                    }
+                    widget.onDataChanged?.call();
+                  },
                 ),
               ),
             ],

@@ -180,7 +180,7 @@ void main() {
       expect(find.text('🌙 2:00 AM (Night)'), findsOneWidget);
       expect(find.text('🌅 6:00 AM (Morning)'), findsOneWidget);
       expect(find.text('🛌 11:30 PM (Bedtime)'), findsOneWidget);
-      expect(find.text('Test Alarm / Run Backup Now'), findsOneWidget);
+      expect(find.text('Save Alarm Schedule'), findsOneWidget);
 
       BackupSchedulerService.instance.dispose();
     });

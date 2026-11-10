@@ -298,7 +298,15 @@ void main() {
     await tester.pump();
 
     await tester.tap(find.text('STOP_TEST'));
-    await tester.pump();
+    await tester.pumpAndSettle();
+
+    // Confirm Step 1
+    await tester.tap(find.text('Proceed to Step 2'));
+    await tester.pumpAndSettle();
+
+    // Confirm Step 2 (Double Verification)
+    await tester.tap(find.text('Confirm: Kill & Drain Tank'));
+    await tester.pumpAndSettle();
 
     // Verify engine status is idle and speed notifier says Stopped
     expect(SyncEngine.uploadSpeedNotifier.value, 'Stopped');
@@ -421,7 +429,7 @@ void main() {
     expect(trashIcons, findsWidgets);
 
     // Tap Clear Queue button to open confirmation dialog
-    await tester.tap(trashIcons.first);
+    await tester.tap(find.text('Clear Queue'));
     await tester.pumpAndSettle();
 
     // Confirm dialog

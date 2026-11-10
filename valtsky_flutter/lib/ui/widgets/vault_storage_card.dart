@@ -223,6 +223,8 @@ class VaultStorageCard extends StatelessWidget {
                           progress: progress,
                           totalCount: totalCount,
                           syncedCount: uploadedCount,
+                          sessionTotal: SyncEngine.sessionTotal,
+                          sessionSynced: SyncEngine.sessionSynced,
                           isUploading: isUploading,
                           height: 195.0,
                         ),

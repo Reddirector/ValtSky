@@ -30,6 +30,8 @@ class SyncStats {
   final int failed;
   final int uploading;
   final double progress;
+  final int sessionTotal;
+  final int sessionSynced;
 
   const SyncStats({
     required this.total,
@@ -38,6 +40,8 @@ class SyncStats {
     required this.failed,
     this.uploading = 0,
     required this.progress,
+    this.sessionTotal = 0,
+    this.sessionSynced = 0,
   });
 
   SyncStats copyWith({
@@ -47,10 +51,12 @@ class SyncStats {
     int? failed,
     int? uploading,
     double? progress,
+    int? sessionTotal,
+    int? sessionSynced,
   }) {
     final t = total ?? this.total;
     final s = synced ?? this.synced;
-    final p = progress ?? (t == 0 ? 0.0 : (s / t).clamp(0.0, 1.0));
+    final p = progress ?? this.progress;
     return SyncStats(
       total: t,
       synced: s,
@@ -58,6 +64,49 @@ class SyncStats {
       failed: failed ?? this.failed,
       uploading: uploading ?? this.uploading,
       progress: p,
+      sessionTotal: sessionTotal ?? this.sessionTotal,
+      sessionSynced: sessionSynced ?? this.sessionSynced,
+    );
+  }
+}
+
+/// Detailed real-time progress for an individual file being uploaded by a worker.
+class FileUploadProgress {
+  final String filePath;
+  final String fileName;
+  final int bytesSent;
+  final int totalBytes;
+  final double progress; // 0.0 to 1.0
+  final String speedText;
+  final bool isVideo;
+
+  const FileUploadProgress({
+    required this.filePath,
+    required this.fileName,
+    required this.bytesSent,
+    required this.totalBytes,
+    required this.progress,
+    required this.speedText,
+    required this.isVideo,
+  });
+
+  FileUploadProgress copyWith({
+    String? filePath,
+    String? fileName,
+    int? bytesSent,
+    int? totalBytes,
+    double? progress,
+    String? speedText,
+    bool? isVideo,
+  }) {
+    return FileUploadProgress(
+      filePath: filePath ?? this.filePath,
+      fileName: fileName ?? this.fileName,
+      bytesSent: bytesSent ?? this.bytesSent,
+      totalBytes: totalBytes ?? this.totalBytes,
+      progress: progress ?? this.progress,
+      speedText: speedText ?? this.speedText,
+      isVideo: isVideo ?? this.isVideo,
     );
   }
 }
@@ -93,6 +142,10 @@ class SyncEngine {
       ValueNotifier<SyncStats?>(null);
   static final ValueNotifier<MediaBreakdown> mediaBreakdownNotifier =
       ValueNotifier<MediaBreakdown>(const MediaBreakdown());
+
+  /// Real-time live upload progress map keyed by filePath for active items.
+  static final ValueNotifier<Map<String, FileUploadProgress>> activeUploadsNotifier =
+      ValueNotifier<Map<String, FileUploadProgress>>({});
   Timer? _liveStatsTimer;
 
   static SyncStats _cachedStats = const SyncStats(
@@ -262,6 +315,44 @@ class SyncEngine {
   // IN-MEMORY REAL-TIME ATOMIC COUNTERS (0ms UI Latency, 0 Disk I/O during sync)
   // ──────────────────────────────────────────────────────────────────────────
 
+  // Session tracking for liquid tank filling and refilling
+  static int _sessionTotal = 0;
+  static int _sessionSynced = 0;
+  static bool _sessionComplete = false;
+  static double _sessionProgress = 0.0;
+  static int get sessionTotal => _sessionTotal;
+  static int get sessionSynced => _sessionSynced;
+  static bool get isSessionComplete => _sessionComplete;
+  static double get sessionProgress => _sessionProgress;
+
+  /// Starts a fresh session: empties the tank to 0% so it can refill as new items arrive in queue
+  static void startNewSession() {
+    _sessionTotal = 0;
+    _sessionSynced = 0;
+    _sessionComplete = false;
+    _sessionProgress = 0.0;
+    _cachedStats = _cachedStats.copyWith(
+      progress: 0.0,
+      sessionTotal: 0,
+      sessionSynced: 0,
+    );
+    statsNotifier.value = _cachedStats;
+  }
+
+  /// Resets and drains the session tank completely (0%)
+  static void resetSession() {
+    _sessionTotal = 0;
+    _sessionSynced = 0;
+    _sessionComplete = false;
+    _sessionProgress = 0.0;
+    _cachedStats = _cachedStats.copyWith(
+      progress: 0.0,
+      sessionTotal: 0,
+      sessionSynced: 0,
+    );
+    statsNotifier.value = _cachedStats;
+  }
+
   static void _updateInFlightClaim() {
     _cachedStats = _cachedStats.copyWith(
       inQueue: (_cachedStats.inQueue - 1).clamp(0, 9999999),
@@ -271,9 +362,22 @@ class SyncEngine {
   }
 
   static void _updateInFlightSuccess() {
+    _sessionSynced++;
+    if (_sessionTotal < _sessionSynced) {
+      _sessionTotal = _sessionSynced;
+    }
+    if (_sessionTotal > 0) {
+      _sessionProgress = (_sessionSynced / _sessionTotal).clamp(0.0, 1.0);
+    } else {
+      _sessionProgress = 1.0;
+    }
+
     _cachedStats = _cachedStats.copyWith(
       uploading: (_cachedStats.uploading - 1).clamp(0, 9999999),
       synced: _cachedStats.synced + 1,
+      progress: _sessionProgress,
+      sessionTotal: _sessionTotal,
+      sessionSynced: _sessionSynced,
     );
     _scheduleStatsNotification();
   }
@@ -302,14 +406,49 @@ class SyncEngine {
     final inQueue = counts['inQueue'] ?? 0;
     final failed = counts['failed'] ?? 0;
     final uploading = counts['uploading'] ?? 0;
-    final progress = total == 0 ? 0.0 : (synced / total).clamp(0.0, 1.0);
+
+    final activeQueue = inQueue + uploading;
+    if (_sessionComplete && activeQueue > 0) {
+      // New items arrived after previous completion: start new session!
+      _sessionComplete = false;
+      _sessionSynced = 0;
+      _sessionTotal = activeQueue;
+      _sessionProgress = 0.0;
+    } else if (_sessionTotal == 0 && activeQueue > 0) {
+      _sessionTotal = activeQueue;
+      _sessionSynced = 0;
+      _sessionProgress = 0.0;
+    } else if (_sessionTotal > 0) {
+      if (activeQueue + _sessionSynced > _sessionTotal) {
+        // More items were added during the active session
+        _sessionTotal = activeQueue + _sessionSynced;
+      }
+      if (activeQueue == 0) {
+        _sessionSynced = _sessionTotal;
+        _sessionComplete = true;
+        _sessionProgress = 1.0;
+      } else {
+        _sessionProgress = (_sessionSynced / _sessionTotal).clamp(0.0, 1.0);
+      }
+    } else {
+      if (_sessionComplete) {
+        _sessionProgress = 1.0;
+      } else if (total > 0 && inQueue == 0 && uploading == 0) {
+        _sessionProgress = 1.0;
+      } else {
+        _sessionProgress = 0.0;
+      }
+    }
+
     _cachedStats = SyncStats(
       total: total,
       synced: synced,
       inQueue: inQueue,
       failed: failed,
       uploading: uploading,
-      progress: progress,
+      progress: _sessionProgress,
+      sessionTotal: _sessionTotal,
+      sessionSynced: _sessionSynced,
     );
     statsNotifier.value = _cachedStats;
     try {
@@ -317,6 +456,47 @@ class SyncEngine {
       mediaBreakdownNotifier.value = breakdown;
     } catch (_) {}
     return _cachedStats;
+  }
+
+  /// Removes an individual media item from the active/pending queue and database.
+  /// If the item is currently being uploaded by a worker, safely aborts the active transfer.
+  Future<void> removeFromQueue(String filePath) async {
+    // 1. Delete from SQLite / memory store
+    await DatabaseHelper.instance.deleteItem(filePath);
+
+    // 2. Remove from claimed in-memory queues
+    _claimedPhotoQueue.removeWhere((item) => item.filePath == filePath);
+    _claimedVideoQueue.removeWhere((item) => item.filePath == filePath);
+
+    // 3. If currently uploading this exact file, cancel active worker
+    final fileName = filePath.split('/').last;
+    if (_activeVideoFileName == fileName) {
+      debugPrint('[SyncEngine] Active video $fileName was removed from queue. Aborting upload worker...');
+      TelegramAuthService.instance.invalidateClient(1);
+      clearWorkerItemStatus(isVideo: true);
+    }
+    if (_activePhotoFileName == fileName) {
+      debugPrint('[SyncEngine] Active photo $fileName was removed from queue. Aborting upload worker...');
+      TelegramAuthService.instance.invalidateClient(0);
+      clearWorkerItemStatus(isVideo: false);
+    }
+    if (activeUploadsNotifier.value.containsKey(filePath)) {
+      final updated = Map<String, FileUploadProgress>.from(activeUploadsNotifier.value);
+      updated.remove(filePath);
+      activeUploadsNotifier.value = updated;
+    }
+
+    // 4. Update in-flight counters & refresh stats
+    await fetchCurrentStats(forceDb: true);
+  }
+
+  /// Manually arrange the order of items in the queue to decide what gets uploaded first.
+  Future<void> reorderQueue(List<String> orderedFilePaths) async {
+    await DatabaseHelper.instance.reorderQueue(orderedFilePaths);
+    // Flush in-memory claimed queue so workers pick up the new prioritized order immediately
+    _claimedPhotoQueue.clear();
+    _claimedVideoQueue.clear();
+    await fetchCurrentStats(forceDb: true);
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -363,6 +543,7 @@ class SyncEngine {
     engineStatusMessageNotifier.value = '';
     uploadSpeedNotifier.value = '';
     currentItemNotifier.value = '';
+    activeUploadsNotifier.value = {};
     rateLimitSecondsRemainingNotifier.value = 0;
     _rateLimitTimer?.cancel();
     _rateLimitTimer = null;
@@ -392,7 +573,8 @@ class SyncEngine {
     engineStatusMessageNotifier.value =
         'Telegram linked. Starting vault backup...';
 
-    // 3. Scan camera roll cleanly into fresh database
+    // 3. Scan camera roll cleanly into fresh database (purge legacy mock data first)
+    await DatabaseHelper.instance.purgeDummyMockItems();
     await MediaScanner.scanForNewMedia(forceFull: true);
 
     // 4. Populate live stats from database and activate sync
@@ -418,6 +600,8 @@ class SyncEngine {
 
     // Reset any interrupted uploading state from abrupt app closes
     await DatabaseHelper.instance.resetUploadingToPending();
+    // Auto-retry any failed items so they are not left behind
+    await DatabaseHelper.instance.retryAllFailed();
     await fetchCurrentStats(forceDb: true);
 
     final online = await hasInternetConnection();
@@ -486,6 +670,13 @@ class SyncEngine {
         if (uploadSpeedNotifier.value != newSpeedText) {
           uploadSpeedNotifier.value = newSpeedText;
         }
+        if (activeUploadsNotifier.value.isNotEmpty) {
+          final updatedMap = <String, FileUploadProgress>{};
+          for (final entry in activeUploadsNotifier.value.entries) {
+            updatedMap[entry.key] = entry.value.copyWith(speedText: newSpeedText);
+          }
+          activeUploadsNotifier.value = updatedMap;
+        }
       }
     });
 
@@ -506,6 +697,7 @@ class SyncEngine {
     _syncGeneration++;
     _claimedPhotoQueue.clear();
     _claimedVideoQueue.clear();
+    activeUploadsNotifier.value = {};
     if (_photoRefillCompleter != null && !_photoRefillCompleter!.isCompleted) {
       _photoRefillCompleter!.complete();
     }
@@ -525,6 +717,7 @@ class SyncEngine {
     _smoothedSpeedMBps = 0.0;
     uploadSpeedNotifier.value = '';
     currentItemNotifier.value = '';
+    activeUploadsNotifier.value = {};
     if (engineStatusNotifier.value == SyncEngineStatus.active) {
       engineStatusNotifier.value = SyncEngineStatus.idle;
     }
@@ -590,6 +783,7 @@ class SyncEngine {
     _prevBytesSent = 0;
     uploadSpeedNotifier.value = '';
     currentItemNotifier.value = '';
+    activeUploadsNotifier.value = {};
 
     await Future.delayed(const Duration(milliseconds: 100));
 
@@ -979,6 +1173,20 @@ class SyncEngine {
         return;
       }
 
+      final fileSize = file.lengthSync();
+      final initialProgress = FileUploadProgress(
+        filePath: item.filePath,
+        fileName: fileName,
+        bytesSent: 0,
+        totalBytes: fileSize,
+        progress: 0.0,
+        speedText: uploadSpeedNotifier.value.isNotEmpty ? uploadSpeedNotifier.value : 'Starting...',
+        isVideo: isVideo,
+      );
+      final startMap = Map<String, FileUploadProgress>.from(activeUploadsNotifier.value);
+      startMap[item.filePath] = initialProgress;
+      activeUploadsNotifier.value = startMap;
+
       int workerItemBytesSent = 0;
       void handleProgress(int sent, int total) {
         final delta = sent - workerItemBytesSent;
@@ -986,15 +1194,39 @@ class SyncEngine {
           _totalBytesSent += delta;
           workerItemBytesSent = sent;
         }
+        final currentSpeed = uploadSpeedNotifier.value.isNotEmpty
+            ? uploadSpeedNotifier.value
+            : 'Syncing...';
+        final double progressVal = total > 0 ? (sent / total).clamp(0.0, 1.0) : 0.0;
+        final currentMap = Map<String, FileUploadProgress>.from(activeUploadsNotifier.value);
+        currentMap[item.filePath] = FileUploadProgress(
+          filePath: item.filePath,
+          fileName: fileName,
+          bytesSent: sent,
+          totalBytes: total,
+          progress: progressVal,
+          speedText: currentSpeed,
+          isVideo: isVideo,
+        );
+        activeUploadsNotifier.value = currentMap;
       }
 
       UploadResult result;
       try {
+        final timeoutDuration = Duration(
+          minutes: (5 + (file.lengthSync() / (50 * 1024 * 1024)).ceil() * 2).clamp(5, 30),
+        );
         result = await _uploadWithSpeedOptimization(
           item,
           file,
           workerIndex: workerIndex,
           onProgress: handleProgress,
+        ).timeout(
+          timeoutDuration,
+          onTimeout: () {
+            TelegramAuthService.instance.invalidateClient(workerIndex);
+            return Failure('Upload timed out after ${timeoutDuration.inMinutes} minutes');
+          },
         );
       } catch (e) {
         result = Failure(e.toString());
@@ -1216,6 +1448,9 @@ class SyncEngine {
       }
     } finally {
       clearWorkerItemStatus(isVideo: isVideo);
+      final finishMap = Map<String, FileUploadProgress>.from(activeUploadsNotifier.value);
+      finishMap.remove(item.filePath);
+      activeUploadsNotifier.value = finishMap;
     }
   }
 
@@ -1234,11 +1469,11 @@ class SyncEngine {
       'dd/MM/yyyy HH:mm:ss',
     ).format(DateTime.fromMillisecondsSinceEpoch(item.dateTaken));
 
-    // Direct upload if within limit (Bot API 50MB, or MTProto native up to 2000MB)
+    // Direct upload if MTProto (up to 2000MB) or within Bot API single limit
     final isBotApi = Prefs.botToken.contains(':');
     final limitBytes = isBotApi ? maxSingleBytes : (2000 * 1024 * 1024);
 
-    if (fileSize <= limitBytes || !Prefs.enableChunking) {
+    if (!isBotApi || fileSize <= limitBytes || !Prefs.enableChunking) {
       final caption =
           '$fileName\nDate: $dateStr\nSize: ${_formatSize(fileSize)}';
       if (isBotApi) {

@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../util/formatters.dart';
 import '../../util/theme.dart';
 
 /// "Liquid Bucket" Sync Progress Animation
@@ -18,6 +19,8 @@ class LiquidBucketSyncView extends StatefulWidget {
   final double progress;
   final int totalCount;
   final int syncedCount;
+  final int? sessionTotal;
+  final int? sessionSynced;
   final bool isUploading;
   final double height;
 
@@ -26,6 +29,8 @@ class LiquidBucketSyncView extends StatefulWidget {
     required this.progress,
     required this.totalCount,
     required this.syncedCount,
+    this.sessionTotal,
+    this.sessionSynced,
     this.isUploading = false,
     this.height = 200.0,
   });
@@ -181,86 +186,76 @@ class _LiquidBucketSyncViewState extends State<LiquidBucketSyncView>
               ),
 
               // 4. Center Typography Overlay: Percentage & Live Synced Count
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Big percentage display with Outfit Light 52
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          '$percentInt',
-                          style: TextStyle(
-                            fontFamily: ValtSkyTheme.fontFamilyDisplay,
-                            fontSize: 48,
-                            fontWeight: FontWeight.w300,
-                            letterSpacing: -1.2,
-                            color: textPrimary,
-                            height: 1.0,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: isDark ? 0.65 : 0.25),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+              RepaintBoundary(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Big percentage display with Outfit Light 52
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '$percentInt',
+                            style: TextStyle(
+                              fontFamily: ValtSkyTheme.fontFamilyDisplay,
+                              fontSize: 48,
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: -1.2,
+                              color: textPrimary,
+                              height: 1.0,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '%',
-                          style: TextStyle(
-                            fontFamily: ValtSkyTheme.fontFamilyDisplay,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                            color: textSecondary,
-                            height: 1.0,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: isDark ? 0.65 : 0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 6),
-
-                    // Counter Subtitle: "$uploadedCount of $totalCount synced"
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: (isDark ? const Color(0xFF0D0E10) : Colors.white)
-                            .withValues(alpha: isDark ? 0.65 : 0.85),
-                        borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                        border: Border.all(
-                          color: borderColor.withValues(alpha: isDark ? 0.6 : 0.8),
-                          width: 0.8,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
-                            blurRadius: 6,
-                            offset: const Offset(0, 1),
+                          Text(
+                            '%',
+                            style: TextStyle(
+                              fontFamily: ValtSkyTheme.fontFamilyDisplay,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                              color: textSecondary,
+                              height: 1.0,
+                            ),
                           ),
                         ],
                       ),
-                      child: Text(
-                        '${widget.syncedCount} of ${widget.totalCount} synced',
-                        style: TextStyle(
-                          fontFamily: ValtSkyTheme.fontFamilyBody,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: textPrimary,
+
+                      const SizedBox(height: 6),
+
+                      // Counter Subtitle: "$uploadedCount of $totalCount synced"
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: (isDark ? const Color(0xFF0D0E10) : Colors.white)
+                              .withValues(alpha: isDark ? 0.65 : 0.85),
+                          borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                          border: Border.all(
+                            color: borderColor.withValues(alpha: isDark ? 0.6 : 0.8),
+                            width: 0.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+                              blurRadius: 6,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          (widget.sessionTotal != null && widget.sessionTotal! > 0)
+                              ? '${ValtSkyFormatters.formatMediaCount(widget.sessionSynced ?? 0)} of ${ValtSkyFormatters.formatMediaCount(widget.sessionTotal!)} synced'
+                              : '${ValtSkyFormatters.formatMediaCount(widget.syncedCount)} of ${ValtSkyFormatters.formatMediaCount(widget.totalCount)} synced',
+                          style: TextStyle(
+                            fontFamily: ValtSkyTheme.fontFamilyBody,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: textPrimary,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],

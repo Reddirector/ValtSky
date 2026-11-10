@@ -264,7 +264,10 @@ class BackupSchedulerService {
     );
 
     try {
-      debugPrint('[BackupSchedulerService] Alarm fired! Scanning device media...');
+      debugPrint('[BackupSchedulerService] Alarm fired! Resetting session tank & scanning device media...');
+      // Start a fresh sync session: empties the tank to 0% so it can refill with new items
+      SyncEngine.startNewSession();
+
       // 1. Scan device storage and load all new items into the queue
       final newItemsQueued = await MediaScanner.scanForNewMedia(forceFull: false);
 
