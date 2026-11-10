@@ -4,13 +4,15 @@ import '../../data/models/media_item.dart';
 import '../../data/models/media_breakdown.dart';
 import '../../data/prefs.dart';
 import '../../services/sync_engine.dart';
+import '../../util/formatters.dart';
 import '../../util/theme.dart';
 import '../widgets/media_item_card.dart';
 import '../widgets/manual_upload_assistant_sheet.dart';
 import '../widgets/valtsky_components.dart';
 import '../widgets/lazy_media_list_sheet.dart';
+import '../widgets/queued_media_section.dart';
+import '../widgets/file_upload_loading_bar.dart';
 import '../../util/telegram_launcher.dart';
-import '../../util/media_scanner.dart';
 
 class ActivityView extends StatefulWidget {
   final VoidCallback onDataChanged;
@@ -30,7 +32,6 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   List<MediaItem> _filteredItems = [];
   bool _isRetryingAll = false;
   bool _isClearingQueue = false;
-  bool _isScanning = false;
 
   MediaBreakdown _breakdown = const MediaBreakdown();
   int _oversizedCount = 0;
@@ -79,6 +80,11 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
       filtered = await DatabaseHelper.instance.getAllItems(
         statusFilter: MediaItem.statusFailed,
         isVideo: true,
+        limit: 50,
+      );
+    } else if (_selectedFilter == MediaItem.statusPending) {
+      filtered = await DatabaseHelper.instance.getAllItems(
+        statusFilter: MediaItem.statusPending,
         limit: 50,
       );
     }
@@ -263,6 +269,28 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                 // ─── THE FOUR TELEMETRY BLOCKS ─────────────────────────
                 _buildFourTelemetryBlocks(isDark),
 
+                // ─── QUEUE MANAGEMENT SECTION (IF IN QUEUED TAB) ──────
+                if (_selectedFilter == MediaItem.statusPending) ...[
+                  QueuedMediaSection(
+                    items: _filteredItems,
+                    isDark: isDark,
+                    onRemove: (item) async {
+                      await SyncEngine.instance.removeFromQueue(item.filePath);
+                      await refreshItems();
+                      widget.onDataChanged();
+                    },
+                    onReorder: (int oldIndex, int newIndex) async {
+                      if (newIndex > oldIndex) newIndex--;
+                      final moved = _filteredItems.removeAt(oldIndex);
+                      _filteredItems.insert(newIndex, moved);
+                      setState(() {});
+                      final ordered = _filteredItems.map((e) => e.filePath).toList();
+                      await SyncEngine.instance.reorderQueue(ordered);
+                      widget.onDataChanged();
+                    },
+                  ),
+                ],
+
                 const SizedBox(height: 16),
 
                 // ─── ZERO-LAG ACTIONS DECK ─────────────────────────────
@@ -311,6 +339,28 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                 // ─── THE FOUR TELEMETRY BLOCKS ─────────────────────────
                 _buildFourTelemetryBlocks(isDark),
 
+                // ─── QUEUE MANAGEMENT SECTION (IF IN QUEUED TAB) ──────
+                if (_selectedFilter == MediaItem.statusPending) ...[
+                  QueuedMediaSection(
+                    items: _filteredItems,
+                    isDark: isDark,
+                    onRemove: (item) async {
+                      await SyncEngine.instance.removeFromQueue(item.filePath);
+                      await refreshItems();
+                      widget.onDataChanged();
+                    },
+                    onReorder: (int oldIndex, int newIndex) async {
+                      if (newIndex > oldIndex) newIndex--;
+                      final moved = _filteredItems.removeAt(oldIndex);
+                      _filteredItems.insert(newIndex, moved);
+                      setState(() {});
+                      final ordered = _filteredItems.map((e) => e.filePath).toList();
+                      await SyncEngine.instance.reorderQueue(ordered);
+                      widget.onDataChanged();
+                    },
+                  ),
+                ],
+
                 const SizedBox(height: 16),
 
                 // ─── ZERO-LAG ACTIONS DECK ─────────────────────────────
@@ -328,106 +378,114 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
     return Column(
       children: [
         // Row 1: Queue Blocks (Photos in Queue + Videos in Queue)
-        Row(
-          children: [
-            Expanded(
-              child: _buildTelemetryBlock(
-                title: 'PHOTOS IN QUEUE',
-                count: _breakdown.pendingPhotos,
-                subtitle: _breakdown.pendingPhotos > 0 ? 'Pending / In-Flight' : 'Queue Empty',
-                icon: Icons.photo_library_outlined,
-                color: ValtSkyTheme.mediaPhoto,
-                isDark: isDark,
-                isActiveTrack: _breakdown.pendingPhotos > 0,
-                onTap: () {
-                  LazyMediaListSheet.show(
-                    context,
-                    title: 'Photos in Queue',
-                    statusFilter: MediaItem.statusPending,
-                    isVideo: false,
-                    icon: Icons.photo_library_outlined,
-                    accentColor: ValtSkyTheme.mediaPhoto,
-                  );
-                },
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildTelemetryBlock(
+                  title: 'PHOTOS IN QUEUE',
+                  count: _breakdown.pendingPhotos,
+                  subtitle: _breakdown.pendingPhotos > 0 ? 'Pending / In-Flight' : 'Queue Empty',
+                  icon: Icons.photo_library_outlined,
+                  color: ValtSkyTheme.mediaPhoto,
+                  isDark: isDark,
+                  isActiveTrack: _breakdown.pendingPhotos > 0,
+                  onTap: () {
+                    LazyMediaListSheet.show(
+                      context,
+                      title: 'Photos in Queue',
+                      statusFilter: MediaItem.statusPending,
+                      isVideo: false,
+                      icon: Icons.photo_library_outlined,
+                      accentColor: ValtSkyTheme.mediaPhoto,
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildTelemetryBlock(
-                title: 'VIDEOS IN QUEUE',
-                count: _breakdown.pendingVideos,
-                subtitle: _breakdown.pendingVideos > 0 ? 'Preparing / Wire' : 'Queue Empty',
-                icon: Icons.videocam_outlined,
-                color: const Color(0xFFF59E0B), // Vivid Amber
-                isDark: isDark,
-                isActiveTrack: _breakdown.pendingVideos > 0,
-                onTap: () {
-                  LazyMediaListSheet.show(
-                    context,
-                    title: 'Videos in Queue',
-                    statusFilter: MediaItem.statusPending,
-                    isVideo: true,
-                    icon: Icons.videocam_outlined,
-                    accentColor: const Color(0xFFF59E0B),
-                  );
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTelemetryBlock(
+                  title: 'VIDEOS IN QUEUE',
+                  count: _breakdown.pendingVideos,
+                  subtitle: _breakdown.pendingVideos > 0 ? 'Preparing / Wire' : 'Queue Empty',
+                  icon: Icons.videocam_outlined,
+                  color: const Color(0xFFF59E0B), // Vivid Amber
+                  isDark: isDark,
+                  isActiveTrack: _breakdown.pendingVideos > 0,
+                  onTap: () {
+                    LazyMediaListSheet.show(
+                      context,
+                      title: 'Videos in Queue',
+                      statusFilter: MediaItem.statusPending,
+                      isVideo: true,
+                      icon: Icons.videocam_outlined,
+                      accentColor: const Color(0xFFF59E0B),
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         // Row 2: Synced Blocks (Photos Synced + Videos Synced)
-        Row(
-          children: [
-            Expanded(
-              child: _buildTelemetryBlock(
-                title: 'PHOTOS SYNCED',
-                count: _breakdown.syncedPhotos,
-                subtitle: '100% Lossless',
-                icon: Icons.cloud_done_rounded,
-                color: const Color(0xFF10B981), // Emerald Green
-                isDark: isDark,
-                onTap: () {
-                  LazyMediaListSheet.show(
-                    context,
-                    title: 'Photos Synced',
-                    statusFilter: MediaItem.statusDone,
-                    isVideo: false,
-                    icon: Icons.cloud_done_rounded,
-                    accentColor: const Color(0xFF10B981),
-                  );
-                },
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildTelemetryBlock(
+                  title: 'PHOTOS SYNCED',
+                  count: _breakdown.syncedPhotos,
+                  subtitle: '100% Lossless',
+                  icon: Icons.cloud_done_rounded,
+                  color: const Color(0xFF10B981), // Emerald Green
+                  isDark: isDark,
+                  onTap: () {
+                    LazyMediaListSheet.show(
+                      context,
+                      title: 'Photos Synced',
+                      statusFilter: MediaItem.statusDone,
+                      isVideo: false,
+                      icon: Icons.cloud_done_rounded,
+                      accentColor: const Color(0xFF10B981),
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildTelemetryBlock(
-                title: 'VIDEOS SYNCED',
-                count: _breakdown.syncedVideos,
-                subtitle: 'Original Bitrate',
-                icon: Icons.video_library_rounded,
-                color: ValtSkyTheme.mediaVideo,
-                isDark: isDark,
-                onTap: () {
-                  LazyMediaListSheet.show(
-                    context,
-                    title: 'Videos Synced',
-                    statusFilter: MediaItem.statusDone,
-                    isVideo: true,
-                    icon: Icons.video_library_rounded,
-                    accentColor: ValtSkyTheme.mediaVideo,
-                  );
-                },
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTelemetryBlock(
+                  title: 'VIDEOS SYNCED',
+                  count: _breakdown.syncedVideos,
+                  subtitle: 'Original Bitrate',
+                  icon: Icons.video_library_rounded,
+                  color: ValtSkyTheme.mediaVideo,
+                  isDark: isDark,
+                  onTap: () {
+                    LazyMediaListSheet.show(
+                      context,
+                      title: 'Videos Synced',
+                      statusFilter: MediaItem.statusDone,
+                      isVideo: true,
+                      icon: Icons.video_library_rounded,
+                      accentColor: ValtSkyTheme.mediaVideo,
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         // Row 3: Failed Blocks (Photos Failed + Videos Failed)
-        Row(
-          children: [
-            Expanded(
-              child: _buildTelemetryBlock(
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildTelemetryBlock(
                 title: 'FAILED PHOTOS',
                 count: _breakdown.failedPhotos,
                 subtitle: _breakdown.failedPhotos > 0 ? 'Tap to inspect' : 'No Failures',
@@ -469,8 +527,9 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
             ),
           ],
         ),
-      ],
-    );
+      ),
+    ],
+  );
   }
 
   Widget _buildTelemetryBlock({
@@ -489,7 +548,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
     final effectiveAccent = color;
 
     return Semantics(
-      label: '$title: $count',
+      label: '$title: ${ValtSkyFormatters.formatMediaCount(count)}',
       button: onTap != null,
       child: Material(
         color: Colors.transparent,
@@ -534,11 +593,12 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                               duration: const Duration(milliseconds: 500),
                               curve: Curves.easeOutCubic,
                               builder: (context, animatedVal, _) {
+                                final displayVal = ValtSkyFormatters.formatMediaCount(animatedVal);
                                 return FittedBox(
                                   fit: BoxFit.scaleDown,
                                   alignment: Alignment.centerRight,
                                   child: Text(
-                                    '$animatedVal',
+                                    displayVal,
                                     style: TextStyle(
                                       fontFamily: ValtSkyTheme.fontFamilyDisplay,
                                       fontSize: 52,
@@ -666,55 +726,16 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   Widget _buildActionDeck(bool isDark) {
     return Column(
       children: [
-        Row(
-          children: [
-            // Scan Gallery Now
-            Expanded(
-              child: PillButton(
-                label: 'Scan Gallery',
-                icon: Icons.sync_rounded,
-                variant: PillButtonVariant.primary,
-                showTrailingArrow: true,
-                isLoading: _isScanning,
-                onPressed: _isScanning
-                    ? null
-                    : () async {
-                        setState(() => _isScanning = true);
-                        try {
-                          final newCount = await MediaScanner.scanForNewMedia(forceFull: false);
-                          await refreshItems();
-                          widget.onDataChanged();
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                newCount > 0
-                                    ? 'Scanned gallery: $newCount new items queued'
-                                    : 'Gallery up to date (no new items)',
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: ValtSkyTheme.primary(isDark),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          );
-                        } finally {
-                          if (mounted) setState(() => _isScanning = false);
-                        }
-                      },
-              ),
-            ),
-            const SizedBox(width: 10),
-            // Clear Queue / Exclude
-            Expanded(
-              child: PillButton(
-                label: 'Clear Queue',
-                icon: Icons.delete_outline_rounded,
-                variant: PillButtonVariant.secondary,
-                isLoading: _isClearingQueue,
-                onPressed: _isClearingQueue ? null : _handleClearQueue,
-              ),
-            ),
-          ],
+        // Clear Queue / Exclude
+        SizedBox(
+          width: double.infinity,
+          child: PillButton(
+            label: 'Clear Queue',
+            icon: Icons.delete_outline_rounded,
+            variant: PillButtonVariant.secondary,
+            isLoading: _isClearingQueue,
+            onPressed: _isClearingQueue ? null : _handleClearQueue,
+          ),
         ),
         if (_breakdown.totalFailed > 0) ...[
           const SizedBox(height: 10),
@@ -780,42 +801,42 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
     IconData icon;
 
     if (_selectedFilter == MediaItem.statusPending) {
-      title = '$pendingCount PENDING IN QUEUE';
+      title = '${ValtSkyFormatters.formatMediaCount(pendingCount)} PENDING IN QUEUE';
       subtitle = pendingCount > 0
-          ? '${_breakdown.pendingPhotos} photos, ${_breakdown.pendingVideos} videos in flight'
+          ? '${ValtSkyFormatters.formatMediaCount(_breakdown.pendingPhotos)} photos, ${ValtSkyFormatters.formatMediaCount(_breakdown.pendingVideos)} videos in flight'
           : 'Upload queue is clear';
       icon = Icons.schedule_rounded;
     } else if (_selectedFilter == MediaItem.statusDone) {
-      title = '$syncedCount SYNCHRONIZED';
+      title = '${ValtSkyFormatters.formatMediaCount(syncedCount)} SYNCHRONIZED';
       subtitle = 'Bit-for-bit lossless backup in Telegram';
       icon = Icons.cloud_done_rounded;
     } else if (_selectedFilter == 'OVERSIZED') {
-      title = '$_oversizedCount OVERSIZED (> 2 GB)';
+      title = '${ValtSkyFormatters.formatMediaCount(_oversizedCount)} OVERSIZED (> 2 GB)';
       subtitle = 'Held for manual lossless upload';
       icon = Icons.layers_rounded;
     } else if (_selectedFilter == 'FAILED_PHOTOS') {
       final failedPhotos = _breakdown.failedPhotos;
-      title = '$failedPhotos FAILED PHOTOS';
+      title = '${ValtSkyFormatters.formatMediaCount(failedPhotos)} FAILED PHOTOS';
       subtitle = failedPhotos > 0
           ? 'Tap tile or list below to inspect failures'
           : 'No failed photos detected';
       icon = Icons.broken_image_outlined;
     } else if (_selectedFilter == 'FAILED_VIDEOS') {
       final failedVideos = _breakdown.failedVideos;
-      title = '$failedVideos FAILED VIDEOS';
+      title = '${ValtSkyFormatters.formatMediaCount(failedVideos)} FAILED VIDEOS';
       subtitle = failedVideos > 0
           ? 'Tap tile or list below to inspect failures'
           : 'No failed videos detected';
       icon = Icons.videocam_off_outlined;
     } else if (_selectedFilter == MediaItem.statusFailed) {
       final failedCount = _breakdown.totalFailed;
-      title = '$failedCount FAILED TRANSFERS';
+      title = '${ValtSkyFormatters.formatMediaCount(failedCount)} FAILED TRANSFERS';
       subtitle = 'Check connection or retry';
       icon = Icons.error_outline_rounded;
     } else {
       final totalCount = _breakdown.totalCount;
-      title = '$totalCount TOTAL MEDIA TRACKED';
-      subtitle = '$pendingCount pending • $syncedCount synced';
+      title = '${ValtSkyFormatters.formatMediaCount(totalCount)} TOTAL MEDIA TRACKED';
+      subtitle = '${ValtSkyFormatters.formatMediaCount(pendingCount)} pending • ${ValtSkyFormatters.formatMediaCount(syncedCount)} synced';
       icon = Icons.photo_library_outlined;
     }
 
@@ -827,97 +848,105 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
         borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
         border: Border.all(color: borderColor, width: 1.0),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: secondaryColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: secondaryColor, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: ValtSkyTheme.fontFamily,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                    color: secondaryColor,
-                  ),
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: secondaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontFamily: ValtSkyTheme.fontFamily,
-                    fontSize: 11,
-                    color: mutedText,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          if ((_selectedFilter == MediaItem.statusFailed && _breakdown.totalFailed > 0) ||
-              (_selectedFilter == 'FAILED_PHOTOS' && _breakdown.failedPhotos > 0) ||
-              (_selectedFilter == 'FAILED_VIDEOS' && _breakdown.failedVideos > 0))
-            ElevatedButton.icon(
-              onPressed: _isRetryingAll
-                  ? null
-                  : () async {
-                      setState(() => _isRetryingAll = true);
-                      try {
-                        final isVideoParam = _selectedFilter == 'FAILED_VIDEOS'
-                            ? true
-                            : (_selectedFilter == 'FAILED_PHOTOS' ? false : null);
-                        final count = await DatabaseHelper.instance.retryAllFailed(isVideo: isVideoParam);
-                        await refreshItems();
-                        if (!mounted) return;
-                        widget.onDataChanged();
-                        if (!Prefs.uploadPaused) {
-                          SyncEngine().startSync();
-                        }
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('$count failed items queued for retry'),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: ValtSkyTheme.success,
-                            ),
-                          );
-                        }
-                      } finally {
-                        if (mounted) {
-                          setState(() => _isRetryingAll = false);
-                        }
-                      }
-                    },
-              icon: _isRetryingAll
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.refresh_rounded, size: 14),
-              label: const Text('RETRY ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ValtSkyTheme.statusFailed,
-                foregroundColor: Colors.white,
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                child: Icon(icon, color: secondaryColor, size: 20),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontFamily: ValtSkyTheme.fontFamily,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                        color: secondaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontFamily: ValtSkyTheme.fontFamily,
+                        fontSize: 11,
+                        color: mutedText,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if ((_selectedFilter == MediaItem.statusFailed && _breakdown.totalFailed > 0) ||
+                  (_selectedFilter == 'FAILED_PHOTOS' && _breakdown.failedPhotos > 0) ||
+                  (_selectedFilter == 'FAILED_VIDEOS' && _breakdown.failedVideos > 0))
+                ElevatedButton.icon(
+                  onPressed: _isRetryingAll
+                      ? null
+                      : () async {
+                          setState(() => _isRetryingAll = true);
+                          try {
+                            final isVideoParam = _selectedFilter == 'FAILED_VIDEOS'
+                                ? true
+                                : (_selectedFilter == 'FAILED_PHOTOS' ? false : null);
+                            final count = await DatabaseHelper.instance.retryAllFailed(isVideo: isVideoParam);
+                            await refreshItems();
+                            if (!mounted) return;
+                            widget.onDataChanged();
+                            if (!Prefs.uploadPaused) {
+                              SyncEngine().startSync();
+                            }
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('$count failed items queued for retry'),
+                                  behavior: SnackBarBehavior.floating,
+                                  backgroundColor: ValtSkyTheme.success,
+                                ),
+                              );
+                            }
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isRetryingAll = false);
+                            }
+                          }
+                        },
+                  icon: _isRetryingAll
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.refresh_rounded, size: 14),
+                  label: const Text('RETRY ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ValtSkyTheme.statusFailed,
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          DualSplitUploadBar(isDark: isDark),
         ],
       ),
     );
@@ -943,7 +972,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
             children: [
               Expanded(
                 child: PillButton(
-                  label: 'Open Lazy Viewer ($count)',
+                  label: 'Open Lazy Viewer (${ValtSkyFormatters.formatMediaCount(count)})',
                   icon: Icons.filter_none_rounded,
                   variant: PillButtonVariant.secondary,
                   onPressed: () {
@@ -1076,7 +1105,8 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                     borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
                   ),
                   child: Text(
-                    '$badgeCount',
+                    // Frozen copy inventory preservation: '$badgeCount'
+                    ValtSkyFormatters.formatMediaCount(badgeCount),
                     style: TextStyle(
                       fontFamily: ValtSkyTheme.fontFamilyDisplay,
                       fontSize: 10,
