@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'data/prefs.dart';
 import 'services/background_service.dart';
+import 'services/backup_scheduler_service.dart';
 import 'ui/home_page.dart';
 import 'util/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Prefs.init();
+  await BackupSchedulerService.instance.init();
   if (!kIsWeb) {
     BackgroundService.init();
   }

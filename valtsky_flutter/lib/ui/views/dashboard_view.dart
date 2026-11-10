@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../data/db/database_helper.dart';
 import '../../data/prefs.dart';
 import '../../services/sync_engine.dart';
+import '../../util/formatters.dart';
 import '../../util/theme.dart';
 import '../view_models/dashboard_view_model.dart';
 import '../widgets/vault_storage_card.dart';
@@ -9,6 +10,7 @@ import '../widgets/vault_metric_deck.dart';
 import '../widgets/dashboard_control_deck.dart';
 import '../widgets/dashboard_status_banner.dart';
 import '../widgets/failed_item_card.dart';
+import '../widgets/scheduled_backup_timer_card.dart';
 
 class DashboardView extends StatefulWidget {
   final VoidCallback onNavigateToSettings;
@@ -125,23 +127,31 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
 
                 const SizedBox(height: 16),
 
-                // 4. Precision Instrumentation Metrics Deck
+                // 4. Tactical Quick Action Controls (Lifted above media showcase metrics)
+                DashboardControlDeck(
+                  isConfigured: isConfigured,
+                  isPaused: isPaused,
+                  onTogglePause: _viewModel.togglePauseUpload,
+                  onStopProcess: () => _viewModel.handleStopProcess(context),
+                ),
+
+                const SizedBox(height: 16),
+
+                // 4.5. Alarm Clock Scheduled Backup Timer Section
+                ScheduledBackupTimerCard(
+                  isDark: isDark,
+                  onDataChanged: () => _viewModel.refreshStats(),
+                ),
+
+                const SizedBox(height: 16),
+
+                // 5. Precision Instrumentation Metrics Deck (Showcasing below quick controls)
                 VaultMetricDeck(
                   totalCount: _viewModel.totalCount,
                   uploadedCount: _viewModel.uploadedCount,
                   pendingCount: _viewModel.pendingCount,
                   failedCount: _viewModel.failedCount,
                   onNavigateToActivity: (filter) => widget.onNavigateToActivity?.call(filter),
-                ),
-
-                const SizedBox(height: 16),
-
-                // 5. Tactical Quick Action Controls
-                DashboardControlDeck(
-                  isConfigured: isConfigured,
-                  isPaused: isPaused,
-                  onTogglePause: _viewModel.togglePauseUpload,
-                  onStopProcess: () => _viewModel.handleStopProcess(context),
                 ),
 
                 // 6. Failed Items Alert (Conditional)
@@ -185,7 +195,7 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '${_viewModel.failedCount} Failed Uploads',
+                        '${ValtSkyFormatters.formatMediaCount(_viewModel.failedCount)} Failed Uploads',
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: ValtSkyTheme.error,
@@ -214,7 +224,7 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('$count failed items queued for retry'),
+                                    content: Text('${ValtSkyFormatters.formatMediaCount(count)} failed items queued for retry'),
                                     behavior: SnackBarBehavior.floating,
                                     backgroundColor: ValtSkyTheme.success,
                                   ),

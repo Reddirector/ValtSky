@@ -36,14 +36,21 @@ class Prefs {
   static const String keyVaultPinEnabled = 'vault_pin_enabled';
   static const String keyVaultPin = 'vault_pin';
   static const String keySmoothUploadMode = 'smooth_upload_mode';
+  static const String keyCustomVaultName = 'custom_vault_name';
+  static const String keyScheduledBackupEnabled = 'scheduled_backup_enabled';
+  static const String keyScheduledBackupHour = 'scheduled_backup_hour';
+  static const String keyScheduledBackupMinute = 'scheduled_backup_minute';
+  static const String keyScheduledBackupRepeatDaily = 'scheduled_backup_repeat_daily';
 
   static final ValueNotifier<bool> smoothUploadModeNotifier = ValueNotifier<bool>(true);
+  static final ValueNotifier<bool> scheduledBackupNotifier = ValueNotifier<bool>(false);
 
   static SharedPreferences? _prefs;
 
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     smoothUploadModeNotifier.value = smoothUploadMode;
+    scheduledBackupNotifier.value = scheduledBackupEnabled;
   }
 
   static String get authMethod => _prefs?.getString(keyAuthMethod) ?? 'phone';
@@ -182,6 +189,17 @@ class Prefs {
   static String get channelName => _prefs?.getString(keyChannelName) ?? '';
   static set channelName(String value) => _prefs?.setString(keyChannelName, value);
 
+  static String get customVaultName => _prefs?.getString(keyCustomVaultName) ?? '';
+  static set customVaultName(String value) => _prefs?.setString(keyCustomVaultName, value);
+
+  static String get effectiveVaultName {
+    if (channelName.isNotEmpty) return channelName;
+    if (customVaultName.isNotEmpty) return customVaultName;
+    final name = telegramUserName.isNotEmpty ? telegramUserName : telegramUserHandle;
+    if (name.isNotEmpty) return 'VaultSky Vault ($name)';
+    return 'VaultSky Vault';
+  }
+
   static ThemeChoice get selectedTheme {
     final val = _prefs?.getString(keySelectedTheme) ?? 'LIGHT';
     return ThemeChoice.values.firstWhere(
@@ -218,6 +236,21 @@ class Prefs {
     _prefs?.setBool(keySmoothUploadMode, value);
     smoothUploadModeNotifier.value = value;
   }
+
+  static bool get scheduledBackupEnabled => _prefs?.getBool(keyScheduledBackupEnabled) ?? false;
+  static set scheduledBackupEnabled(bool value) {
+    _prefs?.setBool(keyScheduledBackupEnabled, value);
+    scheduledBackupNotifier.value = value;
+  }
+
+  static int get scheduledBackupHour => _prefs?.getInt(keyScheduledBackupHour) ?? 2; // Default 2:00 AM
+  static set scheduledBackupHour(int value) => _prefs?.setInt(keyScheduledBackupHour, value);
+
+  static int get scheduledBackupMinute => _prefs?.getInt(keyScheduledBackupMinute) ?? 0;
+  static set scheduledBackupMinute(int value) => _prefs?.setInt(keyScheduledBackupMinute, value);
+
+  static bool get scheduledBackupRepeatDaily => _prefs?.getBool(keyScheduledBackupRepeatDaily) ?? true;
+  static set scheduledBackupRepeatDaily(bool value) => _prefs?.setBool(keyScheduledBackupRepeatDaily, value);
 
   static Future<void> clearAllSyncState() async {
     await _prefs?.remove(keyLastSynced);
