@@ -53,6 +53,11 @@ class DatabaseHelper {
         await db.execute('PRAGMA journal_mode = WAL;');
         await db.execute('PRAGMA synchronous = NORMAL;');
       },
+      onOpen: (db) async {
+        try {
+          await db.execute('ALTER TABLE media_items ADD COLUMN queueOrder INTEGER DEFAULT 0;');
+        } catch (_) {}
+      },
     );
   }
 
@@ -68,7 +73,8 @@ class DatabaseHelper {
         telegramMessageId INTEGER,
         errorReason TEXT,
         retryCount INTEGER,
-        updatedAt INTEGER
+        updatedAt INTEGER,
+        queueOrder INTEGER DEFAULT 0
       )
     ''');
     await db.execute('CREATE UNIQUE INDEX idx_fileHash ON media_items (fileHash)');
@@ -248,11 +254,21 @@ class DatabaseHelper {
         items = items.where((e) => isVideo ? e.isVideo : !e.isVideo).toList();
       }
 
-      items.sort((a, b) {
-        final c = b.dateTaken.compareTo(a.dateTaken);
-        if (c != 0) return c;
-        return b.filePath.compareTo(a.filePath);
-      });
+      if (statusFilter == MediaItem.statusPending) {
+        items.sort((a, b) {
+          final aOrder = a.queueOrder != 0 ? a.queueOrder : 999999999;
+          final bOrder = b.queueOrder != 0 ? b.queueOrder : 999999999;
+          final c = aOrder.compareTo(bOrder);
+          if (c != 0) return c;
+          return a.dateTaken.compareTo(b.dateTaken);
+        });
+      } else {
+        items.sort((a, b) {
+          final c = b.dateTaken.compareTo(a.dateTaken);
+          if (c != 0) return c;
+          return b.filePath.compareTo(a.filePath);
+        });
+      }
       if (offset != null) items = items.skip(offset).toList();
       if (limit != null) items = items.take(limit).toList();
       return items;
@@ -287,12 +303,15 @@ class DatabaseHelper {
     }
 
     final whereString = whereClauses.isNotEmpty ? whereClauses.join(' AND ') : null;
+    final orderString = (statusFilter == MediaItem.statusPending)
+        ? 'CASE WHEN queueOrder != 0 THEN queueOrder ELSE 999999999 END ASC, dateTaken ASC'
+        : 'dateTaken DESC, filePath DESC';
 
     final maps = await db.query(
       'media_items',
       where: whereString,
       whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
-      orderBy: 'dateTaken DESC, filePath DESC',
+      orderBy: orderString,
       limit: limit,
       offset: offset,
     );
@@ -409,12 +428,25 @@ class DatabaseHelper {
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       final items = _webItems.values
-          .where((e) =>
-              e.status == MediaItem.statusPending &&
-              e.fileSize < twoGigabytes &&
-              !e.mimeType.contains('video'))
+          .where((e) {
+            final isVid = e.mimeType.contains('video') ||
+                e.filePath.endsWith('.mp4') ||
+                e.filePath.endsWith('.mov') ||
+                e.filePath.endsWith('.mkv') ||
+                e.filePath.endsWith('.webm') ||
+                e.filePath.endsWith('.avi');
+            return e.status == MediaItem.statusPending &&
+                e.fileSize < twoGigabytes &&
+                !isVid;
+          })
           .toList();
-      items.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      items.sort((a, b) {
+        final aOrder = a.queueOrder != 0 ? a.queueOrder : 999999999;
+        final bOrder = b.queueOrder != 0 ? b.queueOrder : 999999999;
+        final c = aOrder.compareTo(bOrder);
+        if (c != 0) return c;
+        return a.dateTaken.compareTo(b.dateTaken);
+      });
       final updatedBatch = <MediaItem>[];
       final now = DateTime.now().millisecondsSinceEpoch;
       for (final item in items.take(limit)) {
@@ -430,9 +462,9 @@ class DatabaseHelper {
     final db = await instance.database;
     final maps = await db.query(
       'media_items',
-      where: 'status = ? AND fileSize < ? AND mimeType NOT LIKE ?',
+      where: 'status = ? AND fileSize < ? AND COALESCE(mimeType, "") NOT LIKE ? AND filePath NOT LIKE "%.mp4" AND filePath NOT LIKE "%.mov" AND filePath NOT LIKE "%.mkv" AND filePath NOT LIKE "%.webm" AND filePath NOT LIKE "%.avi"',
       whereArgs: [MediaItem.statusPending, twoGigabytes, '%video%'],
-      orderBy: 'dateTaken ASC',
+      orderBy: 'CASE WHEN queueOrder != 0 THEN queueOrder ELSE 999999999 END ASC, dateTaken ASC',
       limit: limit,
     );
     if (maps.isEmpty) return [];
@@ -468,12 +500,25 @@ class DatabaseHelper {
     const int twoGigabytes = 2147483648;
     if (_useMemoryStore) {
       final items = _webItems.values
-          .where((e) =>
-              e.status == MediaItem.statusPending &&
-              e.fileSize < twoGigabytes &&
-              e.mimeType.contains('video'))
+          .where((e) {
+            final isVid = e.mimeType.contains('video') ||
+                e.filePath.endsWith('.mp4') ||
+                e.filePath.endsWith('.mov') ||
+                e.filePath.endsWith('.mkv') ||
+                e.filePath.endsWith('.webm') ||
+                e.filePath.endsWith('.avi');
+            return e.status == MediaItem.statusPending &&
+                e.fileSize < twoGigabytes &&
+                isVid;
+          })
           .toList();
-      items.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      items.sort((a, b) {
+        final aOrder = a.queueOrder != 0 ? a.queueOrder : 999999999;
+        final bOrder = b.queueOrder != 0 ? b.queueOrder : 999999999;
+        final c = aOrder.compareTo(bOrder);
+        if (c != 0) return c;
+        return a.dateTaken.compareTo(b.dateTaken);
+      });
       final updatedBatch = <MediaItem>[];
       final now = DateTime.now().millisecondsSinceEpoch;
       for (final item in items.take(limit)) {
@@ -489,9 +534,9 @@ class DatabaseHelper {
     final db = await instance.database;
     final maps = await db.query(
       'media_items',
-      where: 'status = ? AND fileSize < ? AND mimeType LIKE ?',
+      where: 'status = ? AND fileSize < ? AND (COALESCE(mimeType, "") LIKE ? OR filePath LIKE "%.mp4" OR filePath LIKE "%.mov" OR filePath LIKE "%.mkv" OR filePath LIKE "%.webm" OR filePath LIKE "%.avi")',
       whereArgs: [MediaItem.statusPending, twoGigabytes, '%video%'],
-      orderBy: 'dateTaken ASC',
+      orderBy: 'CASE WHEN queueOrder != 0 THEN queueOrder ELSE 999999999 END ASC, dateTaken ASC',
       limit: limit,
     );
     if (maps.isEmpty) return [];
@@ -528,7 +573,13 @@ class DatabaseHelper {
       final items = _webItems.values
           .where((e) => e.status == MediaItem.statusPending && e.fileSize < twoGigabytes)
           .toList();
-      items.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      items.sort((a, b) {
+        final aOrder = a.queueOrder != 0 ? a.queueOrder : 999999999;
+        final bOrder = b.queueOrder != 0 ? b.queueOrder : 999999999;
+        final c = aOrder.compareTo(bOrder);
+        if (c != 0) return c;
+        return a.dateTaken.compareTo(b.dateTaken);
+      });
       final updatedBatch = <MediaItem>[];
       final now = DateTime.now().millisecondsSinceEpoch;
       for (final item in items.take(limit)) {
@@ -546,7 +597,7 @@ class DatabaseHelper {
       'media_items',
       where: 'status = ? AND fileSize < ?',
       whereArgs: [MediaItem.statusPending, twoGigabytes],
-      orderBy: 'dateTaken ASC',
+      orderBy: 'CASE WHEN queueOrder != 0 THEN queueOrder ELSE 999999999 END ASC, dateTaken ASC',
       limit: limit,
     );
     if (maps.isEmpty) return [];
@@ -572,6 +623,34 @@ class DatabaseHelper {
     }
     await batch.commit(noResult: true);
     return updatedItems;
+  }
+
+  /// Atomically update queue priorities to match manual reorder sequence
+  Future<void> reorderQueue(List<String> orderedFilePaths) async {
+    if (_writeQueue.isNotEmpty) {
+      await flushPendingUpdates();
+    }
+    if (_useMemoryStore) {
+      for (int i = 0; i < orderedFilePaths.length; i++) {
+        final path = orderedFilePaths[i];
+        final item = _webItems[path];
+        if (item != null) {
+          _webItems[path] = item.copyWith(queueOrder: i + 1);
+        }
+      }
+      return;
+    }
+    final db = await instance.database;
+    final batch = db.batch();
+    for (int i = 0; i < orderedFilePaths.length; i++) {
+      batch.update(
+        'media_items',
+        {'queueOrder': i + 1},
+        where: 'filePath = ?',
+        whereArgs: [orderedFilePaths[i]],
+      );
+    }
+    await batch.commit(noResult: true);
   }
 
   /// Atomically claims the next pending media item and marks it as UPLOADING
@@ -638,12 +717,12 @@ class DatabaseHelper {
       final rows = await db.rawQuery('''
         SELECT 
           COUNT(*) as totalCount,
-          SUM(CASE WHEN (status = 'PENDING' OR status = 'UPLOADING') AND fileSize < 2147483648 AND COALESCE(mimeType, '') NOT LIKE '%video%' THEN 1 ELSE 0 END) as pendingPhotos,
-          SUM(CASE WHEN (status = 'PENDING' OR status = 'UPLOADING') AND fileSize < 2147483648 AND COALESCE(mimeType, '') LIKE '%video%' THEN 1 ELSE 0 END) as pendingVideos,
-          SUM(CASE WHEN status = 'DONE' AND COALESCE(mimeType, '') NOT LIKE '%video%' THEN 1 ELSE 0 END) as syncedPhotos,
-          SUM(CASE WHEN status = 'DONE' AND COALESCE(mimeType, '') LIKE '%video%' THEN 1 ELSE 0 END) as syncedVideos,
-          SUM(CASE WHEN status = 'FAILED' AND COALESCE(mimeType, '') NOT LIKE '%video%' THEN 1 ELSE 0 END) as failedPhotos,
-          SUM(CASE WHEN status = 'FAILED' AND COALESCE(mimeType, '') LIKE '%video%' THEN 1 ELSE 0 END) as failedVideos,
+          SUM(CASE WHEN (status = 'PENDING' OR status = 'UPLOADING') AND fileSize < 2147483648 AND COALESCE(mimeType, '') NOT LIKE '%video%' AND filePath NOT LIKE '%.mp4' AND filePath NOT LIKE '%.mov' AND filePath NOT LIKE '%.mkv' AND filePath NOT LIKE '%.webm' AND filePath NOT LIKE '%.avi' THEN 1 ELSE 0 END) as pendingPhotos,
+          SUM(CASE WHEN (status = 'PENDING' OR status = 'UPLOADING') AND fileSize < 2147483648 AND (COALESCE(mimeType, '') LIKE '%video%' OR filePath LIKE '%.mp4' OR filePath LIKE '%.mov' OR filePath LIKE '%.mkv' OR filePath LIKE '%.webm' OR filePath LIKE '%.avi') THEN 1 ELSE 0 END) as pendingVideos,
+          SUM(CASE WHEN status = 'DONE' AND COALESCE(mimeType, '') NOT LIKE '%video%' AND filePath NOT LIKE '%.mp4' AND filePath NOT LIKE '%.mov' AND filePath NOT LIKE '%.mkv' AND filePath NOT LIKE '%.webm' AND filePath NOT LIKE '%.avi' THEN 1 ELSE 0 END) as syncedPhotos,
+          SUM(CASE WHEN status = 'DONE' AND (COALESCE(mimeType, '') LIKE '%video%' OR filePath LIKE '%.mp4' OR filePath LIKE '%.mov' OR filePath LIKE '%.mkv' OR filePath LIKE '%.webm' OR filePath LIKE '%.avi') THEN 1 ELSE 0 END) as syncedVideos,
+          SUM(CASE WHEN status = 'FAILED' AND COALESCE(mimeType, '') NOT LIKE '%video%' AND filePath NOT LIKE '%.mp4' AND filePath NOT LIKE '%.mov' AND filePath NOT LIKE '%.mkv' AND filePath NOT LIKE '%.webm' AND filePath NOT LIKE '%.avi' THEN 1 ELSE 0 END) as failedPhotos,
+          SUM(CASE WHEN status = 'FAILED' AND (COALESCE(mimeType, '') LIKE '%video%' OR filePath LIKE '%.mp4' OR filePath LIKE '%.mov' OR filePath LIKE '%.mkv' OR filePath LIKE '%.webm' OR filePath LIKE '%.avi') THEN 1 ELSE 0 END) as failedVideos,
           SUM(CASE WHEN (status = 'PENDING' OR status = 'UPLOADING') AND fileSize >= 2147483648 THEN 1 ELSE 0 END) as oversizedCount
         FROM media_items
       ''');
@@ -664,11 +743,18 @@ class DatabaseHelper {
     return const MediaBreakdown();
   }
 
-  /// Clears all pending or currently uploading items from the queue.
-  Future<int> clearPendingQueue() async {
+  /// Clears pending/uploading items from the queue.
+  /// If [isVideo] is specified, only photos (false) or videos (true) are cleared.
+  Future<int> clearQueueItems({bool? isVideo}) async {
     if (_useMemoryStore) {
       final pendingKeys = _webItems.entries
-          .where((e) => e.value.status == MediaItem.statusPending || e.value.status == MediaItem.statusUploading)
+          .where((e) {
+            final isMatchStatus = e.value.status == MediaItem.statusPending ||
+                e.value.status == MediaItem.statusUploading;
+            if (!isMatchStatus) return false;
+            if (isVideo != null) return e.value.isVideo == isVideo;
+            return true;
+          })
           .map((e) => e.key)
           .toList();
       for (final key in pendingKeys) {
@@ -677,12 +763,54 @@ class DatabaseHelper {
       return pendingKeys.length;
     }
     final db = await instance.database;
+    if (isVideo != null) {
+      return await db.delete(
+        'media_items',
+        where: '(status = ? OR status = ?) AND is_video = ?',
+        whereArgs: [MediaItem.statusPending, MediaItem.statusUploading, isVideo ? 1 : 0],
+      );
+    }
     return await db.delete(
       'media_items',
       where: 'status = ? OR status = ?',
       whereArgs: [MediaItem.statusPending, MediaItem.statusUploading],
     );
   }
+
+  /// Clears failed items from the database.
+  /// If [isVideo] is specified, only failed photos (false) or failed videos (true) are cleared.
+  Future<int> clearFailedItems({bool? isVideo}) async {
+    if (_useMemoryStore) {
+      final failedKeys = _webItems.entries
+          .where((e) {
+            if (e.value.status != MediaItem.statusFailed) return false;
+            if (isVideo != null) return e.value.isVideo == isVideo;
+            return true;
+          })
+          .map((e) => e.key)
+          .toList();
+      for (final key in failedKeys) {
+        _webItems.remove(key);
+      }
+      return failedKeys.length;
+    }
+    final db = await instance.database;
+    if (isVideo != null) {
+      return await db.delete(
+        'media_items',
+        where: 'status = ? AND is_video = ?',
+        whereArgs: [MediaItem.statusFailed, isVideo ? 1 : 0],
+      );
+    }
+    return await db.delete(
+      'media_items',
+      where: 'status = ?',
+      whereArgs: [MediaItem.statusFailed],
+    );
+  }
+
+  /// Clears all pending or currently uploading items from the queue.
+  Future<int> clearPendingQueue() => clearQueueItems();
 
   Future<Map<String, int>> getAggregatedCounts() async {
     if (_writeQueue.isNotEmpty) {
@@ -832,6 +960,17 @@ class DatabaseHelper {
     }
     final db = await instance.database;
     return Sqflite.firstIntValue(await db.rawQuery("SELECT COUNT(*) FROM media_items WHERE status = 'FAILED'")) ?? 0;
+  }
+
+  Future<int> getTotalSyncedBytes() async {
+    if (_useMemoryStore) {
+      return _webItems.values
+          .where((e) => e.status == MediaItem.statusDone)
+          .fold<int>(0, (sum, item) => sum + item.fileSize);
+    }
+    final db = await instance.database;
+    final res = await db.rawQuery("SELECT SUM(fileSize) FROM media_items WHERE status = 'DONE'");
+    return Sqflite.firstIntValue(res) ?? 0;
   }
 
   Future<List<MediaItem>> getFailedItems({int limit = 10}) async {
@@ -1111,6 +1250,38 @@ class DatabaseHelper {
     try {
       final db = await instance.database;
       return await db.delete('media_items');
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  static const List<String> legacyMockPaths = [
+    '/storage/emulated/0/DCIM/Camera/IMG_20261025_001.jpg',
+    '/storage/emulated/0/DCIM/Camera/IMG_20261028_002.jpg',
+    '/storage/emulated/0/DCIM/Camera/VID_20261101_003.mp4',
+    '/storage/emulated/0/DCIM/Camera/VID_20261101_4K60_CINEMATIC.mov',
+  ];
+
+  /// Purges old dummy/mock test data paths without discarding buffered updates for legitimate items
+  Future<int> purgeDummyMockItems() async {
+    await flushPendingUpdates();
+    if (_useMemoryStore) {
+      int removedCount = 0;
+      for (final path in legacyMockPaths) {
+        if (_webItems.remove(path) != null) {
+          removedCount++;
+        }
+      }
+      return removedCount;
+    }
+    try {
+      final db = await instance.database;
+      final placeholders = List.filled(legacyMockPaths.length, '?').join(',');
+      return await db.delete(
+        'media_items',
+        where: 'filePath IN ($placeholders)',
+        whereArgs: legacyMockPaths,
+      );
     } catch (_) {
       return 0;
     }

@@ -109,6 +109,256 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
     }
   }
 
+  /// Two-step double verification dialog to prevent accidental bulk deletions.
+  /// Step 1: Warning & summary of what will be removed.
+  /// Step 2: Explicit irreversible confirmation step.
+  Future<bool> _showDoubleVerificationDialog({
+    required String title,
+    required String description,
+    required int itemCount,
+    required String actionLabel,
+  }) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // ─── STEP 1: INITIAL INTENT CONFIRMATION ───────────────────────────────
+    final step1Confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF18181B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Step 1 of 2: $title',
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 13.5,
+                color: isDark ? Colors.white70 : Colors.black87,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Target: $itemCount items will be removed from ValtSky database.',
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF59E0B),
+              foregroundColor: Colors.black87,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Proceed to Step 2', style: TextStyle(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+
+    if (step1Confirmed != true) return false;
+    if (!mounted) return false;
+
+    // ─── STEP 2: FINAL IRREVERSIBLE CONFIRMATION ───────────────────────────
+    final step2Confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF18181B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: ValtSkyTheme.error.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.delete_forever_rounded, color: ValtSkyTheme.error, size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Step 2 of 2: Final Confirmation',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: ValtSkyTheme.error),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you absolutely sure you want to $actionLabel?\n\nThis action CANNOT be undone.',
+          style: TextStyle(
+            fontSize: 13.5,
+            color: isDark ? Colors.white70 : Colors.black87,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Abort / Cancel', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ValtSkyTheme.error,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(actionLabel, style: const TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+
+    return step2Confirmed == true;
+  }
+
+  Future<void> _handleClearPhotosQueue() async {
+    final count = _breakdown.pendingPhotos;
+    if (count == 0) return;
+
+    final confirmed = await _showDoubleVerificationDialog(
+      title: 'Clear Photos Queue?',
+      description: 'This will remove all pending photos from the active upload queue. Your local gallery photos will not be deleted.',
+      itemCount: count,
+      actionLabel: 'Permanently Clear Photos',
+    );
+    if (!confirmed) return;
+
+    setState(() => _isClearingQueue = true);
+    try {
+      final removed = await DatabaseHelper.instance.clearQueueItems(isVideo: false);
+      await refreshItems();
+      if (!mounted) return;
+      widget.onDataChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cleared $removed photos from queue'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: ValtSkyTheme.primary(Theme.of(context).brightness == Brightness.dark),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isClearingQueue = false);
+    }
+  }
+
+  Future<void> _handleClearVideosQueue() async {
+    final count = _breakdown.pendingVideos;
+    if (count == 0) return;
+
+    final confirmed = await _showDoubleVerificationDialog(
+      title: 'Clear Videos Queue?',
+      description: 'This will remove all pending videos from the active upload queue. Your local gallery videos will not be deleted.',
+      itemCount: count,
+      actionLabel: 'Permanently Clear Videos',
+    );
+    if (!confirmed) return;
+
+    setState(() => _isClearingQueue = true);
+    try {
+      final removed = await DatabaseHelper.instance.clearQueueItems(isVideo: true);
+      await refreshItems();
+      if (!mounted) return;
+      widget.onDataChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cleared $removed videos from queue'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: ValtSkyTheme.primary(Theme.of(context).brightness == Brightness.dark),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isClearingQueue = false);
+    }
+  }
+
+  Future<void> _handleDeleteFailedItems({bool? isVideo}) async {
+    final count = isVideo == null
+        ? _breakdown.totalFailed
+        : (isVideo ? _breakdown.failedVideos : _breakdown.failedPhotos);
+    if (count == 0) return;
+
+    final typeLabel = isVideo == null
+        ? 'Failed Items'
+        : (isVideo ? 'Failed Videos' : 'Failed Photos');
+
+    final confirmed = await _showDoubleVerificationDialog(
+      title: 'Delete $typeLabel?',
+      description: 'This will permanently remove all $count $typeLabel records from your database. They will not be retried automatically.',
+      itemCount: count,
+      actionLabel: 'Permanently Delete $typeLabel',
+    );
+    if (!confirmed) return;
+
+    setState(() => _isRetryingAll = true);
+    try {
+      final removed = await DatabaseHelper.instance.clearFailedItems(isVideo: isVideo);
+      await refreshItems();
+      if (!mounted) return;
+      widget.onDataChanged();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Deleted $removed $typeLabel records'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: ValtSkyTheme.error,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isRetryingAll = false);
+    }
+  }
+
   Future<void> _handleClearQueue() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirmed = await showDialog<bool>(
@@ -724,9 +974,16 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
 
   /// Compact action deck for managing the queue without rendering huge lists.
   Widget _buildActionDeck(bool isDark) {
+    final hasPendingPhotos = _breakdown.pendingPhotos > 0;
+    final hasPendingVideos = _breakdown.pendingVideos > 0;
+    final hasFailed = _breakdown.totalFailed > 0;
+    final hasFailedPhotos = _breakdown.failedPhotos > 0;
+    final hasFailedVideos = _breakdown.failedVideos > 0;
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Clear Queue / Exclude
+        // Master Clear Queue Button
         SizedBox(
           width: double.infinity,
           child: PillButton(
@@ -734,10 +991,60 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
             icon: Icons.delete_outline_rounded,
             variant: PillButtonVariant.secondary,
             isLoading: _isClearingQueue,
-            onPressed: _isClearingQueue ? null : _handleClearQueue,
+            onPressed: (hasPendingPhotos || hasPendingVideos) && !_isClearingQueue ? _handleClearQueue : null,
           ),
         ),
-        if (_breakdown.totalFailed > 0) ...[
+        const SizedBox(height: 10),
+
+        // Queue specific actions: Clear Photo Queue & Clear Video Queue
+        Row(
+          children: [
+            Expanded(
+              child: PillButton(
+                label: 'Clear Photo Queue (${ValtSkyFormatters.formatMediaCount(_breakdown.pendingPhotos)})',
+                icon: Icons.photo_library_outlined,
+                variant: PillButtonVariant.secondary,
+                isLoading: _isClearingQueue,
+                onPressed: hasPendingPhotos && !_isClearingQueue ? _handleClearPhotosQueue : null,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: PillButton(
+                label: 'Clear Video Queue (${ValtSkyFormatters.formatMediaCount(_breakdown.pendingVideos)})',
+                icon: Icons.videocam_outlined,
+                variant: PillButtonVariant.secondary,
+                isLoading: _isClearingQueue,
+                onPressed: hasPendingVideos && !_isClearingQueue ? _handleClearVideosQueue : null,
+              ),
+            ),
+          ],
+        ),
+
+        // Failed specific actions: Delete Failed Photos & Delete Failed Videos
+        if (hasFailed) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: PillButton(
+                  label: 'Delete Failed Photos (${ValtSkyFormatters.formatMediaCount(_breakdown.failedPhotos)})',
+                  icon: Icons.broken_image_outlined,
+                  variant: PillButtonVariant.destructive,
+                  onPressed: hasFailedPhotos && !_isRetryingAll ? () => _handleDeleteFailedItems(isVideo: false) : null,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: PillButton(
+                  label: 'Delete Failed Videos (${ValtSkyFormatters.formatMediaCount(_breakdown.failedVideos)})',
+                  icon: Icons.videocam_off_outlined,
+                  variant: PillButtonVariant.destructive,
+                  onPressed: hasFailedVideos && !_isRetryingAll ? () => _handleDeleteFailedItems(isVideo: true) : null,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
@@ -773,6 +1080,7 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
             ),
           ),
         ],
+
         const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
@@ -988,12 +1296,21 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                 ),
               ),
               if (count > 0) ...[
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: PillButton(
+                    label: 'Delete All',
+                    icon: Icons.delete_outline_rounded,
+                    variant: PillButtonVariant.destructive,
+                    onPressed: () => _handleDeleteFailedItems(isVideo: isVideo),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: PillButton(
                     label: 'Retry $label',
                     icon: Icons.replay_rounded,
-                    variant: PillButtonVariant.destructive,
+                    variant: PillButtonVariant.secondary,
                     isLoading: _isRetryingAll,
                     onPressed: _isRetryingAll
                         ? null

@@ -174,16 +174,25 @@ class _DualSplitUploadBarState extends State<DualSplitUploadBar>
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Right side: VIDEOS (Purple)
+                      // Right side: VIDEOS (Purple) - Dot on left side of video bar, anchored constant label
                       Expanded(
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: isVideoActive || breakdown.pendingVideos == 0
+                                    ? videoPurple
+                                    : videoPurple.withValues(alpha: 0.5),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
                             Flexible(
                               child: Text(
                                 videoLabel,
-                                textAlign: TextAlign.right,
                                 style: TextStyle(
                                   fontFamily: ValtSkyTheme.fontFamilyDisplay,
                                   fontSize: 10,
@@ -195,17 +204,6 @@ class _DualSplitUploadBarState extends State<DualSplitUploadBar>
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 5),
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: isVideoActive || breakdown.pendingVideos == 0
-                                    ? videoPurple
-                                    : videoPurple.withValues(alpha: 0.5),
-                                shape: BoxShape.circle,
                               ),
                             ),
                           ],
