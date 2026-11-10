@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+import '../../services/backup_scheduler_service.dart';
 import '../../services/sync_engine.dart';
+import '../../util/formatters.dart';
 import '../../util/theme.dart';
 import 'valtsky_components.dart';
 import 'liquid_bucket_sync_view.dart';
+import 'file_upload_loading_bar.dart';
+import 'scheduled_backup_timer_card.dart';
 
 /// "Ink & Paper" Hero Storage Card
 /// Features:
 /// - 120pt Circular progress ring (6pt stroke, hairline track, ink arc, glowing head dot)
 /// - Center percentage readout in Outfit Light 56
 /// - Soft radial circle partially behind the hero card
-/// - Live count subtitle "$uploadedCount of $totalCount synced" + "Lossless" tag
+/// - Live count subtitle "$uploadedCount of $totalCount synced" + "Alarm" tag
 /// - Telemetry status strip with outlined "Setup" pill
 /// - Dominant bottom CTA bar with trailing circular arrow
 class VaultStorageCard extends StatelessWidget {
@@ -24,6 +28,7 @@ class VaultStorageCard extends StatelessWidget {
   final bool isUploading;
   final VoidCallback onToggleMonitoring;
   final VoidCallback onNavigateToSettings;
+  final VoidCallback? onOpenScheduleBackup;
 
   const VaultStorageCard({
     super.key,
@@ -38,6 +43,7 @@ class VaultStorageCard extends StatelessWidget {
     required this.isUploading,
     required this.onToggleMonitoring,
     required this.onNavigateToSettings,
+    this.onOpenScheduleBackup,
   });
 
   @override
@@ -55,7 +61,7 @@ class VaultStorageCard extends StatelessWidget {
         ? ValtSkyTheme.failed(isDark)
         : (isPaused
             ? ValtSkyTheme.accent(isDark)
-            : (isUploading
+            : (isUploading || pendingCount > 0
                 ? ValtSkyTheme.accent(isDark)
                 : (isMonitoring ? ValtSkyTheme.synced(isDark) : secondaryColor)));
 
@@ -65,10 +71,12 @@ class VaultStorageCard extends StatelessWidget {
             ? 'PAUSED'
             : (isUploading
                 ? (isMonitoring ? 'UPLOADING' : 'QUEUE UPLOAD')
-                : (isMonitoring ? 'MONITORING' : 'STANDBY')));
+                : (pendingCount > 0
+                    ? 'QUEUE UPLOAD'
+                    : (isMonitoring ? 'MONITORING' : 'STANDBY'))));
 
     return Semantics(
-      label: '$percentInt% synchronized ($uploadedCount of $totalCount synced)',
+      label: '$percentInt% synchronized (${ValtSkyFormatters.formatMediaCount(uploadedCount)} of ${ValtSkyFormatters.formatMediaCount(totalCount)} synced)',
       child: LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 360;
@@ -143,29 +151,67 @@ class VaultStorageCard extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: trackBg,
-                                borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                                border: Border.all(color: borderColor),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.shield_outlined, size: 13, color: secondaryColor),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Lossless',
-                                    style: TextStyle(
-                                      fontFamily: ValtSkyTheme.fontFamilyBody,
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: secondaryColor,
+                            ValueListenableBuilder<ScheduledBackupState>(
+                              valueListenable: BackupSchedulerService.instance.stateNotifier,
+                              builder: (context, backupState, _) {
+                                final isAlarmActive = backupState.isEnabled;
+                                const alarmAmber = Color(0xFFF59E0B);
+                                final activeColor = isDark ? alarmAmber : const Color(0xFFB45309);
+                                final pillColor = isAlarmActive ? activeColor : secondaryColor;
+                                final pillBg = isAlarmActive
+                                    ? alarmAmber.withValues(alpha: isDark ? 0.20 : 0.12)
+                                    : trackBg;
+                                final pillBorder = isAlarmActive
+                                    ? alarmAmber.withValues(alpha: isDark ? 0.45 : 0.35)
+                                    : borderColor;
+
+                                return Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: () {
+                                      if (onOpenScheduleBackup != null) {
+                                        onOpenScheduleBackup!();
+                                      } else {
+                                        ScheduledBackupTimerCard.showModal(context);
+                                      }
+                                    },
+                                    borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                                    child: Container(
+                                      key: const ValueKey('alarm_clock_pill_btn'),
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: pillBg,
+                                        borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                                        border: Border.all(color: pillBorder),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isAlarmActive
+                                                ? Icons.alarm_on_rounded
+                                                : Icons.access_time_rounded,
+                                            size: 13.5,
+                                            color: pillColor,
+                                          ),
+                                          const SizedBox(width: 5),
+                                          Text(
+                                            isAlarmActive
+                                                ? backupState.formattedTime
+                                                : 'Alarm',
+                                            style: TextStyle(
+                                              fontFamily: ValtSkyTheme.fontFamilyBody,
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w700,
+                                              color: pillColor,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ],
-                              ),
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -221,17 +267,17 @@ class VaultStorageCard extends StatelessWidget {
                                       subtitle = 'Workers suspended by user';
                                     } else if (isUploading && activeFile.isNotEmpty) {
                                       final fileName = activeFile.split('/').last;
-                                      title = 'TRANSFERRING MEDIA';
-                                      subtitle = fileName;
-                                    } else if (isUploading) {
+                                      title = isMonitoring ? 'TRANSFERRING MEDIA' : 'QUEUE SYNC ACTIVE';
+                                      subtitle = isMonitoring ? fileName : '$fileName (Monitoring off)';
+                                    } else if (isUploading || (pendingCount > 0 && !isPaused)) {
                                       title = 'QUEUE SYNC ACTIVE';
-                                      subtitle = 'Uploading pending items...';
+                                      subtitle = isMonitoring ? 'Uploading pending items...' : 'Uploading queued items (Gallery monitoring off)';
                                     } else if (isMonitoring) {
                                       title = 'MONITORING STANDBY';
                                       subtitle = 'All captured media synchronized';
                                     } else {
-                                      title = 'ENGINE IDLE';
-                                      subtitle = 'Press Start Monitoring to scan';
+                                      title = 'MONITORING PAUSED';
+                                      subtitle = 'All queued items uploaded • Gallery auto-scan off';
                                     }
 
                                     return Column(
@@ -331,6 +377,8 @@ class VaultStorageCard extends StatelessWidget {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 10),
+                        DualSplitUploadBar(isDark: isDark),
                       ],
                     ),
                   ),
@@ -357,9 +405,11 @@ class VaultStorageCard extends StatelessWidget {
                           : (isMonitoring ? 'STOP MONITORING' : 'START MONITORING'),
                       icon: !isConfigured
                           ? Icons.tune_rounded
-                          : (isMonitoring ? Icons.stop_rounded : Icons.play_arrow_rounded),
+                          : (isMonitoring ? Icons.sensors_off_rounded : Icons.sensors_rounded),
                       showTrailingArrow: true,
-                      variant: isMonitoring ? PillButtonVariant.destructive : PillButtonVariant.primary,
+                      variant: !isConfigured
+                          ? PillButtonVariant.primary
+                          : (isMonitoring ? PillButtonVariant.secondary : PillButtonVariant.primary),
                       onPressed: onToggleMonitoring,
                     ),
                   ),

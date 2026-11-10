@@ -121,6 +121,10 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                         }
                       },
                       onNavigateToSettings: widget.onNavigateToSettings,
+                      onOpenScheduleBackup: () => ScheduledBackupTimerCard.showModal(
+                        context,
+                        onDataChanged: () => _viewModel.refreshStats(),
+                      ),
                     );
                   },
                 ),
@@ -133,14 +137,6 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                   isPaused: isPaused,
                   onTogglePause: _viewModel.togglePauseUpload,
                   onStopProcess: () => _viewModel.handleStopProcess(context),
-                ),
-
-                const SizedBox(height: 16),
-
-                // 4.5. Alarm Clock Scheduled Backup Timer Section
-                ScheduledBackupTimerCard(
-                  isDark: isDark,
-                  onDataChanged: () => _viewModel.refreshStats(),
                 ),
 
                 const SizedBox(height: 16),

@@ -11,12 +11,60 @@ import 'valtsky_components.dart';
 class ScheduledBackupTimerCard extends StatefulWidget {
   final bool isDark;
   final VoidCallback? onDataChanged;
+  final bool isModal;
 
   const ScheduledBackupTimerCard({
     super.key,
     required this.isDark,
     this.onDataChanged,
+    this.isModal = false,
   });
+
+  /// Presents the full alarm clock scheduled backup interface inside an elegant bottom sheet.
+  static Future<void> showModal(BuildContext context, {VoidCallback? onDataChanged}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: ValtSkyTheme.surface(isDark),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border.all(color: ValtSkyTheme.hairline(isDark)),
+          ),
+          padding: EdgeInsets.only(
+            top: 12,
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.of(ctx).padding.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: ValtSkyTheme.hairline(isDark),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ScheduledBackupTimerCard(
+                isDark: isDark,
+                onDataChanged: onDataChanged,
+                isModal: true,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   State<ScheduledBackupTimerCard> createState() => _ScheduledBackupTimerCardState();
@@ -91,26 +139,28 @@ class _ScheduledBackupTimerCardState extends State<ScheduledBackupTimerCard> {
         final hasError = state.statusMessage.toLowerCase().contains('error');
 
         return Container(
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
-            border: Border.all(
-              color: isEnabled
-                  ? alarmAmber.withValues(alpha: isDark ? 0.35 : 0.25)
-                  : borderColor,
-              width: 1.2,
-            ),
-            boxShadow: isEnabled
-                ? [
-                    BoxShadow(
-                      color: alarmAmber.withValues(alpha: isDark ? 0.08 : 0.05),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          padding: const EdgeInsets.all(18),
+          decoration: widget.isModal
+              ? null
+              : BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(ValtSkyTheme.radiusCard),
+                  border: Border.all(
+                    color: isEnabled
+                        ? alarmAmber.withValues(alpha: isDark ? 0.35 : 0.25)
+                        : borderColor,
+                    width: 1.2,
+                  ),
+                  boxShadow: isEnabled
+                      ? [
+                          BoxShadow(
+                            color: alarmAmber.withValues(alpha: isDark ? 0.08 : 0.05),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : null,
+                ),
+          padding: widget.isModal ? const EdgeInsets.all(4) : const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -199,6 +249,15 @@ class _ScheduledBackupTimerCardState extends State<ScheduledBackupTimerCard> {
                       },
                     ),
                   ),
+                  if (widget.isModal) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: Icon(Icons.close_rounded, size: 20, color: mutedText),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
                 ],
               ),
 

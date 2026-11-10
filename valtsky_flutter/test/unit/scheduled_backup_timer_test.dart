@@ -209,5 +209,36 @@ void main() {
 
       BackupSchedulerService.instance.dispose();
     });
+
+    testWidgets('ScheduledBackupTimerCard.showModal presents bottom sheet and closes', (WidgetTester tester) async {
+      await BackupSchedulerService.instance.setSchedule(2, 0);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => ScheduledBackupTimerCard.showModal(context),
+                child: const Text('Open Alarm Modal'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Alarm Modal'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('ALARM CLOCK BACKUP'), findsOneWidget);
+      expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('ALARM CLOCK BACKUP'), findsNothing);
+
+      BackupSchedulerService.instance.dispose();
+    });
   });
 }
