@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../services/sync_engine.dart';
 import '../services/background_service.dart';
 import '../main.dart';
+import '../util/formatters.dart';
 import '../util/theme.dart';
 import '../util/media_scanner.dart';
 import '../util/permission_manager.dart';
@@ -85,12 +86,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   Future<void> _checkPermissionsOnFirstLaunch() async {
     if (!mounted || _isTest) return;
     if (!Prefs.permissionsRequested) {
-      await PermissionManager.showPermissionOnboardingModal(
-        context,
-        onComplete: () {
-          _onDataChanged();
-        },
-      );
+      // Like standard Android apps and games, request device system permissions
+      // directly on first launch rather than within an in-app screen.
+      await PermissionManager.requestAllPermissions();
+      if (mounted) {
+        _onDataChanged();
+      }
     }
   }
 
@@ -144,9 +145,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
       if (mounted) {
         final total = SyncEngine.statsNotifier.value?.total ?? 0;
         final inQueue = SyncEngine.statsNotifier.value?.inQueue ?? 0;
+        final totalFormatted = ValtSkyFormatters.formatMediaCount(total);
+        final inQueueFormatted = ValtSkyFormatters.formatMediaCount(inQueue);
+        final newCountFormatted = ValtSkyFormatters.formatMediaCount(newCount);
         final msg = newCount > 0
-            ? 'Gallery scanned: $newCount new captures queued ($total total)'
-            : 'Gallery up to date ($total total media, $inQueue queued)';
+            ? 'Gallery scanned: $newCountFormatted new captures queued ($totalFormatted total)'
+            : 'Gallery up to date ($totalFormatted total media, $inQueueFormatted queued)';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: ValtSkyTheme.success,
@@ -242,7 +246,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final secondaryColor = ValtSkyTheme.accentText(isDark);
     final surfaceBg = ValtSkyTheme.canvas(isDark);
     final borderColor = ValtSkyTheme.hairline(isDark);
     final trackBg = ValtSkyTheme.raised(isDark);
@@ -305,8 +308,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                     NavigationRail(
                       selectedIndex: _currentIndex,
                       onDestinationSelected: _switchPage,
-                      backgroundColor: ValtSkyTheme.surface(isDark),
-                      indicatorColor: ValtSkyTheme.amber,
+                      backgroundColor: isDark ? ValtSkyTheme.surface(isDark) : ValtSkyTheme.coffeeBeige,
+                      indicatorColor: isDark ? ValtSkyTheme.amber : Colors.white,
+                      unselectedIconTheme: IconThemeData(
+                        color: isDark ? ValtSkyTheme.darkText2 : ValtSkyTheme.coffeeBeigeTextSecondary,
+                      ),
+                      selectedIconTheme: IconThemeData(
+                        color: isDark ? ValtSkyTheme.ink : ValtSkyTheme.coffeeBeigeTextPrimary,
+                      ),
+                      unselectedLabelTextStyle: TextStyle(
+                        color: isDark ? ValtSkyTheme.darkText2 : ValtSkyTheme.coffeeBeigeTextSecondary,
+                      ),
+                      selectedLabelTextStyle: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? ValtSkyTheme.paper : ValtSkyTheme.coffeeBeigeTextPrimary,
+                      ),
                       labelType: NavigationRailLabelType.all,
                       leading: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20),
@@ -315,9 +331,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                           height: 40,
                           padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
-                            color: trackBg,
+                            color: isDark ? trackBg : Colors.white.withValues(alpha: 0.85),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: borderColor),
+                            border: Border.all(
+                              color: isDark ? borderColor : ValtSkyTheme.coffeeBeigeBorder,
+                            ),
                           ),
                           child: const ValtSkyLogo(size: 30),
                         ),
@@ -325,17 +343,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                       destinations: const [
                         NavigationRailDestination(
                           icon: Icon(Icons.cloud_outlined),
-                          selectedIcon: Icon(Icons.cloud_rounded, color: ValtSkyTheme.ink),
+                          selectedIcon: Icon(Icons.cloud_rounded),
                           label: Text('Dashboard'),
                         ),
                         NavigationRailDestination(
                           icon: Icon(Icons.format_list_bulleted_rounded),
-                          selectedIcon: Icon(Icons.fact_check_rounded, color: ValtSkyTheme.ink),
+                          selectedIcon: Icon(Icons.fact_check_rounded),
                           label: Text('Queue & Activity'),
                         ),
                         NavigationRailDestination(
                           icon: Icon(Icons.tune_outlined),
-                          selectedIcon: Icon(Icons.tune_rounded, color: ValtSkyTheme.ink),
+                          selectedIcon: Icon(Icons.tune_rounded),
                           label: Text('Settings'),
                         ),
                       ],
@@ -347,7 +365,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                           constraints: const BoxConstraints(maxWidth: 960),
                           child: Column(
                             children: [
-                              _buildAppBar(isDark, secondaryColor, trackBg, borderColor),
+                              _buildAppBar(isDark, borderColor),
                               Expanded(child: content),
                             ],
                           ),
@@ -371,7 +389,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                   Scaffold(
                     extendBody: true,
                     backgroundColor: Colors.transparent,
-                    appBar: _buildAppBar(isDark, secondaryColor, trackBg, borderColor),
+                    appBar: _buildAppBar(isDark, borderColor),
                     body: content,
                     bottomNavigationBar: SafeArea(
                       child: ValtSkyNavigationDock(
@@ -393,7 +411,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
 );
   }
 
-  PreferredSizeWidget _buildAppBar(bool isDark, Color secondaryColor, Color trackBg, Color borderColor) {
+  PreferredSizeWidget _buildAppBar(bool isDark, Color borderColor) {
     final slabColor = ValtSkyTheme.capSlab(isDark);
     final slabTextColor = ValtSkyTheme.capSlabText(isDark);
 
@@ -413,10 +431,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                     width: 1.0,
                   ),
                 )
-              : null,
+              : Border.all(
+                  color: ValtSkyTheme.coffeeBeigeBorder,
+                  width: 1.0,
+                ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+              color: isDark
+                  ? Colors.black.withValues(alpha: 0.35)
+                  : ValtSkyTheme.coffeeBeigeTextPrimary.withValues(alpha: 0.08),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
@@ -433,9 +456,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                   height: 36,
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: isDark ? ValtSkyTheme.darkSurface3 : ValtSkyTheme.darkSurface2,
+                    color: isDark ? ValtSkyTheme.darkSurface3 : Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: isDark ? borderColor : Colors.white12),
+                    border: Border.all(
+                      color: isDark ? borderColor : ValtSkyTheme.coffeeBeigeBorder,
+                    ),
                   ),
                   child: const ValtSkyLogo(size: 28),
                 ),

@@ -415,13 +415,13 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
                       filePart: part,
                       fileTotalParts: totalParts,
                       bytes: buffer,
-                    );
+                    ).timeout(const Duration(seconds: 40));
                   } else {
                     partResult = await activeClient.upload.saveFilePart(
                       fileId: fileId,
                       filePart: part,
                       bytes: buffer,
-                    );
+                    ).timeout(const Duration(seconds: 40));
                   }
 
                   if (partResult.error == null) break;
@@ -484,6 +484,7 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
               ? t.InputFileBig(id: fileId, parts: totalParts, name: fileName)
               : t.InputFile(id: fileId, parts: totalParts, name: fileName, md5Checksum: '');
 
+          final isVideoFile = mimeType.startsWith('video/');
           final inputMedia = t.InputMediaUploadedDocument(
             nosoundVideo: false,
             forceFile: asDocument,
@@ -492,6 +493,15 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
             mimeType: mimeType,
             attributes: [
               t.DocumentAttributeFilename(fileName: fileName),
+              if (isVideoFile)
+                const t.DocumentAttributeVideo(
+                  roundMessage: false,
+                  supportsStreaming: true,
+                  nosound: false,
+                  duration: 0.0,
+                  w: 0,
+                  h: 0,
+                ),
             ],
           );
 
@@ -508,7 +518,7 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
             media: inputMedia,
             message: caption ?? '',
             randomId: randomId,
-          );
+          ).timeout(const Duration(seconds: 45));
 
           if (sendResult.error != null) {
             eventPort?.send({

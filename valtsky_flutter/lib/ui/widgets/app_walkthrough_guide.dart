@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../data/prefs.dart';
+import '../../util/formatters.dart';
 import '../../util/theme.dart';
 import 'animated_stagger.dart';
 
-class AppWalkthroughGuide extends StatelessWidget {
+/// Professional App Tutorial & Quick Guide
+/// Features editorial minimalism, step-by-step app flow, interactive CTAs,
+/// and a small "Don't show again" checkbox persisting to Prefs.tutorialDismissed.
+class AppWalkthroughGuide extends StatefulWidget {
   final bool isConfigured;
   final int totalCount;
   final bool isMonitoring;
@@ -10,6 +15,7 @@ class AppWalkthroughGuide extends StatelessWidget {
   final VoidCallback onScanGallery;
   final VoidCallback onDismiss;
   final VoidCallback? onStartInteractiveTour;
+  final bool showHeader;
 
   const AppWalkthroughGuide({
     super.key,
@@ -20,6 +26,7 @@ class AppWalkthroughGuide extends StatelessWidget {
     required this.onScanGallery,
     required this.onDismiss,
     this.onStartInteractiveTour,
+    this.showHeader = true,
   });
 
   /// Displays the interactive walkthrough as an elegant modal bottom sheet
@@ -36,16 +43,16 @@ class AppWalkthroughGuide extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: ValtSkyTheme.tertiaryCard(isDark),
+      backgroundColor: ValtSkyTheme.surface(isDark),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
-          top: 18,
+          top: 14,
           left: 18,
           right: 18,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
         ),
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -53,68 +60,87 @@ class AppWalkthroughGuide extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Top drag pill
               Center(
                 child: Container(
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: ValtSkyTheme.tertiaryBorder(isDark),
+                    color: ValtSkyTheme.hairline(isDark),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
+              // Professional Sheet Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: ValtSkyTheme.primary(isDark).withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          Icons.menu_book_rounded,
-                          size: 20,
-                          color: ValtSkyTheme.primary(isDark),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ValtSky Quick Guide',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
-                            ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: ValtSkyTheme.accent(isDark).withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          Text(
-                            '3 simple steps to start zero-loss backup',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                            ),
+                          child: Icon(
+                            Icons.explore_outlined,
+                            size: 20,
+                            color: ValtSkyTheme.accent(isDark),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'ValtSky Quick Guide',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: ValtSkyTheme.fontFamilyDisplay,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.4,
+                                  color: ValtSkyTheme.textPrimary(isDark),
+                                ),
+                              ),
+                              Text(
+                                '3 simple steps to start zero-loss backup',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: ValtSkyTheme.fontFamilyBody,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: ValtSkyTheme.textSecondary(isDark),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded),
+                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                    icon: Icon(Icons.close_rounded, size: 20, color: ValtSkyTheme.textSecondary(isDark)),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
+
+              // Embedded Guide Body
               AppWalkthroughGuide(
                 isConfigured: isConfigured,
                 totalCount: totalCount,
                 isMonitoring: isMonitoring,
+                showHeader: false,
                 onNavigateToSettings: () {
                   Navigator.pop(ctx);
                   onNavigateToSettings();
@@ -139,80 +165,106 @@ class AppWalkthroughGuide extends StatelessWidget {
   }
 
   @override
+  State<AppWalkthroughGuide> createState() => _AppWalkthroughGuideState();
+}
+
+class _AppWalkthroughGuideState extends State<AppWalkthroughGuide> {
+  late bool _dontShowAgain;
+
+  @override
+  void initState() {
+    super.initState();
+    _dontShowAgain = Prefs.tutorialDismissed;
+  }
+
+  void _toggleDontShowAgain(bool? value) {
+    setState(() {
+      _dontShowAgain = value ?? false;
+      Prefs.tutorialDismissed = _dontShowAgain;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = ValtSkyTheme.primary(isDark);
-    final secondaryColor = ValtSkyTheme.secondary(isDark);
-    final cardBg = ValtSkyTheme.tertiaryCard(isDark);
-    final borderColor = ValtSkyTheme.tertiaryBorder(isDark);
-    final trackBg = ValtSkyTheme.tertiaryTrack(isDark);
-    final mutedText = ValtSkyTheme.tertiaryText(isDark);
+    final primaryColor = ValtSkyTheme.accent(isDark);
+    final secondaryColor = ValtSkyTheme.textSecondary(isDark);
+    final cardBg = ValtSkyTheme.surface(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
+    final trackBg = ValtSkyTheme.raised(isDark);
+    final mutedText = ValtSkyTheme.textSecondary(isDark);
 
     return Container(
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor, width: 1.2),
+        border: Border.all(color: borderColor, width: 1.0),
       ),
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: primaryColor.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.auto_awesome_rounded,
-                      size: 15,
-                      color: primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'QUICK START TUTORIAL',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                      color: primaryColor,
-                    ),
-                  ),
-                ],
-              ),
-              InkWell(
-                onTap: onDismiss,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Dismiss',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: mutedText,
-                        ),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          // Header Row (rendered when standalone)
+          if (widget.showHeader) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(width: 2),
-                      Icon(Icons.close_rounded, size: 14, color: mutedText),
-                    ],
+                      child: Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 15,
+                        color: primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'QUICK START TUTORIAL',
+                      style: TextStyle(
+                        fontFamily: ValtSkyTheme.fontFamilyBody,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
+                InkWell(
+                  onTap: widget.onDismiss,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Dismiss',
+                          style: TextStyle(
+                            fontFamily: ValtSkyTheme.fontFamilyBody,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: mutedText,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(Icons.close_rounded, size: 14, color: mutedText),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
+              ],
+            ),
+            const SizedBox(height: 14),
+          ],
 
           // Step 1: Connect Telegram Vault
           _buildStepRow(
@@ -220,15 +272,15 @@ class AppWalkthroughGuide extends StatelessWidget {
             isDark: isDark,
             stepNumber: '1',
             title: 'Connect Your Vault',
-            description: 'Link your Telegram in Settings to activate unlimited storage.',
+            description: 'Link your Telegram account in Settings to activate unlimited storage.',
             subSteps: const [
               'Enter phone number for instant login OTP code.',
               'Private Telegram channel becomes your unlimited vault.',
             ],
-            isDone: isConfigured,
-            ctaLabel: isConfigured ? 'Connected' : 'Open Settings',
-            ctaIcon: isConfigured ? Icons.check_circle_rounded : Icons.arrow_forward_rounded,
-            onCtaTap: isConfigured ? null : onNavigateToSettings,
+            isDone: widget.isConfigured,
+            ctaLabel: widget.isConfigured ? 'Connected' : 'Open Settings',
+            ctaIcon: widget.isConfigured ? Icons.check_circle_rounded : Icons.arrow_forward_rounded,
+            onCtaTap: widget.isConfigured ? null : widget.onNavigateToSettings,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             trackBg: trackBg,
@@ -236,21 +288,21 @@ class AppWalkthroughGuide extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Step 2: Scan Gallery to Receive Images
+          // Step 2: Automatic Gallery Discovery & Indexing
           _buildStepRow(
             context: context,
             isDark: isDark,
             stepNumber: '2',
             title: 'Scan Gallery to Receive Media',
-            description: 'Index camera photos & videos into the system queue.',
+            description: 'Auto-scan active: channel setup automatically discovers camera photos & videos.',
             subSteps: const [
-              'Tap Scan Gallery on Dashboard or Activity tab.',
+              'Zero-effort indexing: no manual scan buttons needed.',
               'Media is discovered & queued for zero-loss backup.',
             ],
-            isDone: totalCount > 0,
-            ctaLabel: totalCount > 0 ? '$totalCount indexed' : 'Scan Gallery',
-            ctaIcon: totalCount > 0 ? Icons.check_circle_rounded : Icons.photo_library_outlined,
-            onCtaTap: onScanGallery,
+            isDone: widget.totalCount > 0,
+            ctaLabel: widget.totalCount > 0 ? '${ValtSkyFormatters.formatMediaCount(widget.totalCount)} indexed' : 'Scan Gallery',
+            ctaIcon: widget.totalCount > 0 ? Icons.check_circle_rounded : Icons.photo_library_outlined,
+            onCtaTap: widget.onScanGallery,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             trackBg: trackBg,
@@ -258,20 +310,20 @@ class AppWalkthroughGuide extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Step 3: Monitor & Automatic Sync Controls
+          // Step 3: Monitor & Live Queue Controls
           _buildStepRow(
             context: context,
             isDark: isDark,
             stepNumber: '3',
             title: 'Monitor & Manage Sync',
-            description: 'Automated background upload with full control.',
+            description: 'Liquid bucket tracking with interactive media queue inspection.',
             subSteps: const [
-              'Bit-for-bit upload preserves full camera quality & EXIF.',
-              'Tap Pause or Stop Process anytime to control workers.',
+              'Tap In Queue, Synced, or Failed cards to preview media in short popup windows.',
+              'Toggle Stop Monitoring to pause watcher without halting active uploads.',
             ],
-            isDone: isMonitoring,
-            ctaLabel: isMonitoring ? 'Monitoring Active' : 'Ready',
-            ctaIcon: isMonitoring ? Icons.radio_button_checked_rounded : Icons.check_circle_outline_rounded,
+            isDone: widget.isMonitoring,
+            ctaLabel: widget.isMonitoring ? 'Monitoring Active' : 'Ready',
+            ctaIcon: widget.isMonitoring ? Icons.radio_button_checked_rounded : Icons.check_circle_outline_rounded,
             onCtaTap: null,
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
@@ -279,29 +331,112 @@ class AppWalkthroughGuide extends StatelessWidget {
             borderColor: borderColor,
           ),
 
-          if (onStartInteractiveTour != null) ...[
-            const SizedBox(height: 16),
+          const SizedBox(height: 14),
+
+          // Professional Checkbox Row: "Don't show this again"
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: trackBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: borderColor.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: Checkbox(
+                    value: _dontShowAgain,
+                    activeColor: primaryColor,
+                    checkColor: isDark ? ValtSkyTheme.ink : Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    side: BorderSide(
+                      color: isDark ? ValtSkyTheme.darkHairline : ValtSkyTheme.coffeeBeigeBorder,
+                      width: 1.5,
+                    ),
+                    onChanged: _toggleDontShowAgain,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _toggleDontShowAgain(!_dontShowAgain),
+                    child: Text(
+                      "Don't show this again",
+                      style: TextStyle(
+                        fontFamily: ValtSkyTheme.fontFamilyBody,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: mutedText,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (widget.onStartInteractiveTour != null) ...[
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              height: 42,
+              height: 40,
               child: OutlinedButton.icon(
-                onPressed: onStartInteractiveTour,
+                onPressed: widget.onStartInteractiveTour,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: primaryColor,
-                  side: BorderSide(color: primaryColor.withValues(alpha: 0.4), width: 1.2),
+                  side: BorderSide(color: primaryColor.withValues(alpha: 0.35), width: 1.0),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: const Icon(Icons.touch_app_rounded, size: 16),
+                icon: const Icon(Icons.touch_app_rounded, size: 15),
                 label: const Text(
                   'INTERACTIVE SPOTLIGHT TOUR',
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5),
                 ),
               ),
             ),
           ],
+
+          const SizedBox(height: 10),
+
+          // Primary Done / Got It Button
+          TactilePress(
+            onTap: () {
+              Prefs.tutorialDismissed = _dontShowAgain;
+              widget.onDismiss();
+            },
+            scaleDown: 0.96,
+            child: Container(
+              width: double.infinity,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: primaryColor,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryColor.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Text(
+                'Got It',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildStepRow({
@@ -326,7 +461,7 @@ class AppWalkthroughGuide extends StatelessWidget {
         color: trackBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: isDone ? ValtSkyTheme.success.withValues(alpha: 0.35) : borderColor.withValues(alpha: 0.5),
+          color: isDone ? ValtSkyTheme.synced(isDark).withValues(alpha: 0.35) : borderColor.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -336,19 +471,19 @@ class AppWalkthroughGuide extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
-                  color: isDone ? ValtSkyTheme.success : primaryColor.withValues(alpha: 0.16),
+                  color: isDone ? ValtSkyTheme.synced(isDark) : primaryColor.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: isDone
-                    ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                    ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
                     : Text(
                         stepNumber,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w900,
                           color: primaryColor,
                         ),
@@ -359,9 +494,10 @@ class AppWalkthroughGuide extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyle(
+                    fontFamily: ValtSkyTheme.fontFamilyBody,
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    fontWeight: FontWeight.w700,
+                    color: ValtSkyTheme.textPrimary(isDark),
                   ),
                 ),
               ),
@@ -382,7 +518,7 @@ class AppWalkthroughGuide extends StatelessWidget {
                           ctaLabel,
                           style: const TextStyle(
                             fontSize: 10.5,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),
                         ),
@@ -396,20 +532,20 @@ class AppWalkthroughGuide extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: (isDone ? ValtSkyTheme.success : Colors.grey).withValues(alpha: 0.12),
+                    color: (isDone ? ValtSkyTheme.synced(isDark) : Colors.grey).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(ctaIcon, size: 12, color: isDone ? ValtSkyTheme.success : Colors.grey),
+                      Icon(ctaIcon, size: 12, color: isDone ? ValtSkyTheme.synced(isDark) : Colors.grey),
                       const SizedBox(width: 4),
                       Text(
                         ctaLabel,
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
-                          color: isDone ? ValtSkyTheme.success : Colors.grey,
+                          color: isDone ? ValtSkyTheme.synced(isDark) : Colors.grey,
                         ),
                       ),
                     ],
@@ -423,7 +559,7 @@ class AppWalkthroughGuide extends StatelessWidget {
             style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w500,
-              color: isDark ? Colors.grey[300] : const Color(0xFF334155),
+              color: ValtSkyTheme.textSecondary(isDark),
             ),
           ),
           const SizedBox(height: 5),
@@ -444,9 +580,10 @@ class AppWalkthroughGuide extends StatelessWidget {
                       child: Text(
                         step,
                         style: TextStyle(
+                          fontFamily: ValtSkyTheme.fontFamilyBody,
                           fontSize: 11,
                           height: 1.25,
-                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          color: ValtSkyTheme.textSecondary(isDark),
                         ),
                       ),
                     ),
@@ -458,4 +595,3 @@ class AppWalkthroughGuide extends StatelessWidget {
     );
   }
 }
-

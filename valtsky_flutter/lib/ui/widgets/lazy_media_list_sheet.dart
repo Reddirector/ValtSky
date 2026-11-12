@@ -181,7 +181,7 @@ class _LazyMediaListSheetState extends State<LazyMediaListSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Step 1 of 2: Delete All $typeName?',
+                'Delete All $typeName?',
                 style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
               ),
             ),
@@ -207,7 +207,7 @@ class _LazyMediaListSheetState extends State<LazyMediaListSheet> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Proceed to Step 2', style: TextStyle(fontWeight: FontWeight.w800)),
+            child: const Text('Proceed', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -236,7 +236,7 @@ class _LazyMediaListSheetState extends State<LazyMediaListSheet> {
             const SizedBox(width: 12),
             const Expanded(
               child: Text(
-                'Step 2 of 2: Final Confirmation',
+                'Final Confirmation',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: ValtSkyTheme.error),
               ),
             ),
@@ -253,7 +253,7 @@ class _LazyMediaListSheetState extends State<LazyMediaListSheet> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Abort / Cancel', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

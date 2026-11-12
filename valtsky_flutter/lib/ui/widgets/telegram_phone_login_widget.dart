@@ -25,6 +25,7 @@ class TelegramPhoneLoginWidget extends StatefulWidget {
 class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _codeController = TextEditingController();
+  late final TextEditingController _vaultNameController;
   Country _selectedCountry = CountryData.defaultCountry; // Defaults to India (+91, 10 digits)
   bool _isLoading = false;
   Timer? _resendTimer;
@@ -33,6 +34,7 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
   @override
   void initState() {
     super.initState();
+    _vaultNameController = TextEditingController(text: Prefs.customVaultName);
     if (Prefs.userPhoneNumber.isNotEmpty) {
       final savedPhone = Prefs.userPhoneNumber;
       final c = CountryData.detectFromPhone(savedPhone);
@@ -54,6 +56,7 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
     _resendTimer?.cancel();
     _phoneController.dispose();
     _codeController.dispose();
+    _vaultNameController.dispose();
     super.dispose();
   }
 
@@ -192,6 +195,7 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
     }
 
     final fullNumber = '${_selectedCountry.dialCode}$digits';
+    Prefs.customVaultName = _vaultNameController.text.trim();
     setState(() => _isLoading = true);
 
     final success = await TelegramAuthService.instance.sendVerificationCode(fullNumber);
@@ -426,6 +430,48 @@ class _TelegramPhoneLoginWidgetState extends State<TelegramPhoneLoginWidget> {
                 Text(
                   'Country: ${_selectedCountry.name} (${_selectedCountry.dialCode}) • Max ${_selectedCountry.maxLength} digits',
                   style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+
+                // Custom Vault Name Input (Optional)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'VAULT NAME (OPTIONAL)',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.4, color: Colors.grey),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Default: VaultSky Vault',
+                        style: TextStyle(fontSize: 10.5, color: Colors.grey.withValues(alpha: 0.7)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF18181B) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _vaultNameController,
+                    onChanged: (val) => Prefs.customVaultName = val.trim(),
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.cloud_outlined, size: 18, color: Colors.grey),
+                      hintText: 'Custom vault name (e.g. My Secure Cloud)',
+                      hintStyle: TextStyle(fontSize: 12, color: Colors.grey.withValues(alpha: 0.5)),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
 

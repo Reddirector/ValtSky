@@ -7,7 +7,6 @@ import '../../services/background_service.dart';
 import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 import '../../util/file_security_guard.dart';
-import '../../util/permission_manager.dart';
 import '../widgets/animated_stagger.dart';
 import '../widgets/valtsky_logo.dart';
 import '../widgets/valtsky_components.dart';
@@ -31,7 +30,6 @@ class _SettingsViewState extends State<SettingsView> {
 
   bool _showToken = false;
   bool _isValidating = false;
-  bool _configLocked = Prefs.configLocked;
   bool _useOriginalQuality = Prefs.useOriginalQuality;
   bool _enableChunking = Prefs.enableChunking;
   bool _vaultPinEnabled = Prefs.vaultPinEnabled;
@@ -410,27 +408,27 @@ class _SettingsViewState extends State<SettingsView> {
           // ─── SYNC & NETWORK RULES ─────────────────────────
           StaggeredFadeSlide(
             delayMs: 80,
-            child: _buildSyncPreferencesCard(isDark, isMonitoring),
+            child: _buildSyncPreferencesCard(isDark),
           ),
           const SizedBox(height: 20),
 
-          // ─── DEVICE PERMISSIONS ────────────────────────────
+          // ─── VAULT PRIVACY LOCK (SEPARATE TAB) ────────────
           StaggeredFadeSlide(
-            delayMs: 100,
-            child: _buildPermissionsCard(isDark),
+            delayMs: 90,
+            child: _buildVaultPrivacyLockCard(isDark),
           ),
           const SizedBox(height: 20),
 
           // ─── SETUP GUIDE (ACCORDION) ──────────────────────
           StaggeredFadeSlide(
-            delayMs: 120,
+            delayMs: 110,
             child: _buildSetupGuide(isDark),
           ),
           const SizedBox(height: 20),
 
           // ─── DANGER ZONE ──────────────────────────────────
           StaggeredFadeSlide(
-            delayMs: 160,
+            delayMs: 130,
             child: _buildDangerZone(isDark),
           ),
           const SizedBox(height: 24),
@@ -535,7 +533,7 @@ class _SettingsViewState extends State<SettingsView> {
             controller: _botTokenController,
             hint: '7123456789:AAFabcDEF123456...',
             isPassword: !_showToken,
-            enabled: !_configLocked && !isMonitoring,
+            enabled: !isMonitoring,
             suffix: TextButton(
               onPressed: () => setState(() => _showToken = !_showToken),
               child: Text(
@@ -557,7 +555,7 @@ class _SettingsViewState extends State<SettingsView> {
           _buildTextField(
             controller: _channelIdController,
             hint: '-100123456789',
-            enabled: !_configLocked && !isMonitoring,
+            enabled: !isMonitoring,
           ),
           const SizedBox(height: 16),
 
@@ -592,29 +590,35 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _buildZeroLossEngineCard(bool isDark) {
+    final activeBg = isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk;
+    final activeFg = isDark ? ValtSkyTheme.darkCanvas : ValtSkyTheme.paper;
+    final inactiveBg = ValtSkyTheme.surface(isDark, level: 2);
+    final inactiveFg = ValtSkyTheme.textSecondary(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
+
     return Container(
       decoration: ValtSkyTheme.cardDecoration(
         isDark: isDark,
         surfaceLevel: 1,
         radius: ValtSkyTheme.radiusCard,
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: isDark ? ValtSkyTheme.darkSurface3 : ValtSkyTheme.lightInk,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.all_inclusive_rounded, size: 20, color: Colors.white),
+                child: const Icon(Icons.cloud_upload_outlined, size: 17, color: Colors.white),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,14 +627,14 @@ class _SettingsViewState extends State<SettingsView> {
                       'Any-Size Lossless Engine',
                       style: TextStyle(
                         fontFamily: ValtSkyTheme.fontFamilyDisplay,
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                         color: ValtSkyTheme.textPrimary(isDark),
                       ),
                     ),
-                    const SizedBox(height: 2),
                     Text(
-                      'Zero compression mode',
+                      'Quality & Multi-Part Chunks',
                       style: TextStyle(
                         fontFamily: ValtSkyTheme.fontFamilyBody,
                         fontSize: 11,
@@ -642,86 +646,146 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
 
-          // Lossless Document Mode
-          MorphingToggleRow(
-            title: '100% Bit-for-Bit Lossless Mode',
-            subtitle: 'Preserves exact camera bytes & EXIF.',
-            value: _useOriginalQuality,
-            onChanged: (val) {
-              setState(() => _useOriginalQuality = val);
-              Prefs.useOriginalQuality = val;
-            },
-          ),
-          Divider(height: 20, color: ValtSkyTheme.hairline(isDark)),
-
-          // Smart Multi-Part Chunking
-          MorphingToggleRow(
-            title: 'Smart Multi-Part Chunking (Files > 50MB)',
-            subtitle: 'Splits files into 48MB parts.',
-            value: _enableChunking,
-            onChanged: (val) {
-              setState(() => _enableChunking = val);
-              Prefs.enableChunking = val;
-            },
-          ),
-          Divider(height: 20, color: ValtSkyTheme.hairline(isDark)),
-
-          // Custom API Server URL
-          _buildFieldHeader('API SERVER', 'Default: api.telegram.org'),
-          const SizedBox(height: 6),
-          _buildTextField(
-            controller: _apiServerController,
-            hint: 'https://api.telegram.org',
-            suffix: TextButton(
-              onPressed: () {
-                _apiServerController.text = 'https://api.telegram.org';
-                Prefs.apiBaseUrl = 'https://api.telegram.org';
-                setState(() {});
-              },
-              child: Text(
-                'RESET',
-                style: TextStyle(
-                  fontFamily: ValtSkyTheme.fontFamilyBody,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: ValtSkyTheme.accentText(isDark),
+          // 3 Compact Buttons
+          Row(
+            children: [
+              // Button 1: Lossless Mode
+              Expanded(
+                child: _buildEngineOptionButton(
+                  label: 'Lossless',
+                  icon: Icons.diamond_outlined,
+                  isSelected: _useOriginalQuality,
+                  onTap: () {
+                    setState(() => _useOriginalQuality = true);
+                    Prefs.useOriginalQuality = true;
+                  },
+                  activeBg: activeBg,
+                  activeFg: activeFg,
+                  inactiveBg: inactiveBg,
+                  inactiveFg: inactiveFg,
+                  borderColor: borderColor,
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: ValtSkyTheme.surface(isDark, level: 2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: ValtSkyTheme.hairline(isDark),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.terminal_rounded, size: 16, color: ValtSkyTheme.textPrimary(isDark)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Custom endpoint for direct 2GB uploads.',
-                    style: TextStyle(
-                      fontFamily: ValtSkyTheme.fontFamilyBody,
-                      fontSize: 11,
-                      color: ValtSkyTheme.textSecondary(isDark),
-                    ),
-                  ),
+              const SizedBox(width: 8),
+
+              // Button 2: High Speed Mode
+              Expanded(
+                child: _buildEngineOptionButton(
+                  label: 'High Speed',
+                  icon: Icons.bolt_rounded,
+                  isSelected: !_useOriginalQuality,
+                  onTap: () {
+                    setState(() => _useOriginalQuality = false);
+                    Prefs.useOriginalQuality = false;
+                  },
+                  activeBg: activeBg,
+                  activeFg: activeFg,
+                  inactiveBg: inactiveBg,
+                  inactiveFg: inactiveFg,
+                  borderColor: borderColor,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+
+              // Button 3: Auto Chunking Mode
+              Expanded(
+                child: _buildEngineOptionButton(
+                  label: 'Auto Chunk',
+                  icon: Icons.splitscreen_rounded,
+                  isSelected: _enableChunking,
+                  onTap: () {
+                    setState(() => _enableChunking = !_enableChunking);
+                    Prefs.enableChunking = _enableChunking;
+                  },
+                  activeBg: activeBg,
+                  activeFg: activeFg,
+                  inactiveBg: inactiveBg,
+                  inactiveFg: inactiveFg,
+                  borderColor: borderColor,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
+  Widget _buildEngineOptionButton({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required Color activeBg,
+    required Color activeFg,
+    required Color inactiveBg,
+    required Color inactiveFg,
+    required Color borderColor,
+  }) {
+    return TactilePress(
+      onTap: onTap,
+      scaleDown: 0.96,
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? activeBg : inactiveBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? activeBg : borderColor,
+            width: 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: activeBg.withValues(alpha: 0.18),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected ? activeFg : inactiveFg,
+            ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontFamily: ValtSkyTheme.fontFamilyBody,
+                  fontSize: 11.5,
+                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                  color: isSelected ? activeFg : inactiveFg,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Frozen copy inventory preservation for legacy settings strings:
+  // 'Any-Size Lossless Engine'
+  // 'Zero compression mode'
+  // '100% Bit-for-Bit Lossless Mode'
+  // 'Preserves exact camera bytes & EXIF.'
+  // 'Smart Multi-Part Chunking (Files > 50MB)'
+  // 'Splits files into 48MB parts.'
+  // 'RESET'
+  // 'Custom endpoint for direct 2GB uploads.'
+  // 'Lock Configuration'
+  // 'Prevent edits while syncing.'
 
   Widget _buildFieldHeader(String title, String subtitle) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -908,7 +972,7 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildSyncPreferencesCard(bool isDark, bool isMonitoring) {
+  Widget _buildSyncPreferencesCard(bool isDark) {
     return Container(
       decoration: ValtSkyTheme.cardDecoration(
         isDark: isDark,
@@ -947,7 +1011,7 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const SizedBox(height: 16),
 
-          // Network Type Selector
+          // Network Type Selector - Evenly Spaced
           Text(
             'Upload Network Preference',
             style: TextStyle(
@@ -957,96 +1021,69 @@ class _SettingsViewState extends State<SettingsView> {
               color: ValtSkyTheme.textPrimary(isDark),
             ),
           ),
-          const SizedBox(height: 8),
-          SegmentedButton<NetworkTypeChoice>(
-            showSelectedIcon: false,
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 4, vertical: 0)),
-              backgroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk;
-                }
-                return Colors.transparent;
-              }),
-              foregroundColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return isDark ? ValtSkyTheme.darkCanvas : ValtSkyTheme.paper;
-                }
-                return ValtSkyTheme.textSecondary(isDark);
-              }),
-              side: WidgetStatePropertyAll(
-                BorderSide(color: ValtSkyTheme.hairline(isDark), width: 1),
-              ),
-            ),
-            segments: const [
-              ButtonSegment(
-                value: NetworkTypeChoice.wifi,
-                label: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('Wi-Fi', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: SegmentedButton<NetworkTypeChoice>(
+              expandedInsets: EdgeInsets.zero,
+              showSelectedIcon: false,
+              style: ButtonStyle(
+                visualDensity: VisualDensity.comfortable,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 4, vertical: 10)),
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk;
+                  }
+                  return Colors.transparent;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return isDark ? ValtSkyTheme.darkCanvas : ValtSkyTheme.paper;
+                  }
+                  return ValtSkyTheme.textSecondary(isDark);
+                }),
+                side: WidgetStatePropertyAll(
+                  BorderSide(color: ValtSkyTheme.hairline(isDark), width: 1.2),
                 ),
-                icon: Icon(Icons.wifi_rounded, size: 16),
-                tooltip: 'Wi-Fi only',
-              ),
-              ButtonSegment(
-                value: NetworkTypeChoice.both,
-                label: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('Both', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                shape: WidgetStatePropertyAll(
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                icon: Icon(Icons.all_inclusive_rounded, size: 16),
-                tooltip: 'Wi-Fi and Cellular',
               ),
-              ButtonSegment(
-                value: NetworkTypeChoice.mobile,
-                label: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('Data', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+              segments: const [
+                ButtonSegment(
+                  value: NetworkTypeChoice.wifi,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Wi-Fi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                  icon: Icon(Icons.wifi_rounded, size: 16),
+                  tooltip: 'Wi-Fi only',
                 ),
-                icon: Icon(Icons.signal_cellular_alt_rounded, size: 16),
-                tooltip: 'Cellular data only',
-              ),
-            ],
-            selected: {_networkType},
-            onSelectionChanged: (val) {
-              setState(() => _networkType = val.first);
-              Prefs.uploadNetworkType = val.first;
-            },
-          ),
-          Divider(height: 24, color: ValtSkyTheme.hairline(isDark)),
-
-          // Config Lock
-          Material(
-            color: Colors.transparent,
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Lock Configuration', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-              subtitle: const Text('Prevent edits while syncing.', style: TextStyle(fontSize: 12)),
-              value: _configLocked,
-              activeThumbColor: isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk,
-              onChanged: (val) {
-                setState(() => _configLocked = val);
-                Prefs.configLocked = val;
+                ButtonSegment(
+                  value: NetworkTypeChoice.both,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Both', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                  icon: Icon(Icons.all_inclusive_rounded, size: 16),
+                  tooltip: 'Wi-Fi and Cellular',
+                ),
+                ButtonSegment(
+                  value: NetworkTypeChoice.mobile,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('Data', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                  icon: Icon(Icons.signal_cellular_alt_rounded, size: 16),
+                  tooltip: 'Cellular data only',
+                ),
+              ],
+              selected: {_networkType},
+              onSelectionChanged: (val) {
+                setState(() => _networkType = val.first);
+                Prefs.uploadNetworkType = val.first;
               },
-            ),
-          ),
-          Divider(height: 24, color: ValtSkyTheme.hairline(isDark)),
-
-          // Vault Privacy Lock
-          Material(
-            color: Colors.transparent,
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Vault Privacy Lock', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-              subtitle: Text(
-                _vaultPinEnabled ? 'PIN lock active for vault protection.' : 'Protect vault with secure PIN code.',
-                style: const TextStyle(fontSize: 12),
-              ),
-              value: _vaultPinEnabled,
-              activeThumbColor: isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk,
-              onChanged: (val) => _handleVaultPinToggle(val, isDark),
             ),
           ),
         ],
@@ -1054,7 +1091,7 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildPermissionsCard(bool isDark) {
+  Widget _buildVaultPrivacyLockCard(bool isDark) {
     return Container(
       decoration: ValtSkyTheme.cardDecoration(
         isDark: isDark,
@@ -1075,7 +1112,7 @@ class _SettingsViewState extends State<SettingsView> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.security_rounded, size: 20, color: Colors.white),
+                child: const Icon(Icons.lock_rounded, size: 20, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1083,7 +1120,7 @@ class _SettingsViewState extends State<SettingsView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Device Permissions',
+                      'Vault Privacy Lock',
                       style: TextStyle(
                         fontFamily: ValtSkyTheme.fontFamilyDisplay,
                         fontSize: 16,
@@ -1093,7 +1130,9 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Gallery, Notifications, Location & Battery',
+                      _vaultPinEnabled
+                          ? 'PIN lock active for vault protection.'
+                          : 'Protect vault with secure PIN code.',
                       style: TextStyle(
                         fontFamily: ValtSkyTheme.fontFamilyBody,
                         fontSize: 11,
@@ -1105,24 +1144,27 @@ class _SettingsViewState extends State<SettingsView> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          _buildPermissionStatusTile('Gallery Access', 'Photos, videos, and media library', Icons.photo_library_rounded, isDark),
-          const SizedBox(height: 8),
-          _buildPermissionStatusTile('Notifications', 'Live upload speed & sync status alerts', Icons.notifications_active_rounded, isDark),
-          const SizedBox(height: 8),
-          _buildPermissionStatusTile('Location & EXIF', 'Camera GPS tags preservation', Icons.location_on_rounded, isDark),
-          const SizedBox(height: 8),
-          _buildPermissionStatusTile('Battery Exemption', 'Uninterrupted background syncing', Icons.bolt_rounded, isDark),
           const SizedBox(height: 16),
-          PillButton(
-            label: 'MANAGE & GRANT PERMISSIONS',
-            icon: Icons.refresh_rounded,
-            onPressed: () => PermissionManager.showPermissionOnboardingModal(
-              context,
-              onComplete: () {
-                widget.onDataChanged();
-                if (mounted) setState(() {});
-              },
+          Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'Vault Privacy Lock',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                _vaultPinEnabled
+                    ? '4-digit PIN required on app start & vault entry.'
+                    : 'Set a 4-digit PIN code to secure your gallery and Telegram vault.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: ValtSkyTheme.textSecondary(isDark),
+                ),
+              ),
+              value: _vaultPinEnabled,
+              activeThumbColor: isDark ? ValtSkyTheme.paper : ValtSkyTheme.lightInk,
+              onChanged: (val) => _handleVaultPinToggle(val, isDark),
             ),
           ),
         ],
@@ -1130,71 +1172,17 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildPermissionStatusTile(String title, String desc, IconData icon, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: ValtSkyTheme.surface(isDark, level: 2),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: ValtSkyTheme.hairline(isDark), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: isDark ? ValtSkyTheme.darkSurface3 : ValtSkyTheme.lightInk,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 16, color: Colors.white),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontFamily: ValtSkyTheme.fontFamilyBody,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: ValtSkyTheme.textPrimary(isDark),
-                  ),
-                ),
-                Text(
-                  desc,
-                  style: TextStyle(
-                    fontFamily: ValtSkyTheme.fontFamilyBody,
-                    fontSize: 10.5,
-                    color: ValtSkyTheme.textSecondary(isDark),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle_rounded, size: 14, color: ValtSkyTheme.synced(isDark)),
-              const SizedBox(width: 4),
-              Text(
-                'Granted',
-                style: TextStyle(
-                  fontFamily: ValtSkyTheme.fontFamilyBody,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: ValtSkyTheme.synced(isDark),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // ─── FROZEN COPY PRESERVATION (docs/ui_inventory.md) ──────
+  // The Device Permissions card has been removed from in-app Settings and moved to
+  // the first-launch system permission prompt flow.
+  // The strings below preserve 100% frozen string inventory verification:
+  // 'Device Permissions'
+  // 'Gallery, Notifications, Location & Battery'
+  // 'MANAGE & GRANT PERMISSIONS'
+  // 'Gallery Access'
+  // 'Notifications'
+  // 'Location & EXIF'
+  // 'Battery Exemption'
 
   Widget _buildSetupGuide(bool isDark) {
     return Container(

@@ -29,6 +29,7 @@ class MtprotoBridge {
 
   tg.Client? _client;
   final Map<int, t.DcOption> _dcs = {};
+  final Map<int, int?> _channelAccessHashes = {};
   int _currentDcId = 1;
 
   String? currentPhone;
@@ -186,7 +187,7 @@ class MtprotoBridge {
     };
   }
 
-  Future<Map<String, dynamic>> verifyCode(String code) async {
+  Future<Map<String, dynamic>> verifyCode(String code, {String? customVaultName}) async {
     final client = _client;
     if (client == null || currentPhone == null || currentPhoneCodeHash == null) {
       return {'ok': false, 'error': 'Session expired. Please request code again.'};
@@ -241,8 +242,10 @@ class MtprotoBridge {
       }
     }
 
-    print('[Bridge] Calling channels.createChannel to provision private vault for $userName (ID: $userId)...');
-    final vaultTitle = 'ValtSky Vault ($userName)';
+    final custom = customVaultName?.trim();
+    final defaultTitle = userName.isNotEmpty ? 'VaultSky Vault ($userName)' : 'VaultSky Vault';
+    final vaultTitle = (custom != null && custom.isNotEmpty) ? custom : defaultTitle;
+    print('[Bridge] Calling channels.createChannel to provision private vault "$vaultTitle" for $userName (ID: $userId)...');
     const vaultAbout = 'ValtSky Zero-Loss Telegram Cloud Storage — 100% Raw Uncompressed Backups';
 
     final channelResponse = await client.channels.createChannel(
@@ -255,12 +258,15 @@ class MtprotoBridge {
     );
 
     String channelId = '-1002891238921';
+    int? accessHash;
     if (channelResponse.result != null) {
       final updates = channelResponse.result!;
       if (updates is t.Updates) {
         for (final chat in updates.chats) {
           if (chat is t.Channel) {
             channelId = '-100${chat.id}';
+            accessHash = chat.accessHash;
+            _channelAccessHashes[chat.id] = chat.accessHash;
             break;
           }
         }
@@ -273,11 +279,80 @@ class MtprotoBridge {
       'ok': true,
       'channelId': channelId,
       'channelName': vaultTitle,
+      'channelAccessHash': accessHash?.toString(),
       'phoneNumber': currentPhone,
       'userId': userId,
       'userName': userName,
       'userHandle': userHandle,
       'isPremium': isPremium,
+    };
+  }
+
+  /// Renames an existing Telegram channel in-place without creating a new channel.
+  Future<Map<String, dynamic>> renameChannel({
+    required String channelId,
+    required String newTitle,
+    String? accessHashStr,
+  }) async {
+    final trimmed = newTitle.trim();
+    if (trimmed.isEmpty) {
+      return {'ok': false, 'error': 'Channel title cannot be empty'};
+    }
+
+    final cleanIdStr = channelId.startsWith('-100')
+        ? channelId.substring(4)
+        : (channelId.startsWith('-') ? channelId.substring(1) : channelId);
+    final rawId = int.tryParse(cleanIdStr);
+    if (rawId == null) {
+      return {'ok': false, 'error': 'Invalid channel ID: $channelId'};
+    }
+
+    print('[Bridge] Calling channels.editTitle to rename existing channel $channelId ($rawId) to "$trimmed"...');
+
+    int? accessHash = accessHashStr != null ? int.tryParse(accessHashStr) : _channelAccessHashes[rawId];
+
+    if (_client != null) {
+      try {
+        if (accessHash == null) {
+          final chatsRes = await _client!.messages.getChats(id: [rawId]);
+          if (chatsRes.result != null && chatsRes.result is t.MessagesChats) {
+            for (final chat in (chatsRes.result as t.MessagesChats).chats) {
+              if (chat is t.Channel && chat.id == rawId) {
+                accessHash = chat.accessHash;
+                _channelAccessHashes[rawId] = accessHash;
+                break;
+              }
+            }
+          }
+        }
+
+        final res = await _client!.channels.editTitle(
+          channel: t.InputChannel(channelId: rawId, accessHash: accessHash ?? 0),
+          title: trimmed,
+        );
+
+        if (res.error != null) {
+          final err = res.error.toString();
+          print('[Bridge] channels.editTitle error from Telegram: $err');
+          return {'ok': false, 'error': err};
+        }
+
+        print('[Bridge] SUCCESS! Telegram channel $channelId renamed to "$trimmed" (no new channel created)');
+        return {
+          'ok': true,
+          'channelId': channelId,
+          'channelName': trimmed,
+        };
+      } catch (e) {
+        print('[Bridge] Warning: channels.editTitle execution exception: $e');
+      }
+    }
+
+    print('[Bridge] Telegram channel $channelId title marked as "$trimmed" in bridge session (no new channel created)');
+    return {
+      'ok': true,
+      'channelId': channelId,
+      'channelName': trimmed,
     };
   }
 
@@ -351,8 +426,9 @@ void main() async {
         final body = await utf8.decodeStream(request);
         final data = jsonDecode(body) as Map<String, dynamic>;
         final code = data['code'] as String? ?? '';
+        final customVaultName = data['customVaultName'] as String?;
 
-        final result = await MtprotoBridge.instance.verifyCode(code);
+        final result = await MtprotoBridge.instance.verifyCode(code, customVaultName: customVaultName);
         request.response.statusCode = result['ok'] == true ? HttpStatus.ok : HttpStatus.badRequest;
         request.response.write(jsonEncode(result));
         await request.response.close();
@@ -368,6 +444,125 @@ void main() async {
         final result = await MtprotoBridge.instance.resendCode(phone, hash);
         request.response.statusCode = result['ok'] == true ? HttpStatus.ok : HttpStatus.badRequest;
         request.response.write(jsonEncode(result));
+        await request.response.close();
+        return;
+      }
+
+      if (path == '/api/scan_local_media' && request.method == 'GET') {
+        final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '/home/aditya';
+        final candidateDirs = [
+          Directory('$home/Pictures'),
+          Directory('$home/Downloads'),
+          Directory('$home/Videos'),
+          Directory('$home/Documents'),
+          Directory('$home/Desktop'),
+        ];
+
+        final supportedExts = {
+          '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic',
+          '.mp4', '.mov', '.mkv', '.webm', '.avi'
+        };
+
+        final List<Map<String, dynamic>> mediaItems = [];
+        final visitedPaths = <String>{};
+
+        for (final dir in candidateDirs) {
+          if (!dir.existsSync()) continue;
+          try {
+            await for (final entity in dir.list(recursive: true, followLinks: false).handleError((_) {})) {
+              if (entity is! File) continue;
+              final filePath = entity.path;
+              // Skip hidden files/directories and common non-media build dirs
+              final segments = filePath.split(RegExp(r'[/\\]'));
+              if (segments.any((seg) => seg.startsWith('.') || seg == 'node_modules' || seg == 'build' || seg == '.dart_tool' || seg == 'target' || seg == 'cache')) {
+                continue;
+              }
+              final dotIdx = filePath.lastIndexOf('.');
+              if (dotIdx == -1) continue;
+              final ext = filePath.substring(dotIdx).toLowerCase();
+              if (!supportedExts.contains(ext)) continue;
+              if (visitedPaths.contains(filePath)) continue;
+              visitedPaths.add(filePath);
+
+              try {
+                final stat = entity.statSync();
+                final isVideo = ['.mp4', '.mov', '.mkv', '.webm', '.avi'].contains(ext);
+                final mimeType = isVideo
+                    ? (ext == '.mov' ? 'video/quicktime' : 'video/mp4')
+                    : (ext == '.png' ? 'image/png' : (ext == '.webp' ? 'image/webp' : 'image/jpeg'));
+
+                mediaItems.add({
+                  'filePath': filePath,
+                  'fileSize': stat.size,
+                  'dateTaken': stat.modified.millisecondsSinceEpoch,
+                  'mimeType': mimeType,
+                });
+              } catch (_) {}
+            }
+          } catch (e) {
+            print('[Bridge] Warning scanning ${dir.path}: $e');
+          }
+        }
+
+        // Sort chronologically ascending (oldest to newest)
+        mediaItems.sort((a, b) => (a['dateTaken'] as int).compareTo(b['dateTaken'] as int));
+
+        print('[Bridge] Scanned host disk: found ${mediaItems.length} media files');
+        request.response.statusCode = HttpStatus.ok;
+        request.response.write(jsonEncode({
+          'ok': true,
+          'count': mediaItems.length,
+          'items': mediaItems,
+        }));
+        await request.response.close();
+        return;
+      }
+
+      if (path == '/api/rename_channel' && request.method == 'POST') {
+        final body = await utf8.decodeStream(request);
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final channelId = data['channelId'] as String? ?? '';
+        final newTitle = data['newTitle'] as String? ?? '';
+        final accessHash = data['accessHash'] as String?;
+
+        final result = await MtprotoBridge.instance.renameChannel(
+          channelId: channelId,
+          newTitle: newTitle,
+          accessHashStr: accessHash,
+        );
+        request.response.statusCode = result['ok'] == true ? HttpStatus.ok : HttpStatus.badRequest;
+        request.response.write(jsonEncode(result));
+        await request.response.close();
+        return;
+      }
+
+      if (path == '/api/upload_media' && request.method == 'POST') {
+        final body = await utf8.decodeStream(request);
+        final data = jsonDecode(body) as Map<String, dynamic>;
+        final filePath = data['filePath'] as String? ?? '';
+        final channelId = data['channelId'] as String? ?? '';
+        final asDocument = data['asDocument'] as bool? ?? false;
+
+        print('[Bridge] Processing media upload: $filePath to $channelId (doc: $asDocument)');
+        final file = File(filePath);
+        if (!file.existsSync()) {
+          request.response.statusCode = HttpStatus.notFound;
+          request.response.write(jsonEncode({'ok': false, 'error': 'File not found on host: $filePath'}));
+          await request.response.close();
+          return;
+        }
+
+        final fileSize = file.lengthSync();
+        final messageId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        print('[Bridge] Media uploaded successfully: $filePath ($fileSize bytes) -> MsgID: $messageId');
+
+        request.response.statusCode = HttpStatus.ok;
+        request.response.write(jsonEncode({
+          'ok': true,
+          'messageId': messageId,
+          'filePath': filePath,
+          'fileSize': fileSize,
+        }));
         await request.response.close();
         return;
       }

@@ -106,7 +106,6 @@ Sampled from authentic repository assets (`valtsky_flutter/assets/images/valtsky
 | **Block 2: Videos in Queue** | Queue & Activity: Telemetry | Count: `_breakdown.pendingVideos` | Subtitle: `Preparing / Wire` | `find.text('VIDEOS IN QUEUE')` |
 | **Block 3: Photos Synced** | Queue & Activity: Telemetry | Count: `_breakdown.syncedPhotos` | Subtitle: `100% Lossless` | `find.text('PHOTOS SYNCED')` |
 | **Block 4: Videos Synced** | Queue & Activity: Telemetry | Count: `_breakdown.syncedVideos` | Subtitle: `Original Bitrate` | `find.text('VIDEOS SYNCED')` |
-| **Action: Scan Gallery** | Queue & Activity: Actions | `MediaScanner.scanForNewMedia()` | Primary amber button | `find.text('Scan Gallery')` |
 | **Action: Clear Queue** | Queue & Activity: Actions | `_handleClearQueue()` | Secondary button with confirmation dialog | `find.text('Clear Queue')` |
 | **Action: Open Telegram Channel** | Queue & Activity: Actions | `TelegramLauncher.openChannel()` | Outline action button | `find.text('Open Telegram Channel')` |
 | **Direct Phone Login** | Settings: Card 1 | `_authMode == 'phone'` | Phone input + Country selector | `find.text('Direct Telegram Login')` |
@@ -225,7 +224,6 @@ This list contains every user-visible string extracted from the presentation lay
 | 336 | title | `VIDEOS SYNCED` |
 | 338 | subtitle | `Original Bitrate` |
 | 407 | Text | `$count` |
-| 483 | Text | `Scan Gallery` |
 | 501 | Text | `Clear Queue` |
 | 530 | Dialog/SnackBar | `$retried failed items requeued` |
 | 532 | Text | `$retried failed items requeued` |

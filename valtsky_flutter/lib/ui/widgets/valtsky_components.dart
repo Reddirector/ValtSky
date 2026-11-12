@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../util/formatters.dart';
 import '../../util/theme.dart';
 
 // Re-export modular components for complete backwards compatibility
@@ -199,95 +200,99 @@ class _PillButtonState extends State<PillButton> {
       button: true,
       enabled: isEnabled,
       label: widget.label,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: 48.0,
-          minWidth: 48.0,
-          maxWidth: widget.width ?? double.infinity,
-        ),
-        child: FocusableActionDetector(
-          onShowFocusHighlight: (f) => setState(() => _isFocused = f),
-          onShowHoverHighlight: (h) => setState(() => _isHovered = h),
-          child: GestureDetector(
-            onTapDown: _handleTapDown,
-            onTapUp: _handleTapUp,
-            onTapCancel: _handleTapCancel,
-            onTap: isEnabled ? widget.onPressed : null,
-            child: AnimatedScale(
-              scale: scale,
-              duration: const Duration(milliseconds: 140),
-              curve: Curves.easeOutCubic,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                height: widget.height,
-                width: widget.width,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                decoration: BoxDecoration(
-                  color: bg,
-                  borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
-                  border: border != BorderSide.none
-                      ? Border.fromBorderSide(border)
-                      : (_isFocused
-                          ? Border.all(color: ValtSkyTheme.accent(isDark), width: 2.0)
-                          : null),
-                  boxShadow: [
-                    if (widget.variant == PillButtonVariant.primary && isEnabled)
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
-                        blurRadius: _isHovered ? 14 : 8,
-                        offset: const Offset(0, 3),
-                      ),
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: widget.isLoading
-                    ? SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.2,
-                          valueColor: AlwaysStoppedAnimation<Color>(fg),
+      child: Material(
+        type: MaterialType.transparency,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: 48.0,
+            minWidth: 48.0,
+            maxWidth: widget.width ?? double.infinity,
+          ),
+          child: FocusableActionDetector(
+            onShowFocusHighlight: (f) => setState(() => _isFocused = f),
+            onShowHoverHighlight: (h) => setState(() => _isHovered = h),
+            child: GestureDetector(
+              onTapDown: _handleTapDown,
+              onTapUp: _handleTapUp,
+              onTapCancel: _handleTapCancel,
+              onTap: isEnabled ? widget.onPressed : null,
+              child: AnimatedScale(
+                scale: scale,
+                duration: const Duration(milliseconds: 140),
+                curve: Curves.easeOutCubic,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  height: widget.height,
+                  width: widget.width,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                    border: border != BorderSide.none
+                        ? Border.fromBorderSide(border)
+                        : (_isFocused
+                            ? Border.all(color: ValtSkyTheme.accent(isDark), width: 2.0)
+                            : null),
+                    boxShadow: [
+                      if (widget.variant == PillButtonVariant.primary && isEnabled)
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                          blurRadius: _isHovered ? 14 : 8,
+                          offset: const Offset(0, 3),
                         ),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (widget.icon != null) ...[
-                            Icon(widget.icon, size: 18, color: fg),
-                            const SizedBox(width: 8),
-                          ],
-                          Flexible(
-                            child: Text(
-                              widget.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontFamily: ValtSkyTheme.fontFamilyBody,
-                                fontSize: 13.0,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                                color: fg,
-                              ),
-                            ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: widget.isLoading
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            valueColor: AlwaysStoppedAnimation<Color>(fg),
                           ),
-                          if (widget.showTrailingArrow) ...[
-                            const SizedBox(width: 10),
-                            Container(
-                              width: 24,
-                              height: 24,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isDark
-                                    ? Colors.black.withValues(alpha: 0.20)
-                                    : Colors.white.withValues(alpha: 0.22),
+                        )
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (widget.icon != null) ...[
+                              Icon(widget.icon, size: 18, color: fg),
+                              const SizedBox(width: 8),
+                            ],
+                            Flexible(
+                              child: Text(
+                                widget.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontFamily: ValtSkyTheme.fontFamilyBody,
+                                  fontSize: 13.0,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                  color: fg,
+                                  decoration: TextDecoration.none,
+                                ),
                               ),
-                              alignment: Alignment.center,
-                              child: Icon(Icons.arrow_forward_rounded, size: 14, color: fg),
                             ),
+                            if (widget.showTrailingArrow) ...[
+                              const SizedBox(width: 10),
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDark
+                                      ? Colors.black.withValues(alpha: 0.20)
+                                      : Colors.white.withValues(alpha: 0.22),
+                                ),
+                                alignment: Alignment.center,
+                                child: Icon(Icons.arrow_forward_rounded, size: 14, color: fg),
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
+                        ),
+                ),
               ),
             ),
           ),
@@ -644,7 +649,7 @@ class StatTile extends StatelessWidget {
     final cardMinHeight = isTall ? 140.0 : 116.0;
 
     return Semantics(
-      label: '$effectiveLabel: $intValue',
+      label: '$effectiveLabel: ${ValtSkyFormatters.formatMediaCount(intValue)}',
       button: onTap != null,
       child: Material(
         color: Colors.transparent,
@@ -689,11 +694,12 @@ class StatTile extends StatelessWidget {
                               duration: const Duration(milliseconds: 500),
                               curve: Curves.easeOutCubic,
                               builder: (context, animatedVal, _) {
+                                final displayVal = ValtSkyFormatters.formatMediaCount(animatedVal);
                                 return FittedBox(
                                   fit: BoxFit.scaleDown,
                                   alignment: Alignment.centerRight,
                                   child: Text(
-                                    '$animatedVal',
+                                    displayVal,
                                     style: TextStyle(
                                       fontFamily: ValtSkyTheme.fontFamilyDisplay,
                                       fontSize: isTall ? 60 : 48,

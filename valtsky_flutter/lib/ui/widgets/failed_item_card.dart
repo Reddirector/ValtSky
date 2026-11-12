@@ -251,14 +251,14 @@ class FailedItemCard extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             IconButton(
-              tooltip: 'Stash file',
+              tooltip: 'Delete failed upload',
               style: IconButton.styleFrom(
                 backgroundColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-                foregroundColor: isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A),
+                foregroundColor: ValtSkyTheme.error,
               ),
-              icon: const Icon(Icons.archive_outlined, size: 18),
+              icon: const Icon(Icons.delete_outline_rounded, size: 19),
               onPressed: () async {
-                await DatabaseHelper.instance.stashSingle(item.filePath);
+                await DatabaseHelper.instance.deleteItem(item.filePath);
                 onRetry?.call();
               },
             ),

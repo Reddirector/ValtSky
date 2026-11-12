@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 
-class DashboardStatusBanner extends StatelessWidget {
+class DashboardStatusBanner extends StatefulWidget {
   final VoidCallback onNavigateToSettings;
   final VoidCallback onCheckNetwork;
 
@@ -13,12 +13,27 @@ class DashboardStatusBanner extends StatelessWidget {
   });
 
   @override
+  State<DashboardStatusBanner> createState() => _DashboardStatusBannerState();
+}
+
+class _DashboardStatusBannerState extends State<DashboardStatusBanner> {
+  SyncEngineStatus? _dismissedStatus;
+
+  @override
   Widget build(BuildContext context) {
     final status = SyncEngine.engineStatusNotifier.value;
     final message = SyncEngine.engineStatusMessageNotifier.value;
     final rateLimitRemaining = SyncEngine.rateLimitSecondsRemainingNotifier.value;
 
-    if (status == SyncEngineStatus.idle || status == SyncEngineStatus.active || status == SyncEngineStatus.paused) {
+    // Reset dismissed state whenever status changes away from the previously dismissed status
+    if (_dismissedStatus != null && status != _dismissedStatus) {
+      _dismissedStatus = null;
+    }
+
+    if (status == SyncEngineStatus.idle ||
+        status == SyncEngineStatus.active ||
+        status == SyncEngineStatus.paused ||
+        _dismissedStatus == status) {
       return const SizedBox.shrink();
     }
 
@@ -48,7 +63,7 @@ class DashboardStatusBanner extends StatelessWidget {
         text = Colors.amber.shade400;
         icon = Icons.wifi_off_rounded;
         action = TextButton.icon(
-          onPressed: onCheckNetwork,
+          onPressed: widget.onCheckNetwork,
           icon: Icon(Icons.refresh_rounded, size: 14, color: text),
           label: Text('Retry', style: TextStyle(color: text, fontWeight: FontWeight.bold, fontSize: 12)),
           style: TextButton.styleFrom(
@@ -64,7 +79,7 @@ class DashboardStatusBanner extends StatelessWidget {
         text = ValtSkyTheme.error;
         icon = Icons.lock_clock_rounded;
         action = ElevatedButton(
-          onPressed: onNavigateToSettings,
+          onPressed: widget.onNavigateToSettings,
           style: ElevatedButton.styleFrom(
             backgroundColor: ValtSkyTheme.error,
             foregroundColor: Colors.white,
@@ -93,7 +108,7 @@ class DashboardStatusBanner extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(16),
@@ -101,8 +116,8 @@ class DashboardStatusBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: text),
-          const SizedBox(width: 12),
+          Icon(icon, size: 18, color: text),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message.isNotEmpty ? message : status.name,
@@ -117,6 +132,19 @@ class DashboardStatusBanner extends StatelessWidget {
             const SizedBox(width: 8),
             action,
           ],
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.close_rounded, size: 18),
+            color: text.withAlpha(160),
+            tooltip: 'Dismiss alert',
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+            onPressed: () {
+              setState(() {
+                _dismissedStatus = status;
+              });
+            },
+          ),
         ],
       ),
     );

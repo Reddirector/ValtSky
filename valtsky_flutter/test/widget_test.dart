@@ -301,7 +301,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Confirm Step 1
-    await tester.tap(find.text('Proceed to Step 2'));
+    await tester.tap(find.text('Proceed'));
     await tester.pumpAndSettle();
 
     // Confirm Step 2 (Double Verification)

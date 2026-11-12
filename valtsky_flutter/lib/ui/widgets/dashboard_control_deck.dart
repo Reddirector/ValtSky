@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../services/sync_engine.dart';
 import '../../util/theme.dart';
 
 /// Quick Controls Outlined Cards (Min 64pt tall)
 /// Leading icon circle + full label. Stop Process has a failed-color icon only.
-/// Houses Pause (or Resume) and Stop Process side-by-side.
+/// Houses Start / Pause / Resume and Stop Process side-by-side.
 class DashboardControlDeck extends StatelessWidget {
   final bool isConfigured;
   final bool isPaused;
@@ -41,14 +42,23 @@ class DashboardControlDeck extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _buildActionCard(
-                    title: isPaused ? 'Resume' : 'Pause',
-                    icon: isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                    iconColor: ValtSkyTheme.textPrimary(isDark),
-                    isDark: isDark,
-                    isNarrow: isNarrow,
-                    isEnabled: isConfigured,
-                    onTap: isConfigured ? onTogglePause : null,
+                  child: ValueListenableBuilder<SyncEngineStatus>(
+                    valueListenable: SyncEngine.engineStatusNotifier,
+                    builder: (context, status, _) {
+                      final bool isEnginePaused = isPaused || status == SyncEngineStatus.paused;
+                      final String title = isEnginePaused ? 'Resume' : 'Pause';
+                      final IconData icon = isEnginePaused ? Icons.play_arrow_rounded : Icons.pause_rounded;
+
+                      return _buildActionCard(
+                        title: title,
+                        icon: icon,
+                        iconColor: ValtSkyTheme.textPrimary(isDark),
+                        isDark: isDark,
+                        isNarrow: isNarrow,
+                        isEnabled: isConfigured,
+                        onTap: isConfigured ? onTogglePause : null,
+                      );
+                    },
                   ),
                 ),
                 SizedBox(width: spacing),

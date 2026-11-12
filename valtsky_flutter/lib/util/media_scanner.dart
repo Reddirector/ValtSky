@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:photo_manager/photo_manager.dart';
 import '../data/db/database_helper.dart';
@@ -15,48 +17,142 @@ class MediaScanner {
     if (scanHookForTesting != null) {
       return await scanHookForTesting!(forceFull: forceFull);
     }
+
+    // Always purge obsolete dummy/mock records on scan
+    await DatabaseHelper.instance.purgeDummyMockItems();
+
     if (kIsWeb) {
-      if (await DatabaseHelper.instance.getTotalCount() == 0) {
-        final now = DateTime.now();
-        // Insert in chronological order: Oldest -> Newest
-        await DatabaseHelper.instance.insert(MediaItem(
-          filePath: '/storage/emulated/0/DCIM/Camera/IMG_20261025_001.jpg',
-          mimeType: 'image/jpeg',
-          dateTaken: now.subtract(const Duration(days: 7)).millisecondsSinceEpoch, // Oldest (7 days ago)
-          fileSize: 3420100,
-          status: MediaItem.statusDone,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
-        await DatabaseHelper.instance.insert(MediaItem(
-          filePath: '/storage/emulated/0/DCIM/Camera/IMG_20261028_002.jpg',
-          mimeType: 'image/jpeg',
-          dateTaken: now.subtract(const Duration(days: 3)).millisecondsSinceEpoch, // Middle (3 days ago)
-          fileSize: 2854300,
-          status: MediaItem.statusPending,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
-        await DatabaseHelper.instance.insert(MediaItem(
-          filePath: '/storage/emulated/0/DCIM/Camera/VID_20261101_003.mp4',
-          mimeType: 'video/mp4',
-          dateTaken: now.subtract(const Duration(hours: 1)).millisecondsSinceEpoch, // Newest (1 hour ago)
-          fileSize: 54100200,
-          status: MediaItem.statusPending, // Set to pending so chunking can process it!
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
-        // Add 2.85 GB Oversized 4K Master Video (held for manual 4-click upload)
-        await DatabaseHelper.instance.insert(MediaItem(
-          filePath: '/storage/emulated/0/DCIM/Camera/VID_20261101_4K60_CINEMATIC.mov',
-          mimeType: 'video/quicktime',
-          dateTaken: now.subtract(const Duration(minutes: 20)).millisecondsSinceEpoch,
-          fileSize: 2854300000, // 2.85 GB (> 2GB Bot API threshold)
-          status: MediaItem.statusPending,
-          updatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
-        return 4;
-      }
-      return 0;
+      return await _scanMediaViaBridge(forceFull: forceFull);
     }
 
+    // Desktop platforms (Linux, macOS, Windows) scan directories directly via dart:io
+    try {
+      if (!Platform.isAndroid && !Platform.isIOS) {
+        return await _scanDesktopDirectories(forceFull: forceFull);
+      }
+    } catch (_) {}
+
+    return await _scanMobilePhotoManager(forceFull: forceFull);
+  }
+
+  static Future<int> _scanMediaViaBridge({bool forceFull = false}) async {
+    try {
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 4),
+        receiveTimeout: const Duration(seconds: 10),
+      ));
+      final response = await dio.get('http://localhost:8088/api/scan_local_media');
+      if (response.statusCode == 200 && response.data is Map<String, dynamic>) {
+        final data = response.data as Map<String, dynamic>;
+        final itemsRaw = data['items'] as List<dynamic>? ?? [];
+        if (itemsRaw.isEmpty) return 0;
+
+        final existingPaths = await DatabaseHelper.instance.getAllFilePathsSet();
+        final List<MediaItem> pendingBatch = [];
+        final now = DateTime.now().millisecondsSinceEpoch;
+
+        for (final itemMap in itemsRaw) {
+          if (itemMap is! Map) continue;
+          final filePath = itemMap['filePath'] as String? ?? '';
+          if (filePath.isEmpty || existingPaths.contains(filePath)) continue;
+
+          final fileSize = (itemMap['fileSize'] as num?)?.toInt() ?? 0;
+          final dateTaken = (itemMap['dateTaken'] as num?)?.toInt() ?? now;
+          final mimeType = itemMap['mimeType'] as String? ?? 'image/jpeg';
+
+          pendingBatch.add(MediaItem(
+            filePath: filePath,
+            mimeType: mimeType,
+            dateTaken: dateTaken,
+            fileSize: fileSize,
+            status: MediaItem.statusPending,
+            updatedAt: now,
+          ));
+          existingPaths.add(filePath);
+        }
+
+        if (pendingBatch.isNotEmpty) {
+          await DatabaseHelper.instance.insertBatch(pendingBatch);
+          debugPrint('[MediaScanner] Web indexed ${pendingBatch.length} real files from host disk via bridge');
+        }
+        return pendingBatch.length;
+      }
+    } catch (e) {
+      debugPrint('[MediaScanner] Web bridge scan fallback error: $e');
+    }
+    return 0;
+  }
+
+  static Future<int> _scanDesktopDirectories({bool forceFull = false}) async {
+    final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'] ?? '';
+    if (home.isEmpty) return 0;
+
+    final candidateDirs = [
+      Directory('$home/Pictures'),
+      Directory('$home/Downloads'),
+      Directory('$home/Videos'),
+      Directory('$home/Documents'),
+      Directory('$home/Desktop'),
+    ];
+
+    const supportedExts = {
+      '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic',
+      '.mp4', '.mov', '.mkv', '.webm', '.avi'
+    };
+
+    final existingPaths = await DatabaseHelper.instance.getAllFilePathsSet();
+    final List<MediaItem> pendingBatch = [];
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    for (final dir in candidateDirs) {
+      if (!dir.existsSync()) continue;
+      try {
+        await for (final entity in dir.list(recursive: true, followLinks: false).handleError((_) {})) {
+          if (entity is! File) continue;
+          final filePath = entity.path;
+          final segments = filePath.split(RegExp(r'[/\\]'));
+          if (segments.any((seg) => seg.startsWith('.') || seg == 'node_modules' || seg == 'build' || seg == '.dart_tool' || seg == 'target' || seg == 'cache')) {
+            continue;
+          }
+          final dotIdx = filePath.lastIndexOf('.');
+          if (dotIdx == -1) continue;
+          final ext = filePath.substring(dotIdx).toLowerCase();
+          if (!supportedExts.contains(ext)) continue;
+          if (existingPaths.contains(filePath)) continue;
+
+          try {
+            final stat = entity.statSync();
+            final isVideo = ['.mp4', '.mov', '.mkv', '.webm', '.avi'].contains(ext);
+            final mimeType = isVideo
+                ? (ext == '.mov' ? 'video/quicktime' : 'video/mp4')
+                : (ext == '.png' ? 'image/png' : (ext == '.webp' ? 'image/webp' : 'image/jpeg'));
+
+            pendingBatch.add(MediaItem(
+              filePath: filePath,
+              mimeType: mimeType,
+              dateTaken: stat.modified.millisecondsSinceEpoch,
+              fileSize: stat.size,
+              status: MediaItem.statusPending,
+              updatedAt: now,
+            ));
+            existingPaths.add(filePath);
+          } catch (_) {}
+        }
+      } catch (e) {
+        debugPrint('[MediaScanner] Desktop scan dir error (${dir.path}): $e');
+      }
+    }
+
+    if (pendingBatch.isNotEmpty) {
+      // Sort chronologically ascending
+      pendingBatch.sort((a, b) => a.dateTaken.compareTo(b.dateTaken));
+      await DatabaseHelper.instance.insertBatch(pendingBatch);
+      debugPrint('[MediaScanner] Desktop indexed ${pendingBatch.length} real files');
+    }
+    return pendingBatch.length;
+  }
+
+  static Future<int> _scanMobilePhotoManager({bool forceFull = false}) async {
     // Request permission safely without crashing if called from background service isolate
     try {
       final PermissionState ps = await PhotoManager.getPermissionState(
@@ -112,9 +208,6 @@ class MediaScanner {
       return 0;
     }
 
-    // Determine target albums:
-    // If an album with isAll is present, scanning it covers the entire device gallery.
-    // If OEM returns discrete albums (Recent, Camera, WhatsApp, etc.), scan all of them.
     AssetPathEntity? allAlbum;
     for (final p in paths) {
       if (p.isAll) {
@@ -128,7 +221,6 @@ class MediaScanner {
     final Set<String> processedInThisRun = {};
     final List<MediaItem> pendingBatch = [];
 
-    // Pre-fetch all indexed paths into an in-memory set (0ms O(1) existence checks)
     final existingPaths = await DatabaseHelper.instance.getAllFilePathsSet();
     int processedItemsCounter = 0;
 
@@ -145,7 +237,6 @@ class MediaScanner {
 
         for (final entity in entities) {
           processedItemsCounter++;
-          // Periodically yield to event loop so Flutter frame animations and touches remain fluid
           if (processedItemsCounter % 25 == 0) {
             await Future.delayed(Duration.zero);
           }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../services/backup_scheduler_service.dart';
 import '../../services/sync_engine.dart';
@@ -54,7 +55,16 @@ class VaultStorageCard extends StatelessWidget {
     final secondaryColor = ValtSkyTheme.textSecondary(isDark);
     final trackBg = ValtSkyTheme.surface(isDark, level: 3);
 
-    final percentInt = (progress.clamp(0.0, 1.0) * 100).toInt();
+    final safeTotal = math.max(totalCount, uploadedCount);
+    final safeSynced = uploadedCount.clamp(0, safeTotal);
+    final int percentInt;
+    if (progress == 0.0 || safeTotal == 0) {
+      percentInt = 0;
+    } else if (safeSynced >= safeTotal && safeTotal > 0 && progress >= 0.999) {
+      percentInt = 100;
+    } else {
+      percentInt = ((safeSynced / safeTotal) * 100).toInt().clamp(0, 99);
+    }
 
     // Dot indicator color
     final statusDotColor = !isConfigured
@@ -76,7 +86,7 @@ class VaultStorageCard extends StatelessWidget {
                     : (isMonitoring ? 'MONITORING' : 'STANDBY'))));
 
     return Semantics(
-      label: '$percentInt% synchronized (${ValtSkyFormatters.formatMediaCount(uploadedCount)} of ${ValtSkyFormatters.formatMediaCount(totalCount)} synced)',
+      label: '$percentInt% synchronized (${ValtSkyFormatters.formatMediaCount(safeSynced)} of ${ValtSkyFormatters.formatMediaCount(safeTotal)} synced)',
       child: LayoutBuilder(
       builder: (context, constraints) {
         final isNarrow = constraints.maxWidth < 360;

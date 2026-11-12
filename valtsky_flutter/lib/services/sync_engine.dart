@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../data/db/database_helper.dart';
@@ -367,14 +368,20 @@ class SyncEngine {
       _sessionTotal = _sessionSynced;
     }
     if (_sessionTotal > 0) {
-      _sessionProgress = (_sessionSynced / _sessionTotal).clamp(0.0, 1.0);
+      final hasRemaining = (_cachedStats.inQueue > 0) || (_cachedStats.uploading > 1);
+      final rawProgress = _sessionSynced / _sessionTotal;
+      _sessionProgress = hasRemaining ? rawProgress.clamp(0.0, 0.99) : rawProgress.clamp(0.0, 1.0);
     } else {
-      _sessionProgress = 1.0;
+      _sessionProgress = 0.0;
     }
 
+    final newSynced = _cachedStats.synced + 1;
+    final newTotal = math.max(_cachedStats.total, newSynced + _cachedStats.inQueue + (_cachedStats.uploading - 1).clamp(0, 9999999) + _cachedStats.failed);
+
     _cachedStats = _cachedStats.copyWith(
+      total: newTotal,
       uploading: (_cachedStats.uploading - 1).clamp(0, 9999999),
-      synced: _cachedStats.synced + 1,
+      synced: newSynced,
       progress: _sessionProgress,
       sessionTotal: _sessionTotal,
       sessionSynced: _sessionSynced,
@@ -401,11 +408,14 @@ class SyncEngine {
   /// Query SQLite and notify all UI listeners with fresh baseline counts in 1 fast query
   static Future<SyncStats> fetchCurrentStats({bool forceDb = true}) async {
     final counts = await DatabaseHelper.instance.getAggregatedCounts();
-    final total = counts['total'] ?? 0;
-    final synced = counts['synced'] ?? 0;
+    final rawTotal = counts['total'] ?? 0;
+    final rawSynced = counts['synced'] ?? 0;
     final inQueue = counts['inQueue'] ?? 0;
     final failed = counts['failed'] ?? 0;
     final uploading = counts['uploading'] ?? 0;
+
+    final total = math.max(rawTotal, rawSynced + inQueue + uploading + failed);
+    final synced = rawSynced.clamp(0, total);
 
     final activeQueue = inQueue + uploading;
     if (_sessionComplete && activeQueue > 0) {
@@ -424,16 +434,24 @@ class SyncEngine {
         _sessionTotal = activeQueue + _sessionSynced;
       }
       if (activeQueue == 0) {
-        _sessionSynced = _sessionTotal;
-        _sessionComplete = true;
-        _sessionProgress = 1.0;
+        if (failed == 0) {
+          _sessionSynced = _sessionTotal;
+          _sessionComplete = true;
+          _sessionProgress = 1.0;
+        } else {
+          _sessionSynced = math.max(0, _sessionTotal - failed);
+          _sessionComplete = false;
+          _sessionProgress = (_sessionSynced / _sessionTotal).clamp(0.0, 0.99);
+        }
       } else {
-        _sessionProgress = (_sessionSynced / _sessionTotal).clamp(0.0, 1.0);
+        if (_sessionSynced > _sessionTotal) {
+          _sessionTotal = _sessionSynced;
+        }
+        final rawRatio = _sessionSynced / _sessionTotal;
+        _sessionProgress = rawRatio.clamp(0.0, 0.99);
       }
     } else {
       if (_sessionComplete) {
-        _sessionProgress = 1.0;
-      } else if (total > 0 && inQueue == 0 && uploading == 0) {
         _sessionProgress = 1.0;
       } else {
         _sessionProgress = 0.0;

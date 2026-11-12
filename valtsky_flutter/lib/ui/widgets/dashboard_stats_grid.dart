@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../util/formatters.dart';
 import '../../util/theme.dart';
 
 class DashboardStatsGrid extends StatelessWidget {
@@ -28,7 +29,7 @@ class DashboardStatsGrid extends StatelessWidget {
             Expanded(
               child: _buildMetricTile(
                 title: 'TOTAL MEDIA',
-                value: '$totalCount',
+                value: ValtSkyFormatters.formatMediaCount(totalCount),
                 icon: Icons.photo_library_outlined,
                 accentColor: isDark ? Colors.white : Colors.black87,
                 isDark: isDark,
@@ -39,7 +40,7 @@ class DashboardStatsGrid extends StatelessWidget {
             Expanded(
               child: _buildMetricTile(
                 title: 'SYNCED',
-                value: '$uploadedCount',
+                value: ValtSkyFormatters.formatMediaCount(uploadedCount),
                 icon: Icons.cloud_done_rounded,
                 accentColor: ValtSkyTheme.success,
                 isDark: isDark,
@@ -54,7 +55,7 @@ class DashboardStatsGrid extends StatelessWidget {
             Expanded(
               child: _buildMetricTile(
                 title: 'IN QUEUE',
-                value: '$pendingCount',
+                value: ValtSkyFormatters.formatMediaCount(pendingCount),
                 icon: Icons.hourglass_top_rounded,
                 accentColor: ValtSkyTheme.warning,
                 isDark: isDark,
@@ -65,7 +66,7 @@ class DashboardStatsGrid extends StatelessWidget {
             Expanded(
               child: _buildMetricTile(
                 title: 'FAILED',
-                value: '$failedCount',
+                value: ValtSkyFormatters.formatMediaCount(failedCount),
                 icon: Icons.error_outline_rounded,
                 accentColor: failedCount > 0 ? ValtSkyTheme.error : (isDark ? Colors.grey.shade600 : Colors.grey.shade400),
                 isDark: isDark,

@@ -15,8 +15,17 @@ class MediaItem {
   String? errorReason;
   int retryCount;
   int updatedAt;
+  int queueOrder;
 
-  bool get isVideo => mimeType.contains('video');
+  bool get isVideo {
+    final lowerPath = filePath.toLowerCase();
+    return mimeType.toLowerCase().contains('video') ||
+        lowerPath.endsWith('.mp4') ||
+        lowerPath.endsWith('.mov') ||
+        lowerPath.endsWith('.mkv') ||
+        lowerPath.endsWith('.webm') ||
+        lowerPath.endsWith('.avi');
+  }
   bool get isPhoto => !isVideo;
 
   MediaItem({
@@ -30,6 +39,7 @@ class MediaItem {
     this.errorReason,
     this.retryCount = 0,
     required this.updatedAt,
+    this.queueOrder = 0,
   });
 
   Map<String, dynamic> toMap() {
@@ -44,6 +54,7 @@ class MediaItem {
       'errorReason': errorReason,
       'retryCount': retryCount,
       'updatedAt': updatedAt,
+      'queueOrder': queueOrder,
     };
   }
 
@@ -59,6 +70,7 @@ class MediaItem {
       errorReason: map['errorReason'],
       retryCount: map['retryCount'],
       updatedAt: map['updatedAt'],
+      queueOrder: map['queueOrder'] ?? 0,
     );
   }
 
@@ -69,6 +81,7 @@ class MediaItem {
     String? errorReason,
     int? retryCount,
     int? updatedAt,
+    int? queueOrder,
   }) {
     return MediaItem(
       filePath: filePath,
@@ -81,6 +94,7 @@ class MediaItem {
       errorReason: errorReason ?? this.errorReason,
       retryCount: retryCount ?? this.retryCount,
       updatedAt: updatedAt ?? this.updatedAt,
+      queueOrder: queueOrder ?? this.queueOrder,
     );
   }
 }

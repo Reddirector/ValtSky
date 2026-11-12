@@ -440,7 +440,8 @@ void main() {
       expect(find.text('+919876543210'), findsOneWidget);
       expect(find.text('ValtSky Vault (Jane)'), findsOneWidget);
       expect(find.text('-1009876543210'), findsOneWidget);
-      expect(find.text('Open Vault'), findsOneWidget);
+      expect(find.text('Open Vault'), findsNothing);
+      expect(find.text('Edit Vault'), findsNothing);
       expect(find.text('Logout'), findsOneWidget);
 
       // Tap Logout

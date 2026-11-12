@@ -80,22 +80,38 @@
   </div>
 
   <script>
-    // In debug mode with DWDS, automatically trigger the entrypoint without waiting for the Dart DevTools extension
-    (function autoStartDart() {
+    // Automatically hide loading screen the instant Flutter mounts
+    (function handleLoader() {
+      let observer = null;
+      function hideLoader() {
+        const loader = document.getElementById('loading');
+        if (loader) loader.remove();
+        if (observer) {
+          observer.disconnect();
+          observer = null;
+        }
+      }
+
+      observer = new MutationObserver(function() {
+        if (document.querySelector('flutter-view') || document.querySelector('flt-glass-pane')) {
+          hideLoader();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // In debug mode with DWDS, automatically trigger the entrypoint without waiting for Dart DevTools
       const startTimer = setInterval(function() {
         if (window.$dartRunMain && !window.$dartMainExecuted) {
           try {
             window.$dartRunMain();
             clearInterval(startTimer);
-            const loader = document.getElementById('loading');
-            if (loader) loader.style.display = 'none';
+            hideLoader();
           } catch(e) {
             console.error("[ValtSky] Error executing $dartRunMain:", e);
           }
         } else if (window.$dartMainExecuted) {
           clearInterval(startTimer);
-          const loader = document.getElementById('loading');
-          if (loader) loader.style.display = 'none';
+          hideLoader();
         }
       }, 50);
       setTimeout(function() { clearInterval(startTimer); }, 15000);

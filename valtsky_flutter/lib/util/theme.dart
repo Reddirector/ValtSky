@@ -13,8 +13,15 @@ class ValtSkyTheme {
   static const Color lightInk = Color(0xFF0E0E10);          // Primary ink text & CTA fill
   static const Color lightText2 = Color(0xFF55555B);        // Secondary text
   static const Color lightText3 = Color(0xFF66666C);        // Tertiary / minimum allowed text
-  static const Color lightCapSlab = Color(0xFF0E0E10);      // Solid ink cap slab
-  static const Color lightCapSlabText = Color(0xFFF1F1EE);  // Contrast text on light cap slab
+
+  // ─── COFFEE BEIGE NAV PALETTE TOKENS (BRIGHT MODE) ─────────────────────────
+  static const Color coffeeBeige = Color(0xFFE8DFD5);             // Signature warm coffee beige
+  static const Color coffeeBeigeBorder = Color(0xFFD6CBC0);       // Warm latte hairline border
+  static const Color coffeeBeigeTextPrimary = Color(0xFF261F1A);  // Deep espresso text & active icons
+  static const Color coffeeBeigeTextSecondary = Color(0xFF6A6054);// Deepened roast secondary text & inactive icons (WCAG AA 4.67:1)
+
+  static const Color lightCapSlab = coffeeBeige;            // Bright coffee beige top slab
+  static const Color lightCapSlabText = coffeeBeigeTextPrimary; // Deep espresso contrast text on coffee beige
   static const Color lightAccent = Color(0xFF4650D6);       // Restrained logo indigo (white text)
   static const Color lightSynced = Color(0xFF1F7A52);       // Muted forest sage
   static const Color lightFailed = Color(0xFFC23838);       // Restrained editorial crimson
@@ -122,6 +129,15 @@ class ValtSkyTheme {
   static Color accentText(bool isDark) => isDark ? darkAccent : lightAccent;
   static Color synced(bool isDark) => isDark ? darkSynced : lightSynced;
   static Color failed(bool isDark) => isDark ? darkFailed : lightFailed;
+
+  // ─── NAVIGATION DOCK (BRIGHT COFFEE BEIGE & DARK INK) ─────────────────────
+  static Color navDockBackground(bool isDark) => isDark ? darkSurface2 : coffeeBeige;
+  static Color navDockBorder(bool isDark) => isDark ? darkHairline : coffeeBeigeBorder;
+  static Color navDockActiveIndicator(bool isDark) => isDark ? paper : Colors.white;
+  static Color navDockActiveIcon(bool isDark) => isDark ? ink : coffeeBeigeTextPrimary;
+  static Color navDockInactiveIcon(bool isDark) => isDark ? darkText2 : coffeeBeigeTextSecondary;
+  static Color navDockActiveText(bool isDark) => isDark ? paper : coffeeBeigeTextPrimary;
+  static Color navDockInactiveText(bool isDark) => isDark ? darkText2.withValues(alpha: 0.85) : coffeeBeigeTextSecondary;
 
   // Primary CTA Button colors (Light: ink fill + paper text; Dark: paper fill + ink text)
   static Color primaryCtaFill(bool isDark) => isDark ? paper : lightInk;

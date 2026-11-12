@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/db/database_helper.dart';
@@ -44,8 +45,8 @@ class DashboardViewModel extends ChangeNotifier {
     final stats = SyncEngine.statsNotifier.value;
     if (stats != null) {
       final prevFailed = failedCount;
-      totalCount = stats.total;
-      uploadedCount = stats.synced;
+      totalCount = math.max(stats.total, stats.synced + stats.inQueue + stats.uploading + stats.failed);
+      uploadedCount = stats.synced.clamp(0, totalCount);
       pendingCount = stats.inQueue;
       failedCount = stats.failed;
       uploadingCount = stats.uploading;
@@ -72,8 +73,8 @@ class DashboardViewModel extends ChangeNotifier {
 
   Future<void> refreshStats() async {
     final stats = await SyncEngine.fetchCurrentStats(forceDb: true);
-    totalCount = stats.total;
-    uploadedCount = stats.synced;
+    totalCount = math.max(stats.total, stats.synced + stats.inQueue + stats.uploading + stats.failed);
+    uploadedCount = stats.synced.clamp(0, totalCount);
     pendingCount = stats.inQueue;
     failedCount = stats.failed;
     uploadingCount = stats.uploading;
@@ -190,7 +191,7 @@ class DashboardViewModel extends ChangeNotifier {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Keep Running', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -201,7 +202,7 @@ class DashboardViewModel extends ChangeNotifier {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Proceed to Step 2', style: TextStyle(fontWeight: FontWeight.w900)),
+            child: const Text('Proceed', style: TextStyle(fontWeight: FontWeight.w900)),
           ),
         ],
       ),
@@ -230,7 +231,7 @@ class DashboardViewModel extends ChangeNotifier {
             const SizedBox(width: 12),
             const Expanded(
               child: Text(
-                'Step 2 of 2: Confirm Kill & Clear',
+                'Confirm Permanent Stop',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: ValtSkyTheme.error),
               ),
             ),
@@ -247,7 +248,7 @@ class DashboardViewModel extends ChangeNotifier {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Abort / Cancel', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
+            child: Text('Cancel', style: TextStyle(color: isDark ? Colors.white70 : Colors.black87)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

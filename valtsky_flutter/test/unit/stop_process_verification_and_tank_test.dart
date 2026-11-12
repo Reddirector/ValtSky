@@ -8,6 +8,7 @@ import 'package:valtsky_flutter/services/backup_scheduler_service.dart';
 import 'package:valtsky_flutter/services/sync_engine.dart';
 import 'package:valtsky_flutter/ui/view_models/dashboard_view_model.dart';
 import 'package:valtsky_flutter/ui/widgets/scheduled_backup_timer_card.dart';
+import 'package:valtsky_flutter/ui/widgets/liquid_bucket_sync_view.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -66,11 +67,11 @@ void main() {
 
       // Step 1: Warning dialog appears
       expect(find.text('Kill Process & Empty Queue?'), findsOneWidget);
-      expect(find.text('Keep Running'), findsOneWidget);
-      expect(find.text('Proceed to Step 2'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Proceed'), findsOneWidget);
 
       // Tap Cancel in Step 1 -> Should not clear queue
-      await tester.tap(find.text('Keep Running'));
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
       expect(viewModel.pendingCount, 5);
@@ -79,13 +80,13 @@ void main() {
       await tester.tap(find.text('Stop Process Btn'));
       await tester.pumpAndSettle();
 
-      // Proceed to Step 2
-      await tester.tap(find.text('Proceed to Step 2'));
+      // Proceed
+      await tester.tap(find.text('Proceed'));
       await tester.pumpAndSettle();
 
       // Step 2: Final confirmation dialog appears
-      expect(find.text('Step 2 of 2: Confirm Kill & Clear'), findsOneWidget);
-      expect(find.text('Abort / Cancel'), findsOneWidget);
+      expect(find.text('Confirm Permanent Stop'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Confirm: Kill & Drain Tank'), findsOneWidget);
 
       // Confirm step 2
@@ -176,6 +177,52 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Alarm schedule saved for 02:00 AM'), findsOneWidget);
+    });
+  });
+
+  group('LiquidBucketSyncView Invariant Display Tests', () {
+    testWidgets('Never displays synced greater than total and never shows 100% when incomplete', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: LiquidBucketSyncView(
+              progress: 0.98,
+              totalCount: 799,
+              syncedCount: 785,
+              sessionTotal: 799,
+              sessionSynced: 785,
+              height: 200,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('785 of 799 synced'), findsOneWidget);
+      expect(find.text('98'), findsOneWidget);
+      expect(find.text('100'), findsNothing);
+    });
+
+    testWidgets('Safely clamps inverted inputs so synced <= total and never displays 799 of 785', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: LiquidBucketSyncView(
+              progress: 0.95,
+              totalCount: 785,
+              syncedCount: 799,
+              sessionTotal: 785,
+              sessionSynced: 799,
+              height: 200,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Should clamp to 785 of 785, never showing 799 of 785
+      expect(find.text('799 of 785 synced'), findsNothing);
+      expect(find.text('785 of 785 synced'), findsOneWidget);
     });
   });
 }

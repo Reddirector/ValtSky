@@ -276,6 +276,25 @@ class TelegramApi {
     return null;
   }
 
+  /// Sets or updates the title of an existing Telegram channel/chat.
+  static Future<bool> setChatTitle(String botToken, String channelId, String newTitle) async {
+    try {
+      final response = await _dio.post(
+        '$_baseUrl/bot$botToken/setChatTitle',
+        data: {
+          'chat_id': channelId,
+          'title': newTitle,
+        },
+      );
+      if (response.statusCode == 200 && response.data['ok'] == true) {
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[TelegramApi] setChatTitle error: $e');
+    }
+    return false;
+  }
+
   static String getMimeType(String path) {
     final ext = path.split('.').last.toLowerCase();
     switch (ext) {

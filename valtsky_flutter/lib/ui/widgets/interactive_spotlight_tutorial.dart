@@ -1,7 +1,13 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../data/prefs.dart';
 import '../../util/theme.dart';
 import 'animated_stagger.dart';
 
+/// Professional Interactive App Spotlight Tutorial
+/// Highlights the updated app flow with clean editorial styling,
+/// subtle highlight beacons, step navigation, and a "Don't show again" checkbox.
 class InteractiveSpotlightTutorial extends StatefulWidget {
   final int currentStep;
   final VoidCallback onNext;
@@ -28,18 +34,33 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  late bool _dontShowAgain;
 
   @override
   void initState() {
     super.initState();
+    _dontShowAgain = Prefs.tutorialDismissed;
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
+      duration: const Duration(milliseconds: 1400),
+    );
 
-    _pulseAnimation = Tween<double>(begin: 0.94, end: 1.08).animate(
+    if (!_isTest) {
+      _pulseController.repeat(reverse: true);
+    }
+
+    _pulseAnimation = Tween<double>(begin: 0.96, end: 1.04).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+  }
+
+  bool get _isTest {
+    if (kIsWeb) return false;
+    try {
+      return Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -48,20 +69,27 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
     super.dispose();
   }
 
+  void _toggleDontShowAgain(bool? val) {
+    setState(() {
+      _dontShowAgain = val ?? false;
+      Prefs.tutorialDismissed = _dontShowAgain;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = ValtSkyTheme.primary(isDark);
-    final secondaryColor = ValtSkyTheme.secondary(isDark);
-    final cardBg = isDark ? const Color(0xFF0F172A) : Colors.white;
-    final borderColor = secondaryColor.withAlpha(120);
+    final primaryColor = ValtSkyTheme.accent(isDark);
+    final cardBg = ValtSkyTheme.surface(isDark);
+    final borderColor = ValtSkyTheme.hairline(isDark);
+    final trackBg = ValtSkyTheme.raised(isDark);
+    final textSecondary = ValtSkyTheme.textSecondary(isDark);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenHeight = constraints.maxHeight;
         final screenWidth = constraints.maxWidth;
 
-        // Step definitions
         Widget guideCard;
         Widget targetSpotlight;
 
@@ -69,50 +97,41 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
           case 1:
             // STEP 1: Point to Settings (Bottom Navigation Bar)
             targetSpotlight = Positioned(
-              bottom: 8,
-              right: screenWidth * 0.12,
+              bottom: 12,
+              right: (screenWidth * 0.16).clamp(16.0, 120.0),
               child: AnimatedBuilder(
                 animation: _pulseAnimation,
                 builder: (context, child) => Transform.scale(
                   scale: _pulseAnimation.value,
                   child: child,
                 ),
-                child: GestureDetector(
-                  onTap: () {
-                    widget.onGoToSettings();
-                    widget.onNext();
-                  },
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: secondaryColor, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: secondaryColor.withAlpha(140),
-                          blurRadius: 20,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Icon(Icons.touch_app_rounded, size: 28, color: secondaryColor),
-                    ),
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: primaryColor, width: 2.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
                 ),
               ),
             );
 
             guideCard = Positioned(
-              bottom: 110,
+              bottom: 96,
               left: 20,
               right: 20,
               child: _buildGuideCard(
                 step: 1,
                 icon: Icons.tune_rounded,
                 title: 'Connect Your Vault',
-                subtitle: '1. Open Settings • 2. Enter Phone/Bot • 3. Channel links as cloud',
+                subtitle: 'Link Telegram in Settings. Your channel serves as unlimited cloud vault.',
                 actionLabel: 'Open Settings',
                 actionIcon: Icons.arrow_forward_rounded,
                 onAction: () {
@@ -121,60 +140,52 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
                 },
                 cardBg: cardBg,
                 borderColor: borderColor,
+                trackBg: trackBg,
                 primaryColor: primaryColor,
-                secondaryColor: secondaryColor,
+                textSecondary: textSecondary,
                 isDark: isDark,
               ),
             );
             break;
 
           case 2:
-            // STEP 2: Point to Scan Gallery (Quick Controls)
+            // STEP 2: Automatic Gallery Discovery & Media Queue
             targetSpotlight = Positioned(
-              bottom: screenHeight * 0.32,
-              right: screenWidth * 0.15,
+              top: screenHeight * 0.44,
+              left: screenWidth * 0.15,
               child: AnimatedBuilder(
                 animation: _pulseAnimation,
                 builder: (context, child) => Transform.scale(
                   scale: _pulseAnimation.value,
                   child: child,
                 ),
-                child: GestureDetector(
-                  onTap: () {
-                    widget.onTriggerScan();
-                    widget.onNext();
-                  },
-                  child: Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: secondaryColor, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: secondaryColor.withAlpha(140),
-                          blurRadius: 20,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Icon(Icons.touch_app_rounded, size: 28, color: secondaryColor),
-                    ),
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: primaryColor, width: 2.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
                 ),
               ),
             );
 
             guideCard = Positioned(
-              bottom: screenHeight * 0.44,
+              top: screenHeight * 0.20,
               left: 20,
               right: 20,
               child: _buildGuideCard(
                 step: 2,
-                icon: Icons.photo_camera_back_outlined,
+                icon: Icons.photo_library_outlined,
                 title: 'Scan Gallery',
-                subtitle: '1. Tap Scan Gallery • 2. Receives photos & videos • 3. Queues for backup',
+                subtitle: 'Auto-scan discovers camera photos & videos upon channel setup. Zero effort.',
                 actionLabel: 'Scan Gallery Now',
                 actionIcon: Icons.sync_rounded,
                 onAction: () {
@@ -183,8 +194,9 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
                 },
                 cardBg: cardBg,
                 borderColor: borderColor,
+                trackBg: trackBg,
                 primaryColor: primaryColor,
-                secondaryColor: secondaryColor,
+                textSecondary: textSecondary,
                 isDark: isDark,
               ),
             );
@@ -192,52 +204,43 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
 
           case 3:
           default:
-            // STEP 3: Point to Start Monitoring (Vault Storage Card)
+            // STEP 3: Point to Active Monitoring & Quick Controls
             targetSpotlight = Positioned(
-              top: screenHeight * 0.30,
-              left: screenWidth * 0.35,
+              top: screenHeight * 0.32,
+              left: 24,
+              right: 24,
               child: AnimatedBuilder(
                 animation: _pulseAnimation,
                 builder: (context, child) => Transform.scale(
                   scale: _pulseAnimation.value,
                   child: child,
                 ),
-                child: GestureDetector(
-                  onTap: () {
-                    widget.onToggleMonitoring();
-                    widget.onSkip();
-                  },
-                  child: Container(
-                    width: 76,
-                    height: 76,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: secondaryColor, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: secondaryColor.withAlpha(140),
-                          blurRadius: 20,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Icon(Icons.touch_app_rounded, size: 28, color: secondaryColor),
-                    ),
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(ValtSkyTheme.radiusPill),
+                    border: Border.all(color: primaryColor, width: 2.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withValues(alpha: 0.25),
+                        blurRadius: 12,
+                        spreadRadius: 2,
+                      ),
+                    ],
                   ),
                 ),
               ),
             );
 
             guideCard = Positioned(
-              top: screenHeight * 0.42,
+              bottom: 96,
               left: 20,
               right: 20,
               child: _buildGuideCard(
                 step: 3,
                 icon: Icons.play_circle_fill_rounded,
                 title: 'Start Monitoring',
-                subtitle: '1. Auto background sync • 2. Bit-for-bit EXIF preserved • 3. Full control',
+                subtitle: 'Liquid bucket tracking fills live. Stop Monitoring controls watcher.',
                 actionLabel: 'Start & Finish',
                 actionIcon: Icons.check_rounded,
                 onAction: () {
@@ -246,8 +249,9 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
                 },
                 cardBg: cardBg,
                 borderColor: borderColor,
+                trackBg: trackBg,
                 primaryColor: primaryColor,
-                secondaryColor: secondaryColor,
+                textSecondary: textSecondary,
                 isDark: isDark,
               ),
             );
@@ -256,37 +260,63 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
 
         return Stack(
           children: [
-            // Darkened backdrop
+            // Soft dimmed backdrop
             GestureDetector(
               onTap: widget.onSkip,
               child: Container(
                 width: double.infinity,
                 height: double.infinity,
-                color: Colors.black.withAlpha(170),
+                color: Colors.black.withValues(alpha: 0.45),
               ),
             ),
 
-            // Top Skip Button
+            // Top Skip Pill Button
             Positioned(
-              top: 54,
-              right: 20,
-              child: TextButton.icon(
-                onPressed: widget.onSkip,
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.black.withAlpha(120),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                ),
-                icon: const Icon(Icons.close_rounded, size: 16),
-                label: const Text(
-                  'Skip',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              top: 50,
+              right: 18,
+              child: SafeArea(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: widget.onSkip,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: borderColor, width: 1.0),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.close_rounded, size: 14, color: textSecondary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Skip',
+                            style: TextStyle(
+                              fontFamily: ValtSkyTheme.fontFamilyBody,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
 
-            // Target Spotlight Circle
+            // Target Spotlight Circle / Ring
             targetSpotlight,
 
             // Floating Interactive Guide Card
@@ -307,122 +337,160 @@ class _InteractiveSpotlightTutorialState extends State<InteractiveSpotlightTutor
     required VoidCallback onAction,
     required Color cardBg,
     required Color borderColor,
+    required Color trackBg,
     required Color primaryColor,
-    required Color secondaryColor,
+    required Color textSecondary,
     required bool isDark,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: borderColor, width: 2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor, width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(80),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Step Counter Badge & Icon Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: secondaryColor.withAlpha(28),
-                  borderRadius: BorderRadius.circular(14),
+                  color: primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, size: 24, color: secondaryColor),
+                child: Icon(icon, size: 20, color: primaryColor),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: secondaryColor.withAlpha(24),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: secondaryColor.withAlpha(60)),
+                  color: primaryColor.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: primaryColor.withValues(alpha: 0.25)),
                 ),
                 child: Text(
                   'STEP $step OF 3',
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                    color: secondaryColor,
+                    fontFamily: ValtSkyTheme.fontFamilyBody,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: primaryColor,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // Title & Short Subtitle
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
+          Text(
+            title,
+            style: TextStyle(
+              fontFamily: ValtSkyTheme.fontFamilyDisplay,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
+              color: ValtSkyTheme.textPrimary(isDark),
             ),
           ),
           const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white70 : const Color(0xFF475569),
-              ),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontFamily: ValtSkyTheme.fontFamilyBody,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: textSecondary,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
 
-          // Interactive Action Button
+          // Action Button
           TactilePress(
             onTap: onAction,
             scaleDown: 0.96,
             child: Container(
               width: double.infinity,
-              height: 48,
+              height: 44,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: primaryColor,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 boxShadow: [
                   BoxShadow(
-                    color: primaryColor.withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    color: primaryColor.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(actionIcon, size: 18, color: Colors.white),
-                  const SizedBox(width: 8),
+                  Icon(actionIcon, size: 16, color: Colors.white),
+                  const SizedBox(width: 6),
                   Text(
                     actionLabel,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ],
               ),
             ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Checkbox Row: "Don't show this again"
+          Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: Checkbox(
+                  value: _dontShowAgain,
+                  activeColor: primaryColor,
+                  checkColor: isDark ? ValtSkyTheme.ink : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  side: BorderSide(
+                    color: isDark ? ValtSkyTheme.darkHairline : ValtSkyTheme.coffeeBeigeBorder,
+                    width: 1.2,
+                  ),
+                  onChanged: _toggleDontShowAgain,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _toggleDontShowAgain(!_dontShowAgain),
+                  child: Text(
+                    "Don't show this again",
+                    style: TextStyle(
+                      fontFamily: ValtSkyTheme.fontFamilyBody,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

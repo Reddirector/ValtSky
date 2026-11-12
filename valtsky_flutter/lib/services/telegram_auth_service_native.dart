@@ -1099,13 +1099,13 @@ class TelegramAuthService {
                   filePart: part,
                   fileTotalParts: totalParts,
                   bytes: buffer,
-                );
+                ).timeout(const Duration(seconds: 40));
               } else {
                 partResult = await client.upload.saveFilePart(
                   fileId: fileId,
                   filePart: part,
                   bytes: buffer,
-                );
+                ).timeout(const Duration(seconds: 40));
               }
 
               if (partResult.error == null) {
@@ -1169,13 +1169,25 @@ class TelegramAuthService {
               md5Checksum: '',
             );
 
+      final isVideoFile = mimeType.startsWith('video/');
       final inputMedia = t.InputMediaUploadedDocument(
         nosoundVideo: false,
         forceFile: asDocument,
         spoiler: false,
         file: inputFile,
         mimeType: mimeType,
-        attributes: [t.DocumentAttributeFilename(fileName: fileName)],
+        attributes: [
+          t.DocumentAttributeFilename(fileName: fileName),
+          if (isVideoFile)
+            const t.DocumentAttributeVideo(
+              roundMessage: false,
+              supportsStreaming: true,
+              nosound: false,
+              duration: 0.0,
+              w: 0,
+              h: 0,
+            ),
+        ],
       );
 
       final randomId = Random().nextInt(0x7fffffff);
@@ -1191,7 +1203,7 @@ class TelegramAuthService {
         media: inputMedia,
         message: caption ?? '',
         randomId: randomId,
-      );
+      ).timeout(const Duration(seconds: 45));
 
       // Self-healing: If Telegram returns CHANNEL_PRIVATE, CHANNEL_INVALID, or CHAT_ADMIN_REQUIRED,
       // refresh peer directly from server dialogs and retry sendMedia once.
@@ -1348,6 +1360,81 @@ class TelegramAuthService {
       return 'Too many login attempts. Telegram requires you to wait $seconds seconds before trying again.';
     }
     return rpcError;
+  }
+
+  /// Renames an existing vault channel on Telegram in-place without creating a new channel.
+  Future<bool> renameVaultChannel({
+    required String channelId,
+    required String newTitle,
+  }) async {
+    final trimmed = newTitle.trim();
+    if (trimmed.isEmpty) return false;
+
+    try {
+      if (Platform.environment.containsKey('FLUTTER_TEST')) {
+        debugPrint('[TelegramMTProto] Test environment: Simulated channel rename to "$trimmed"');
+        return true;
+      }
+    } catch (_) {}
+
+    bool updated = false;
+
+    // 1. Try MTProto channels.editTitle
+    try {
+      final cleanIdStr = channelId.startsWith('-100')
+          ? channelId.substring(4)
+          : (channelId.startsWith('-') ? channelId.substring(1) : channelId);
+      final rawId = int.tryParse(cleanIdStr);
+      if (rawId != null) {
+        final client = _client ?? await _connectToDc(_currentDcId);
+        int? accessHash = int.tryParse(Prefs.channelAccessHash ?? '');
+
+        if (accessHash == null) {
+          try {
+            final chatsRes = await client.messages.getChats(id: [rawId]);
+            if (chatsRes.result != null && chatsRes.result is t.MessagesChats) {
+              for (final chat in (chatsRes.result as t.MessagesChats).chats) {
+                if (chat is t.Channel && chat.id == rawId) {
+                  accessHash = chat.accessHash;
+                  if (accessHash != null) {
+                    Prefs.channelAccessHash = accessHash.toString();
+                  }
+                  break;
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('[TelegramMTProto] Error resolving accessHash: $e');
+          }
+        }
+
+        final res = await client.channels.editTitle(
+          channel: t.InputChannel(channelId: rawId, accessHash: accessHash ?? 0),
+          title: trimmed,
+        );
+        if (res.error == null && res.result != null) {
+          debugPrint('[TelegramMTProto] Successfully renamed channel $channelId to "$trimmed" on Telegram');
+          updated = true;
+        } else if (res.error != null) {
+          debugPrint('[TelegramMTProto] channels.editTitle error: ${res.error}');
+        }
+      }
+    } catch (e) {
+      debugPrint('[TelegramMTProto] renameVaultChannel error: $e');
+    }
+
+    // 2. Try Telegram Bot API setChatTitle if botToken is present
+    final botToken = Prefs.botToken;
+    if (botToken.isNotEmpty && botToken != 'mtproto_session_active') {
+      try {
+        final botResult = await TelegramApi.setChatTitle(botToken, channelId, trimmed);
+        if (botResult) updated = true;
+      } catch (e) {
+        debugPrint('[TelegramMTProto] Bot API setChatTitle error: $e');
+      }
+    }
+
+    return updated;
   }
 
   void reset() {

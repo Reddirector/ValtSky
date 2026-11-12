@@ -77,15 +77,34 @@ class _LiquidBucketSyncViewState extends State<LiquidBucketSyncView>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final clampedProgress = widget.progress.clamp(0.0, 1.0);
-    final percentInt = (clampedProgress * 100).toInt();
+    final safeSessionTotal = widget.sessionTotal ?? 0;
+    final safeSessionSynced = (widget.sessionSynced ?? 0).clamp(0, safeSessionTotal > 0 ? safeSessionTotal : 9999999);
+    final safeVaultTotal = math.max(widget.totalCount, widget.syncedCount);
+    final safeVaultSynced = widget.syncedCount.clamp(0, safeVaultTotal);
+
+    final bool hasActiveSession = safeSessionTotal > 0;
+    final int displaySynced = hasActiveSession ? safeSessionSynced : safeVaultSynced;
+    final int displayTotal = hasActiveSession ? safeSessionTotal : safeVaultTotal;
+
+    // Calculate percent strictly from synced/total when items exist
+    final int percentInt;
+    if (widget.progress == 0.0 || displayTotal == 0) {
+      percentInt = 0;
+    } else if (displaySynced >= displayTotal && displayTotal > 0 && widget.progress >= 0.999) {
+      percentInt = 100;
+    } else {
+      final calculated = (displaySynced / displayTotal * 100).toInt();
+      percentInt = calculated.clamp(0, 99);
+    }
+
+    final isComplete = percentInt == 100;
+    final clampedProgress = (percentInt / 100.0).clamp(0.0, 1.0);
 
     final borderColor = ValtSkyTheme.hairline(isDark);
     final bucketBg = ValtSkyTheme.surface(isDark, level: 2);
     final accentColor = ValtSkyTheme.accent(isDark);
     final textPrimary = ValtSkyTheme.textPrimary(isDark);
     final textSecondary = ValtSkyTheme.textSecondary(isDark);
-    final isComplete = clampedProgress >= 0.999;
 
     return Semantics(
       label: '$percentInt percent synchronized',
@@ -243,9 +262,7 @@ class _LiquidBucketSyncViewState extends State<LiquidBucketSyncView>
                           ],
                         ),
                         child: Text(
-                          (widget.sessionTotal != null && widget.sessionTotal! > 0)
-                              ? '${ValtSkyFormatters.formatMediaCount(widget.sessionSynced ?? 0)} of ${ValtSkyFormatters.formatMediaCount(widget.sessionTotal!)} synced'
-                              : '${ValtSkyFormatters.formatMediaCount(widget.syncedCount)} of ${ValtSkyFormatters.formatMediaCount(widget.totalCount)} synced',
+                          '${ValtSkyFormatters.formatMediaCount(displaySynced)} of ${ValtSkyFormatters.formatMediaCount(displayTotal)} synced',
                           style: TextStyle(
                             fontFamily: ValtSkyTheme.fontFamilyBody,
                             fontSize: 12,
