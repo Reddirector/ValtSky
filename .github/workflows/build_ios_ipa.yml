@@ -1,0 +1,64 @@
+name: Build iOS IPA & Publish Release Asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to attach IPA to'
+        required: true
+        default: 'v2.2'
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-ios-ipa:
+    name: Build iOS IPA (Sideload / AltStore / TrollStore / Sideloadly)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Get Flutter Dependencies
+        run: |
+          cd valtsky_flutter
+          flutter pub get
+
+      - name: Build iOS Application (Release, Unsigned)
+        run: |
+          cd valtsky_flutter
+          flutter build ios --release --no-codesign
+
+      - name: Package Payload into Sideloadable .ipa
+        run: |
+          cd valtsky_flutter/build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ../../../valtsky-v2.2-release.ipa Payload
+          cd ../../..
+          ls -lh valtsky-v2.2-release.ipa
+          shasum -a 256 valtsky-v2.2-release.ipa > valtsky-v2.2-release.ipa.sha256
+          cat valtsky-v2.2-release.ipa.sha256
+
+      - name: Upload IPA to GitHub Actions Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: valtsky-v2.2-release-ipa
+          path: valtsky-v2.2-release.ipa
+
+      - name: Attach .ipa Asset to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.event.inputs.release_tag || github.ref_name }}
+        run: |
+          echo "Attaching valtsky-v2.2-release.ipa to release ${TAG_NAME}..."
+          gh release upload "${TAG_NAME}" valtsky-v2.2-release.ipa --clobber

@@ -86,12 +86,25 @@ With native **Direct Telegram MTProto 2.0 Authentication**, users configure the 
 | Platform | Format / Package | Compatibility | Download Link | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
 | **Android (Universal)** ⭐ | `.apk` (Single Universal Binary) | Android 7.0+ (Samsung, Pixel, OnePlus, Xiaomi, Motorola) | [**Download `valtsky-v2.2-release.apk` (70.8 MB)**](releases/valtsky-v2.2-release.apk) | `ee5c41e1805ebf2fe968a5f888e6fe1010f1546a652465e3e5ca1bc744ac8203` |
-| **Android (Google Play)** | `.aab` (Optimized Bundle) | Android 7.0+ (API 24–35) | [**Download `valtsky-android.aab`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
-| **Apple iOS** | `.zip` (Runner / Sideload) | iOS 13.0+ (AltStore / Sideloadly) | [**Download `valtsky-ios-runner.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
+| **Apple iOS (.ipa)** ⭐ | `.ipa` (Universal Sideload Package) | iOS 13.0+ (AltStore / Sideloadly / TrollStore / Scarlet) | [**Download `valtsky-v2.2-release.ipa`**](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa) | Sideloadable Universal IPA |
+| **Apple iOS (Runner Archive)** | `.zip` (Runner / Xcode Workspace) | iOS 13.0+ (Xcode direct sideload) | [**Download `valtsky-ios-runner.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Windows Desktop** | `.zip` (Standalone Executable) | Windows 10 & 11 (x64) | [**Download `valtsky-windows-x64.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **macOS Desktop** | `.zip` (Universal Binary) | macOS 11.0 Big Sur+ (Apple Silicon & Intel) | [**Download `valtsky-macos.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Linux Desktop** | `.tar.gz` (GTK3 Bundle) | Ubuntu, Debian, Fedora, Arch | [**Download `valtsky-linux-x64.tar.gz`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Web App** | Single Page Application (SPA) | Chrome, Safari, Firefox, Edge | [**Launch Web Version**](https://reddirector.github.io/ValtSky/) | Live GitHub Pages |
+
+### 📱 Installing ValtSky on Apple iOS (.ipa)
+ValtSky for iPhone & iPad is distributed as a ready-to-sideload `.ipa` package ([`valtsky-v2.2-release.ipa`](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa)):
+- **Via Sideloadly (Recommended for Windows & macOS)**:
+  1. Download [Sideloadly](https://sideloadly.io/).
+  2. Connect your iPhone/iPad to your computer via USB or Wi-Fi.
+  3. Drag & drop `valtsky-v2.2-release.ipa` into Sideloadly.
+  4. Enter your regular Apple ID and click **Start** to install and sign.
+- **Via AltStore**:
+  1. Open AltStore on your iOS device.
+  2. Navigate to **My Apps** > tap **+** > select `valtsky-v2.2-release.ipa`.
+- **Via TrollStore / Scarlet / LiveContainer**:
+  1. Open `valtsky-v2.2-release.ipa` directly in TrollStore or Scarlet for 1-tap installation.
 
 ---
 

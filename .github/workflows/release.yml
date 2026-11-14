@@ -21,17 +21,24 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        cache: true
 
     - name: Build Release APK
-      run: ./gradlew assembleRelease
+      run: |
+        cd valtsky_flutter
+        flutter pub get
+        flutter build apk --release
+        cp build/app/outputs/flutter-apk/app-release.apk ../valtsky-v2.2-release.apk
 
     - name: Create Release
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
-        files: app/build/outputs/apk/release/app-release-unsigned.apk
+        files: valtsky-v2.2-release.apk
         name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false

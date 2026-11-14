@@ -25,15 +25,21 @@ Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-
 
 ## 📦 Direct Binary Distribution & Checksums
 
-### 🤖 Android Universal Production Release (v2.2.0)
+### 🤖 Android & Apple iOS Production Packages (v2.2.0)
 
 | Package | Target | Size | Description | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
 | [**`valtsky-v2.2-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **70.8 MB** | **Universal Production APK with Multi-Socket TCP Pooling, Sleep Persistence & Instant Cold-Start** | `ee5c41e1805ebf2fe968a5f888e6fe1010f1546a652465e3e5ca1bc744ac8203` |
+| [**`valtsky-v2.2-release.ipa`**](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa) | Apple iOS 13.0+ (`arm64`) | **Production .ipa** | **Universal Sideloadable iOS IPA for AltStore, Sideloadly, TrollStore & Scarlet** | Automated CI Build |
 | [**`valtsky-v2.1-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.1/valtsky-v2.1-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **68.2 MB** | Legacy Universal Production APK | `ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f` |
 
+### 📱 iOS Sideloading Instructions:
+- **Sideloadly (Windows & macOS)**: Drag & drop `valtsky-v2.2-release.ipa`, enter Apple ID, click Start.
+- **AltStore**: Open AltStore on iPhone > My Apps > tap `+` > select `valtsky-v2.2-release.ipa`.
+- **TrollStore / Scarlet**: 1-tap direct install from `valtsky-v2.2-release.ipa`.
+
 ### 💻 Multiplatform Desktop, iOS & Web Releases
-- **Apple iOS**: Sideload via AltStore / Sideloadly or build via Xcode (`valtsky_flutter/ios`).
+- **Apple iOS**: Direct `.ipa` sideload ([`valtsky-v2.2-release.ipa`](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa)) or Xcode build (`valtsky_flutter/ios`).
 - **Windows x64**: Standalone desktop executable with filesystem watcher.
 - **macOS Universal**: Intel & Apple Silicon desktop binary with native sandboxing.
 - **Linux x64**: Standalone GTK3 binary for Ubuntu, Debian, Fedora, and Arch.
