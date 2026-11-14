@@ -9,7 +9,7 @@
 
 [![Download Android APK](https://img.shields.io/badge/Android_APK-Universal_v2.2-10B981?style=for-the-badge&logo=android&logoColor=white)](releases/valtsky-v2.2-release.apk)
 [![System Documentation](https://img.shields.io/badge/Documentation-Comprehensive-blue?style=for-the-badge&logo=googledocs&logoColor=white)](docs/DOCUMENTATION.md)
-[![Download iOS Runner](https://img.shields.io/badge/iOS-Sideload_Runner-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
+[![Download iOS IPA](https://img.shields.io/badge/Apple_iOS-Universal_IPA_v2.2-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa)
 [![Download Windows](https://img.shields.io/badge/Windows-x64_Release-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
 [![Download macOS](https://img.shields.io/badge/macOS-Universal-grey?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
 [![Download Linux](https://img.shields.io/badge/Linux-x64_Bundle-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/Reddirector/ValtSky/releases/latest)
@@ -87,7 +87,6 @@ With native **Direct Telegram MTProto 2.0 Authentication**, users configure the 
 | :--- | :--- | :--- | :--- | :--- |
 | **Android (Universal)** ⭐ | `.apk` (Single Universal Binary) | Android 7.0+ (Samsung, Pixel, OnePlus, Xiaomi, Motorola) | [**Download `valtsky-v2.2-release.apk` (70.8 MB)**](releases/valtsky-v2.2-release.apk) | `ee5c41e1805ebf2fe968a5f888e6fe1010f1546a652465e3e5ca1bc744ac8203` |
 | **Apple iOS (.ipa)** ⭐ | `.ipa` (Universal Sideload Package) | iOS 13.0+ (AltStore / Sideloadly / TrollStore / Scarlet) | [**Download `valtsky-v2.2-release.ipa` (8.9 MB)**](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa) | `4ecd60362ea2f236d32dbf8bd86f197e9751cbbf2c2584c9fec7cca0ca1a8802` |
-| **Apple iOS (Runner Archive)** | `.zip` (Runner / Xcode Workspace) | iOS 13.0+ (Xcode direct sideload) | [**Download `valtsky-ios-runner.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Windows Desktop** | `.zip` (Standalone Executable) | Windows 10 & 11 (x64) | [**Download `valtsky-windows-x64.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **macOS Desktop** | `.zip` (Universal Binary) | macOS 11.0 Big Sur+ (Apple Silicon & Intel) | [**Download `valtsky-macos.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Linux Desktop** | `.tar.gz` (GTK3 Bundle) | Ubuntu, Debian, Fedora, Arch | [**Download `valtsky-linux-x64.tar.gz`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |

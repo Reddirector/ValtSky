@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Live User Profile Synchronization**: Displays user avatar initials, Telegram ID, handle, and verified/premium status badges.
 - **4-Click Oversized Media Staging (> 2 GB)**: Automatic diversion of files exceeding Telegram's 2 GB Bot API limits to an out-of-band staging vault.
 - **WebSocket-to-TCP Dual-Stack Bridge**: Virtualizes raw socket streaming for sandboxed web browsers.
-- **Multiplatform Target Builds**: Support for Android Universal APK, Web PWA, iOS Runner, Windows x64, macOS, and Linux desktop.
+- **Multiplatform Target Builds**: Support for Android Universal APK, Web PWA, iOS IPA, Windows x64, macOS, and Linux desktop.
 
 ---
 

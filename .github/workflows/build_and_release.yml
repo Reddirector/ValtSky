@@ -107,17 +107,14 @@ jobs:
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -r ../../../valtsky-v2.2-release.ipa Payload
-          zip -r ../../../valtsky-ios-runner.zip Runner.app
           cd ../../..
-          ls -lh valtsky-v2.2-release.ipa valtsky-ios-runner.zip
+          ls -lh valtsky-v2.2-release.ipa
 
       - name: Upload iOS Artifact
         uses: actions/upload-artifact@v4
         with:
           name: valtsky-ios
-          path: |
-            valtsky-v2.2-release.ipa
-            valtsky-ios-runner.zip
+          path: valtsky-v2.2-release.ipa
 
   build-linux:
     name: Build Linux x64 Desktop
@@ -276,7 +273,7 @@ jobs:
             - **Windows x64 Desktop**: [`valtsky-windows-x64.zip`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-windows-x64.zip)
             - **macOS Desktop**: [`valtsky-macos.zip`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-macos.zip)
             - **Linux x64 Desktop**: [`valtsky-linux-x64.tar.gz`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-linux-x64.tar.gz)
-            - **iOS Sideload / AltStore / Runner**: [`valtsky-ios-runner.zip`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-ios-runner.zip)
+            - **Apple iOS Universal IPA**: [`valtsky-v2.2-release.ipa`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-v2.2-release.ipa)
             - **Web Single Page App**: [`valtsky-web.zip`](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/valtsky-web.zip)
             
             ### 🛡️ Verified Security & Quality Score

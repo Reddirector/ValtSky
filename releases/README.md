@@ -41,7 +41,6 @@ Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-
 | :--- | :--- | :--- | :--- | :--- |
 | [**`valtsky-v2.2-release.ipa`**](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa) | Apple iOS 13.0+ | ARM64 | Sideloadable `.ipa` (8.9 MB) | `4ecd60362ea2f236d32dbf8bd86f197e9751cbbf2c2584c9fec7cca0ca1a8802` |
 | **`valtsky-android.aab`** | Android 7.0+ | Universal | Google Play App Bundle | Automated CI Build |
-| **`valtsky-ios-runner.zip`** | Apple iOS 13.0+ | ARM64 | AltStore / Sideload Runner | Automated CI Build |
 | **`valtsky-windows-x64.zip`** | Windows 10 & 11 | x86_64 | Standalone Portable Archive | Automated CI Build |
 | **`valtsky-macos.zip`** | macOS 11.0+ | Universal | Apple Silicon & Intel `.app` | Automated CI Build |
 | **`valtsky-linux-x64.tar.gz`** | Linux (Ubuntu/Debian/Fedora) | x86_64 | GTK3 Standalone Bundle | Automated CI Build |
