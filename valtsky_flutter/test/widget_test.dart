@@ -232,7 +232,7 @@ void main() {
     expect(paused, isTrue);
   });
 
-  testWidgets('AppWalkthroughGuide displays all 3 tutorial steps correctly', (WidgetTester tester) async {
+  testWidgets('AppWalkthroughGuide displays all 4 tutorial steps correctly', (WidgetTester tester) async {
     bool settingsNavigated = false;
     bool galleryScanned = false;
     bool dismissed = false;
@@ -257,19 +257,21 @@ void main() {
     expect(find.text('QUICK START TUTORIAL'), findsOneWidget);
     expect(find.text('Dismiss'), findsOneWidget);
 
-    // Verify 3 Steps
+    // Verify 4 Steps
     expect(find.text('Connect Your Vault'), findsOneWidget);
-    expect(find.text('Scan Gallery to Receive Media'), findsOneWidget);
-    expect(find.text('Monitor & Manage Sync'), findsOneWidget);
+    expect(find.text('Standby Connections & Permissions'), findsOneWidget);
+    expect(find.text('Scan Gallery & Dual-Lane Uploads'), findsOneWidget);
+    expect(find.text('Monitor & Nightly Alarm Loop'), findsOneWidget);
 
     // Tap Step 1 Action (Open Settings)
     expect(find.text('Open Settings'), findsOneWidget);
     await tester.tap(find.text('Open Settings'));
     expect(settingsNavigated, isTrue);
 
-    // Tap Step 2 Action (Scan Gallery)
-    expect(find.text('Scan Gallery'), findsOneWidget);
-    await tester.tap(find.text('Scan Gallery'));
+    // Tap Step 3 Action (Scan Gallery)
+    final scanGalleryFinder = find.text('Scan Gallery');
+    await tester.ensureVisible(scanGalleryFinder);
+    await tester.tap(scanGalleryFinder);
     expect(galleryScanned, isTrue);
 
     // Tap Dismiss

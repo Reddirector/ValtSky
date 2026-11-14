@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/prefs.dart';
 import '../../util/formatters.dart';
+import '../../util/permission_manager.dart';
 import '../../util/theme.dart';
 import 'animated_stagger.dart';
 
@@ -110,7 +111,7 @@ class AppWalkthroughGuide extends StatefulWidget {
                                 ),
                               ),
                               Text(
-                                '3 simple steps to start zero-loss backup',
+                                '4 simple steps to setup & zero-loss backup',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -274,8 +275,9 @@ class _AppWalkthroughGuideState extends State<AppWalkthroughGuide> {
             title: 'Connect Your Vault',
             description: 'Link your Telegram account in Settings to activate unlimited storage.',
             subSteps: const [
-              'Enter phone number for instant login OTP code.',
-              'Private Telegram channel becomes your unlimited vault.',
+              'Enter your phone number with country code.',
+              'Important: OTP code arrives inside your Telegram app, NOT SMS.',
+              'A private channel "valtsky_vault" becomes your lossless cloud.',
             ],
             isDone: widget.isConfigured,
             ctaLabel: widget.isConfigured ? 'Connected' : 'Open Settings',
@@ -288,16 +290,39 @@ class _AppWalkthroughGuideState extends State<AppWalkthroughGuide> {
           ),
           const SizedBox(height: 10),
 
-          // Step 2: Automatic Gallery Discovery & Indexing
+          // Step 2: Standby Connections & Battery Whitelist
           _buildStepRow(
             context: context,
             isDark: isDark,
             stepNumber: '2',
-            title: 'Scan Gallery to Receive Media',
-            description: 'Auto-scan active: channel setup automatically discovers camera photos & videos.',
+            title: 'Standby Connections & Permissions',
+            description: 'Enable background execution so uploads never sleep.',
             subSteps: const [
-              'Zero-effort indexing: no manual scan buttons needed.',
-              'Media is discovered & queued for zero-loss backup.',
+              'Grant Photos & Notifications permissions when prompted.',
+              'Battery Whitelist: Set to "Unrestricted" in Android App Info.',
+              'Standby Persistence: Keeps uploading on charging stands or when sleeping.',
+            ],
+            isDone: Prefs.permissionsRequested,
+            ctaLabel: Prefs.permissionsRequested ? 'Configured' : 'Permissions',
+            ctaIcon: Prefs.permissionsRequested ? Icons.check_circle_rounded : Icons.bolt_rounded,
+            onCtaTap: () => PermissionManager.requestAllPermissions(),
+            primaryColor: primaryColor,
+            secondaryColor: secondaryColor,
+            trackBg: trackBg,
+            borderColor: borderColor,
+          ),
+          const SizedBox(height: 10),
+
+          // Step 3: Automatic Gallery Discovery & Indexing
+          _buildStepRow(
+            context: context,
+            isDark: isDark,
+            stepNumber: '3',
+            title: 'Scan Gallery & Dual-Lane Uploads',
+            description: 'Auto-scan discovers media and streams photos & videos concurrently.',
+            subSteps: const [
+              'Zero-effort indexing: media is queued in local SQLite automatically.',
+              'Dual-lane pipeline uploads photos & 4K videos without head-of-line blocking.',
             ],
             isDone: widget.totalCount > 0,
             ctaLabel: widget.totalCount > 0 ? '${ValtSkyFormatters.formatMediaCount(widget.totalCount)} indexed' : 'Scan Gallery',
@@ -310,16 +335,16 @@ class _AppWalkthroughGuideState extends State<AppWalkthroughGuide> {
           ),
           const SizedBox(height: 10),
 
-          // Step 3: Monitor & Live Queue Controls
+          // Step 4: Monitor & Nightly Alarm Clock Sync
           _buildStepRow(
             context: context,
             isDark: isDark,
-            stepNumber: '3',
-            title: 'Monitor & Manage Sync',
-            description: 'Liquid bucket tracking with interactive media queue inspection.',
+            stepNumber: '4',
+            title: 'Monitor & Nightly Alarm Loop',
+            description: 'Automated scan-then-upload lifecycle and scheduled nightly sync.',
             subSteps: const [
-              'Tap In Queue, Synced, or Failed cards to preview media in short popup windows.',
-              'Toggle Stop Monitoring to pause watcher without halting active uploads.',
+              'Monitoring automatically pauses during uploads to save CPU/battery.',
+              'Schedule an alarm clock (e.g. 12:00 AM) to sync daily captures while charging.',
             ],
             isDone: widget.isMonitoring,
             ctaLabel: widget.isMonitoring ? 'Monitoring Active' : 'Ready',

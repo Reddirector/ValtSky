@@ -50,15 +50,15 @@ void main() {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
 
-    // Set configured session
+    // Set configured session with purely generic demo credentials (zero personal info)
     Prefs.authMethod = 'phone';
-    Prefs.userPhoneNumber = '+91 98765 43210';
-    Prefs.telegramUserId = '77192834';
-    Prefs.telegramUserName = 'Aditya';
-    Prefs.telegramUserHandle = 'adityaofficial';
+    Prefs.userPhoneNumber = '+1 555 019 2834';
+    Prefs.telegramUserId = '987654321';
+    Prefs.telegramUserName = 'ValtSky User';
+    Prefs.telegramUserHandle = 'valtsky_user';
     Prefs.telegramIsPremium = true;
-    Prefs.channelId = '-1002938475612';
-    Prefs.channelName = 'VaultSky Vault (Aditya)';
+    Prefs.channelId = '-1009876543210';
+    Prefs.channelName = 'ValtSky Cloud Vault';
 
     final now = DateTime.now().millisecondsSinceEpoch;
     // Insert 1250 items to showcase 999+ counter

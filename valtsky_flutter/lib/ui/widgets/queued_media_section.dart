@@ -73,17 +73,26 @@ class QueuedMediaSection extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'QUEUE PRIORITY ORDER',
-                style: ValtSkyTheme.capsLabel(isDark: isDark, color: mutedText),
+              Flexible(
+                child: Text(
+                  'QUEUE PRIORITY ORDER',
+                  style: ValtSkyTheme.capsLabel(isDark: isDark, color: mutedText),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              Text(
-                'Hold & drag to arrange order',
-                style: TextStyle(
-                  fontFamily: ValtSkyTheme.fontFamilyBody,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: accentColor,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Hold & drag to arrange order',
+                  style: TextStyle(
+                    fontFamily: ValtSkyTheme.fontFamilyBody,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: accentColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -176,6 +185,8 @@ class QueuedMediaSection extends StatelessWidget {
                                           ? (isVideo ? const Color(0xFF8B5CF6) : const Color(0xFF38BDF8))
                                           : accentColor,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                               ),
@@ -185,6 +196,8 @@ class QueuedMediaSection extends StatelessWidget {
                               icon: const Icon(Icons.delete_outline_rounded, size: 20),
                               color: ValtSkyTheme.error,
                               tooltip: 'Remove from Queue',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                               onPressed: () => onRemove(item),
                             ),
                             const SizedBox(width: 4),

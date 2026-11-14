@@ -387,6 +387,8 @@ class _LazyMediaListSheetState extends State<LazyMediaListSheet> {
                               ? FontWeight.w600
                               : FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -631,12 +633,16 @@ class _LazyMediaListSheetState extends State<LazyMediaListSheet> {
                                     : effectiveAccent,
                               ),
                             ),
-                            Text(
-                              ' • $dateStr',
-                              style: TextStyle(
-                                fontFamily: ValtSkyTheme.fontFamilyBody,
-                                fontSize: 11,
-                                color: mutedText,
+                            Flexible(
+                              child: Text(
+                                ' • $dateStr',
+                                style: TextStyle(
+                                  fontFamily: ValtSkyTheme.fontFamilyBody,
+                                  fontSize: 11,
+                                  color: mutedText,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],

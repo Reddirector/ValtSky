@@ -112,6 +112,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         _onDataChanged();
       }
     }
+    // Automatically present the onboarding guide for new users on first download
+    if (mounted && !Prefs.tutorialDismissed && !_isTest) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && !Prefs.tutorialDismissed) {
+          _openGuide();
+        }
+      });
+    }
   }
 
   @override

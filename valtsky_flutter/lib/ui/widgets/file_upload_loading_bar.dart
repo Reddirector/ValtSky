@@ -123,9 +123,9 @@ class _DualSplitUploadBarState extends State<DualSplitUploadBar>
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Prominent Category & State Labels Row: Invariant 18px height (zero layout shift/flicker)
-                SizedBox(
-                  height: 18,
+                // Prominent Category & State Labels Row: Flexible height (zero overflow/flicker)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -424,15 +424,20 @@ class _FileUploadLoadingBarState extends State<FileUploadLoadingBar>
                     color: primaryAccent,
                   ),
                 ),
-                Text(
-                  widget.progress.totalBytes > 0
-                      ? '${ValtSkyFormatters.formatBytes(widget.progress.bytesSent)} / ${ValtSkyFormatters.formatBytes(widget.progress.totalBytes)}'
-                      : '',
-                  style: TextStyle(
-                    fontFamily: ValtSkyTheme.fontFamilyDisplay,
-                    fontSize: widget.compact ? 10 : 11,
-                    fontWeight: FontWeight.w600,
-                    color: ValtSkyTheme.textSecondary(widget.isDark),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    widget.progress.totalBytes > 0
+                        ? '${ValtSkyFormatters.formatBytes(widget.progress.bytesSent)} / ${ValtSkyFormatters.formatBytes(widget.progress.totalBytes)}'
+                        : '',
+                    style: TextStyle(
+                      fontFamily: ValtSkyTheme.fontFamilyDisplay,
+                      fontSize: widget.compact ? 10 : 11,
+                      fontWeight: FontWeight.w600,
+                      color: ValtSkyTheme.textSecondary(widget.isDark),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

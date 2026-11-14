@@ -45,6 +45,7 @@ void main() {
       expect(initialCheckbox.value, isFalse);
 
       // Tap the checkbox
+      await tester.ensureVisible(checkboxFinder);
       await tester.tap(checkboxFinder);
       await tester.pumpAndSettle();
 
@@ -54,6 +55,7 @@ void main() {
       expect(updatedCheckbox.value, isTrue);
 
       // Tap the text label to toggle it back
+      await tester.ensureVisible(labelFinder);
       await tester.tap(labelFinder);
       await tester.pumpAndSettle();
 
@@ -83,11 +85,11 @@ void main() {
       expect(find.text('Connected'), findsOneWidget);
 
       // Step 2: Auto-scan status with indexed count
-      expect(find.text('Scan Gallery to Receive Media'), findsOneWidget);
+      expect(find.text('Scan Gallery & Dual-Lane Uploads'), findsOneWidget);
       expect(find.text('150 indexed'), findsOneWidget);
 
       // Step 3: Monitoring Active
-      expect(find.text('Monitor & Manage Sync'), findsOneWidget);
+      expect(find.text('Monitor & Nightly Alarm Loop'), findsOneWidget);
       expect(find.text('Monitoring Active'), findsOneWidget);
 
       // Action button: Got It
@@ -157,7 +159,7 @@ void main() {
 
       // Verify sheet header
       expect(find.text('ValtSky Quick Guide'), findsOneWidget);
-      expect(find.text('3 simple steps to start zero-loss backup'), findsOneWidget);
+      expect(find.text('4 simple steps to setup & zero-loss backup'), findsOneWidget);
 
       // Verify small checkbox in sheet
       expect(find.text("Don't show this again"), findsOneWidget);

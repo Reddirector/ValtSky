@@ -363,6 +363,8 @@ class MediaItemCard extends StatelessWidget {
                           color: isDark ? Colors.grey[400] : Colors.grey[600],
                           fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       if (item.errorReason != null && item.status == MediaItem.statusFailed) ...[
                         const SizedBox(height: 2),

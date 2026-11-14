@@ -1188,6 +1188,8 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
                         letterSpacing: 0.6,
                         color: secondaryColor,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(

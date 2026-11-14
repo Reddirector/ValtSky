@@ -32,7 +32,7 @@ Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.2-release.apk`**](valtsky-v2.2-release.apk) | Universal (arm64, armv7, x86_64) | **70.8 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `8f6011bb06c19a1b7a97d252fd98221ae12ccea50787a2656fd926eb8c5aa37f` |
+| [**`valtsky-v2.2-release.apk`**](valtsky-v2.2-release.apk) | Universal (arm64, armv7, x86_64) | **70.8 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `70657a3c84c93481a951f29faaad1220d715dd9b4705f55535e668bb6c87d904` |
 | [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **68.2 MB** | Legacy Universal APK | `ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
@@ -61,7 +61,7 @@ Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-
 ```bash
 sha256sum valtsky-v2.2-release.apk
 # Expected output:
-# 8f6011bb06c19a1b7a97d252fd98221ae12ccea50787a2656fd926eb8c5aa37f  valtsky-v2.2-release.apk
+# 70657a3c84c93481a951f29faaad1220d715dd9b4705f55535e668bb6c87d904  valtsky-v2.2-release.apk
 ```
 
 ### Windows PowerShell Verification:
