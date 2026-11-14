@@ -85,7 +85,7 @@ With native **Direct Telegram MTProto 2.0 Authentication**, users configure the 
 
 | Platform | Format / Package | Compatibility | Download Link | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **Android (Universal)** ⭐ | `.apk` (Single Universal Binary) | Android 7.0+ (Samsung, Pixel, OnePlus, Xiaomi, Motorola) | [**Download `valtsky-v2.2-release.apk` (70.8 MB)**](releases/valtsky-v2.2-release.apk) | `70657a3c84c93481a951f29faaad1220d715dd9b4705f55535e668bb6c87d904` |
+| **Android (Universal)** ⭐ | `.apk` (Single Universal Binary) | Android 7.0+ (Samsung, Pixel, OnePlus, Xiaomi, Motorola) | [**Download `valtsky-v2.2-release.apk` (70.8 MB)**](releases/valtsky-v2.2-release.apk) | `ee5c41e1805ebf2fe968a5f888e6fe1010f1546a652465e3e5ca1bc744ac8203` |
 | **Android (Google Play)** | `.aab` (Optimized Bundle) | Android 7.0+ (API 24–35) | [**Download `valtsky-android.aab`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Apple iOS** | `.zip` (Runner / Sideload) | iOS 13.0+ (AltStore / Sideloadly) | [**Download `valtsky-ios-runner.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Windows Desktop** | `.zip` (Standalone Executable) | Windows 10 & 11 (x64) | [**Download `valtsky-windows-x64.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |

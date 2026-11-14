@@ -305,7 +305,12 @@ class _AppWalkthroughGuideState extends State<AppWalkthroughGuide> {
             isDone: Prefs.permissionsRequested,
             ctaLabel: Prefs.permissionsRequested ? 'Configured' : 'Permissions',
             ctaIcon: Prefs.permissionsRequested ? Icons.check_circle_rounded : Icons.bolt_rounded,
-            onCtaTap: () => PermissionManager.requestAllPermissions(),
+            onCtaTap: Prefs.permissionsRequested
+                ? null
+                : () async {
+                    await PermissionManager.requestAllPermissions();
+                    if (mounted) setState(() {});
+                  },
             primaryColor: primaryColor,
             secondaryColor: secondaryColor,
             trackBg: trackBg,
