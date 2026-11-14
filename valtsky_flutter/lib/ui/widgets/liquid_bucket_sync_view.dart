@@ -42,6 +42,7 @@ class LiquidBucketSyncView extends StatefulWidget {
 class _LiquidBucketSyncViewState extends State<LiquidBucketSyncView>
     with SingleTickerProviderStateMixin {
   late final AnimationController _waveController;
+  bool _waveActive = false;
 
   bool get _isTest {
     if (kIsWeb) return false;
@@ -58,13 +59,32 @@ class _LiquidBucketSyncViewState extends State<LiquidBucketSyncView>
     super.initState();
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 2200),
+      duration: const Duration(milliseconds: 3000),
     );
 
     if (!_isTest) {
-      _waveController.repeat();
+      _startWaveIfNeeded();
     } else {
       _waveController.value = 0.5;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant LiquidBucketSyncView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isTest) _startWaveIfNeeded();
+  }
+
+  /// Only run the 60fps wave animation when there is visible upload activity.
+  /// When idle/complete, freeze the wave to save GPU cycles.
+  void _startWaveIfNeeded() {
+    final shouldAnimate = widget.isUploading && widget.progress < 1.0;
+    if (shouldAnimate && !_waveActive) {
+      _waveController.repeat();
+      _waveActive = true;
+    } else if (!shouldAnimate && _waveActive) {
+      _waveController.stop();
+      _waveActive = false;
     }
   }
 
@@ -367,7 +387,7 @@ class _LiquidBucketPainter extends CustomPainter {
     backPath.moveTo(0, h);
     backPath.lineTo(0, waterY);
 
-    for (double x = 0; x <= w; x += 3.0) {
+    for (double x = 0; x <= w; x += 4.0) {
       final wave1 = math.sin((x / (w * 0.75) * 2 * math.pi) + phase * 1.2);
       final wave2 = math.cos((x / (w * 1.2) * 2 * math.pi) - phase * 0.8);
       final y = waterY + (wave1 * 0.6 + wave2 * 0.4) * effectiveAmp * 0.75;
@@ -387,7 +407,7 @@ class _LiquidBucketPainter extends CustomPainter {
     frontPath.moveTo(0, h);
     frontPath.lineTo(0, waterY);
 
-    for (double x = 0; x <= w; x += 2.0) {
+    for (double x = 0; x <= w; x += 3.0) {
       final wave1 = math.sin((x / (w * 0.85) * 2 * math.pi) - phase);
       final wave2 = math.cos((x / (w * 1.4) * 2 * math.pi) + phase * 0.7);
       final y = waterY + (wave1 * 0.7 + wave2 * 0.3) * effectiveAmp;
@@ -413,7 +433,7 @@ class _LiquidBucketPainter extends CustomPainter {
 
     // ── Layer C: Sparkling Surface Crest Line ────────────────────
     final crestPath = Path();
-    for (double x = 0; x <= w; x += 2.0) {
+    for (double x = 0; x <= w; x += 3.0) {
       final wave1 = math.sin((x / (w * 0.85) * 2 * math.pi) - phase);
       final wave2 = math.cos((x / (w * 1.4) * 2 * math.pi) + phase * 0.7);
       final y = waterY + (wave1 * 0.7 + wave2 * 0.3) * effectiveAmp;

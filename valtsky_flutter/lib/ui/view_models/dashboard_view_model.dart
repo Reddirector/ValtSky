@@ -22,22 +22,45 @@ class DashboardViewModel extends ChangeNotifier {
   List<MediaItem> cachedFailedItems = [];
   List<MediaItem> recentItems = [];
 
+  /// Debounce timer to coalesce rapid-fire stat updates into a single rebuild
+  Timer? _notifyDebounce;
+
   DashboardViewModel() {
+    // 0ms instant Frame 1 render from fast-cache snapshot
+    final initialStats = SyncEngine.cachedStats;
+    if (initialStats.total > 0 || initialStats.synced > 0) {
+      totalCount = math.max(initialStats.total, initialStats.synced + initialStats.inQueue + initialStats.uploading + initialStats.failed);
+      uploadedCount = initialStats.synced.clamp(0, totalCount);
+      pendingCount = initialStats.inQueue;
+      failedCount = initialStats.failed;
+      uploadingCount = initialStats.uploading;
+      progress = initialStats.progress;
+    }
     _init();
+  }
+
+  /// Debounced notifyListeners — collapses rapid stat updates into 1 UI rebuild
+  /// per 300ms window to avoid jank from high-frequency ValueNotifier changes.
+  void _debouncedNotify() {
+    _notifyDebounce?.cancel();
+    _notifyDebounce = Timer(const Duration(milliseconds: 300), () {
+      notifyListeners();
+    });
   }
 
   void _init() {
     SyncEngine.statsNotifier.addListener(_onStatsChanged);
-    SyncEngine.engineStatusNotifier.addListener(notifyListeners);
-    SyncEngine.rateLimitSecondsRemainingNotifier.addListener(notifyListeners);
+    SyncEngine.engineStatusNotifier.addListener(_debouncedNotify);
+    SyncEngine.rateLimitSecondsRemainingNotifier.addListener(_debouncedNotify);
     refreshStats();
   }
 
   @override
   void dispose() {
+    _notifyDebounce?.cancel();
     SyncEngine.statsNotifier.removeListener(_onStatsChanged);
-    SyncEngine.engineStatusNotifier.removeListener(notifyListeners);
-    SyncEngine.rateLimitSecondsRemainingNotifier.removeListener(notifyListeners);
+    SyncEngine.engineStatusNotifier.removeListener(_debouncedNotify);
+    SyncEngine.rateLimitSecondsRemainingNotifier.removeListener(_debouncedNotify);
     super.dispose();
   }
 
@@ -57,10 +80,10 @@ class DashboardViewModel extends ChangeNotifier {
           loadFailedItems();
         } else {
           cachedFailedItems = [];
-          notifyListeners();
+          _debouncedNotify();
         }
       } else {
-        notifyListeners();
+        _debouncedNotify();
       }
     }
   }
@@ -71,8 +94,8 @@ class DashboardViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refreshStats() async {
-    final stats = await SyncEngine.fetchCurrentStats(forceDb: true);
+  Future<void> refreshStats({bool forceDb = false, bool immediateNotify = false}) async {
+    final stats = await SyncEngine.fetchCurrentStats(forceDb: forceDb);
     totalCount = math.max(stats.total, stats.synced + stats.inQueue + stats.uploading + stats.failed);
     uploadedCount = stats.synced.clamp(0, totalCount);
     pendingCount = stats.inQueue;
@@ -86,7 +109,12 @@ class DashboardViewModel extends ChangeNotifier {
       cachedFailedItems = [];
     }
     recentItems = await DatabaseHelper.instance.getAllItems(limit: 4);
-    notifyListeners();
+    if (immediateNotify) {
+      _notifyDebounce?.cancel();
+      notifyListeners();
+    } else {
+      _debouncedNotify();
+    }
   }
 
   Future<void> toggleMonitoring(BuildContext context, {required VoidCallback onNavigateToSettings}) async {
@@ -99,34 +127,38 @@ class DashboardViewModel extends ChangeNotifier {
     Prefs.monitoringEnabled = newStatus;
 
     if (newStatus) {
-      // Starting monitoring begins a fresh session and empties the tank to 0%
-      SyncEngine.startNewSession();
-    }
-
-    if (!kIsWeb) {
-      if (newStatus) {
-        await BackgroundService.start();
-        // Fast incremental scan for media taken while monitoring was off
-        MediaScanner.scanForNewMedia(forceFull: false).then((_) {
-          refreshStats();
-        });
-      } else {
-        await BackgroundService.stop();
+      // User manually started monitoring:
+      // Scan gallery to discover all new media, queue them, then auto-stop monitoring and upload!
+      if (SyncEngine.isSessionComplete || SyncEngine.sessionTotal == 0) {
+        SyncEngine.startNewSession();
       }
+      notifyListeners();
+
+      if (!kIsWeb) {
+        try {
+          if (!await BackgroundService.isRunning()) {
+            await BackgroundService.start();
+          }
+        } catch (_) {}
+      }
+
+      try {
+        await MediaScanner.scanForNewMedia(forceFull: false);
+      } finally {
+        // Once scan finishes and all items are in queue, automatically stop monitoring!
+        Prefs.monitoringEnabled = false;
+        await refreshStats(forceDb: true, immediateNotify: true);
+      }
+
+      if (!Prefs.uploadPaused) {
+        SyncEngine().startSync();
+      }
+      notifyListeners();
     } else {
-      if (newStatus) {
-        MediaScanner.scanForNewMedia(forceFull: false).then((_) {
-          refreshStats();
-        });
-      }
+      // User manually stopped monitoring
+      Prefs.monitoringEnabled = false;
+      notifyListeners();
     }
-
-    // Monitoring controls automatic gallery scanning.
-    // Queued items continue uploading regardless of monitoring state unless explicitly paused.
-    if (!Prefs.uploadPaused) {
-      SyncEngine().startSync();
-    }
-    notifyListeners();
   }
 
   void togglePauseUpload() {
@@ -297,7 +329,7 @@ class DashboardViewModel extends ChangeNotifier {
       SyncEngine.engineStatusMessageNotifier.value =
           'Process terminated. Queue cleared and tank drained.';
 
-      await refreshStats();
+      await refreshStats(forceDb: true);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

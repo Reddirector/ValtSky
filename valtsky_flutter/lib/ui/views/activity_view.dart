@@ -41,7 +41,10 @@ class ActivityViewState extends State<ActivityView> with AutomaticKeepAliveClien
   void initState() {
     super.initState();
     SyncEngine.mediaBreakdownNotifier.addListener(_onBreakdownChanged);
-    refreshItems();
+    // Defer initial query so Dashboard renders Frame 1 with zero database contention
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) refreshItems();
+    });
   }
 
   @override

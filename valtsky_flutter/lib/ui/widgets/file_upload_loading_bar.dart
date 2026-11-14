@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/models/media_breakdown.dart';
 import '../../services/sync_engine.dart';
+import '../../util/formatters.dart';
 import '../../util/theme.dart';
 
 /// Permanent, dual-split upload bar:
@@ -8,7 +9,7 @@ import '../../util/theme.dart';
 /// - Right side (Purple): Videos
 ///
 /// Clearly establishes the UI concept with explicit 'PHOTOS' and 'VIDEOS' labels:
-/// - Active: shows live upload percentage and wire speed (PHOTOS • $percent% • $speed)
+/// - Active / Queued: shows synced count out of total (PHOTOS • X of Y)
 /// - Completed: shows full solid bar with explicit 'Completed' label (PHOTOS • Completed)
 /// - Zero layout shift or flicker between active, idle, and completed states.
 class DualSplitUploadBar extends StatefulWidget {
@@ -77,28 +78,20 @@ class _DualSplitUploadBarState extends State<DualSplitUploadBar>
               }
             }
 
-            final photoPercent = isPhotoActive
-                ? (photoUpload.progress * 100).toInt().clamp(0, 100)
-                : 100;
-            final videoPercent = isVideoActive
-                ? (videoUpload.progress * 100).toInt().clamp(0, 100)
-                : 100;
+            // Explicit labels: show counts without redundant "uploaded" text
+            final int totalPhotos = breakdown.syncedPhotos + breakdown.pendingPhotos;
+            final int totalVideos = breakdown.syncedVideos + breakdown.pendingVideos;
 
-            // Explicit labels establishing clear UI concept for user
             final String photoLabel;
-            if (isPhotoActive) {
-              photoLabel = 'PHOTOS • $photoPercent% • ${photoUpload.speedText}';
-            } else if (breakdown.pendingPhotos > 0) {
-              photoLabel = 'PHOTOS • In Queue';
+            if (isPhotoActive || breakdown.pendingPhotos > 0) {
+              photoLabel = 'PHOTOS • ${breakdown.syncedPhotos} of $totalPhotos';
             } else {
               photoLabel = 'PHOTOS • Completed';
             }
 
             final String videoLabel;
-            if (isVideoActive) {
-              videoLabel = 'VIDEOS • $videoPercent% • ${videoUpload.speedText}';
-            } else if (breakdown.pendingVideos > 0) {
-              videoLabel = 'VIDEOS • In Queue';
+            if (isVideoActive || breakdown.pendingVideos > 0) {
+              videoLabel = 'VIDEOS • ${breakdown.syncedVideos} of $totalVideos';
             } else {
               videoLabel = 'VIDEOS • Completed';
             }
@@ -108,7 +101,6 @@ class _DualSplitUploadBarState extends State<DualSplitUploadBar>
             if (isPhotoActive) {
               photoTargetFraction = photoUpload.progress.clamp(0.01, 1.0);
             } else if (breakdown.pendingPhotos > 0) {
-              final totalPhotos = breakdown.syncedPhotos + breakdown.pendingPhotos;
               photoTargetFraction = totalPhotos > 0
                   ? (breakdown.syncedPhotos / totalPhotos).clamp(0.05, 0.95)
                   : 0.05;
@@ -120,7 +112,6 @@ class _DualSplitUploadBarState extends State<DualSplitUploadBar>
             if (isVideoActive) {
               videoTargetFraction = videoUpload.progress.clamp(0.01, 1.0);
             } else if (breakdown.pendingVideos > 0) {
-              final totalVideos = breakdown.syncedVideos + breakdown.pendingVideos;
               videoTargetFraction = totalVideos > 0
                   ? (breakdown.syncedVideos / totalVideos).clamp(0.05, 0.95)
                   : 0.05;
@@ -348,7 +339,7 @@ class _DualSplitUploadBarState extends State<DualSplitUploadBar>
 }
 
 /// Minimalist, high-performance per-file upload loading bar:
-/// Displays only `$percent% • $speedText` and animated progress without redundant messages.
+/// Displays `$percent%` and `${bytesSent} / ${totalBytes}` with shimmering progress bar.
 class FileUploadLoadingBar extends StatefulWidget {
   final FileUploadProgress progress;
   final bool isDark;
@@ -434,7 +425,9 @@ class _FileUploadLoadingBarState extends State<FileUploadLoadingBar>
                   ),
                 ),
                 Text(
-                  widget.progress.speedText,
+                  widget.progress.totalBytes > 0
+                      ? '${ValtSkyFormatters.formatBytes(widget.progress.bytesSent)} / ${ValtSkyFormatters.formatBytes(widget.progress.totalBytes)}'
+                      : '',
                   style: TextStyle(
                     fontFamily: ValtSkyTheme.fontFamilyDisplay,
                     fontSize: widget.compact ? 10 : 11,

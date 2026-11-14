@@ -26,13 +26,9 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _currentIndex = 0;
   late final PageController _pageController;
-  late final AnimationController _tabTransitionController;
-  late final CurvedAnimation _tabCurve;
-  late final Animation<double> _tabFadeAnimation;
-  late Animation<Offset> _tabSlideAnimation;
   final GlobalKey<DashboardViewState> _dashboardKey = GlobalKey<DashboardViewState>();
   final GlobalKey<ActivityViewState> _activityKey = GlobalKey<ActivityViewState>();
   bool _isRefreshing = false;
@@ -42,30 +38,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   final TextEditingController _unlockPinController = TextEditingController();
   String? _unlockErrorMsg;
 
+  int _initTimestamp = 0;
+  int _lastResumeTimestamp = 0;
+
   @override
   void initState() {
     super.initState();
+    _initTimestamp = DateTime.now().millisecondsSinceEpoch;
     WidgetsBinding.instance.addObserver(this);
     _pageController = PageController(initialPage: _currentIndex);
-    _tabTransitionController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 260),
-      value: 1.0,
-    );
-    _tabCurve = CurvedAnimation(
-      parent: _tabTransitionController,
-      curve: Curves.easeOutCubic,
-    );
-    _tabFadeAnimation = _tabCurve;
-    _tabSlideAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: Offset.zero,
-    ).animate(_tabCurve);
     if (Prefs.vaultPinEnabled && Prefs.hasVaultPin && !_isTest) {
       _isLocked = true;
     }
-    _initApp();
+    // Defer async services until after Frame 1 renders smoothly at 120 FPS
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initApp();
       if (!_isLocked) {
         _checkPermissionsOnFirstLaunch();
       }
@@ -75,11 +62,43 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      // Lock screen on resume if PIN is enabled
       if (Prefs.vaultPinEnabled && Prefs.hasVaultPin && !_isTest) {
         if (!_isLocked) {
           setState(() => _isLocked = true);
         }
       }
+
+      // Ignore initial resume event within 2.0s of cold launch or if fired again within 1.5s
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (now - _initTimestamp < 2000 || now - _lastResumeTimestamp < 1500) {
+        return;
+      }
+      _lastResumeTimestamp = now;
+
+      // Resume sync engine and refresh stats when returning to foreground.
+      // Session state is persisted — this just ensures the engine is alive.
+      _resumeSyncOnForeground();
+    }
+  }
+
+  /// Resumes sync engine when the app returns to the foreground.
+  /// Does NOT reset the session — picks up where it left off.
+  /// Reloads cross-isolate preferences and fetches stats from database.
+  Future<void> _resumeSyncOnForeground() async {
+    // Reload SharedPreferences from disk so any progress made by the background isolate is visible
+    await Prefs.reload();
+    // Refresh stats from database (session state is restored from prefs automatically)
+    await SyncEngine.fetchCurrentStats(forceDb: true);
+    if (!mounted) return;
+    // Only trigger a UI refresh if the dashboard widget is still mounted
+    if (_dashboardKey.currentState?.mounted == true) {
+      _dashboardKey.currentState!.refreshStats();
+    }
+
+    // Restart sync workers if there are pending items and uploads aren't paused
+    if (Prefs.isConfigured() && !Prefs.uploadPaused && !SyncEngine.instance.isSyncing) {
+      SyncEngine().startSync();
     }
   }
 
@@ -98,8 +117,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _tabCurve.dispose();
-    _tabTransitionController.dispose();
     _pageController.dispose();
     _unlockPinController.dispose();
     super.dispose();
@@ -109,14 +126,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     if (kIsWeb) {
       await MediaScanner.scanForNewMedia();
     }
-    _dashboardKey.currentState?.refreshStats();
-    _activityKey.currentState?.refreshItems();
 
     // Auto-resume background monitoring if configured and monitoring was enabled
     if (Prefs.isConfigured() && Prefs.monitoringEnabled) {
       if (!kIsWeb) {
         try {
-          await BackgroundService.start();
+          if (!await BackgroundService.isRunning()) {
+            await BackgroundService.start();
+          }
         } catch (e) {
           debugPrint('Error starting background service: $e');
         }
@@ -124,7 +141,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
     }
 
     // Always ensure queue uploader is active for pending items unless explicitly paused
-    if (Prefs.isConfigured() && !Prefs.uploadPaused) {
+    if (Prefs.isConfigured() && !Prefs.uploadPaused && !SyncEngine.instance.isSyncing) {
       SyncEngine().startSync();
     }
   }
@@ -187,33 +204,27 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
       return;
     }
 
-    final isForward = targetIndex >= _currentIndex;
-
-    if (_isTest || (context.mounted && MediaQuery.of(context).disableAnimations)) {
-      setState(() => _currentIndex = targetIndex);
-      if (_pageController.hasClients) {
-        _pageController.jumpToPage(targetIndex);
-      }
-      if (targetIndex == 0) _dashboardKey.currentState?.refreshStats();
-      if (targetIndex == 1) _activityKey.currentState?.refreshItems();
-      _tabTransitionController.value = 1.0;
-      return;
-    }
-
-    // Direction-aware smooth slide and fade in
-    _tabSlideAnimation = Tween<Offset>(
-      begin: isForward ? const Offset(0.08, 0.0) : const Offset(-0.08, 0.0),
-      end: Offset.zero,
-    ).animate(_tabCurve);
-
     setState(() => _currentIndex = targetIndex);
     if (_pageController.hasClients) {
-      _pageController.jumpToPage(targetIndex);
+      if (_isTest || (context.mounted && MediaQuery.of(context).disableAnimations)) {
+        _pageController.jumpToPage(targetIndex);
+        if (targetIndex == 0) _dashboardKey.currentState?.refreshStats();
+        if (targetIndex == 1) _activityKey.currentState?.refreshItems();
+      } else {
+        // Smooth slide via PageView's own animation — lightweight, GPU-composited.
+        _pageController.animateToPage(
+          targetIndex,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+        );
+        // Defer database queries until after the transition to keep animation at 120fps
+        Future.delayed(const Duration(milliseconds: 280), () {
+          if (!mounted) return;
+          if (_currentIndex == 0) _dashboardKey.currentState?.refreshStats();
+          if (_currentIndex == 1) _activityKey.currentState?.refreshItems();
+        });
+      }
     }
-    if (targetIndex == 0) _dashboardKey.currentState?.refreshStats();
-    if (targetIndex == 1) _activityKey.currentState?.refreshItems();
-
-    _tabTransitionController.forward(from: 0.0);
   }
 
   void _openGuide() {
@@ -262,22 +273,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth > 1024;
 
-          final content = ClipRect(
-            child: SlideTransition(
-              position: _tabSlideAnimation,
-              child: FadeTransition(
-                opacity: _tabFadeAnimation,
-                child: PageView(
+          // Fluid PageView swipe physics with zero animation-wrapper overhead
+          final content = PageView(
                   controller: _pageController,
-                  physics: const ClampingScrollPhysics(),
+                  physics: const BouncingScrollPhysics(parent: PageScrollPhysics()),
                   onPageChanged: (index) {
                     if (index != _currentIndex) {
                       setState(() => _currentIndex = index);
-                      if (index == 0) _dashboardKey.currentState?.refreshStats();
-                      if (index == 1) _activityKey.currentState?.refreshItems();
-                    }
-                    if (_tabTransitionController.value < 1.0) {
-                      _tabTransitionController.value = 1.0;
+                      // Page has settled after swipe; run refresh in next frame
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        if (index == 0) _dashboardKey.currentState?.refreshStats();
+                        if (index == 1) _activityKey.currentState?.refreshItems();
+                      });
                     }
                   },
                   children: [
@@ -294,9 +302,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver, Single
                       onDataChanged: _onDataChanged,
                     ),
                   ],
-                ),
-              ),
-            ),
           );
 
           if (isDesktop) {

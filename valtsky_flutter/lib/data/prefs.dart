@@ -42,6 +42,21 @@ class Prefs {
   static const String keyScheduledBackupMinute = 'scheduled_backup_minute';
   static const String keyScheduledBackupRepeatDaily = 'scheduled_backup_repeat_daily';
 
+  // Session persistence keys — survive app kill/restart
+  static const String keySessionTotal = 'session_total';
+  static const String keySessionSynced = 'session_synced';
+  static const String keySessionComplete = 'session_complete';
+  static const String keySessionProgress = 'session_progress';
+  static const String keyLastMainHeartbeat = 'last_main_heartbeat';
+  static const String keyBackgroundSyncActive = 'background_sync_active';
+
+  // Fast-cache snapshot counters for instant 0ms cold-start render
+  static const String keyLastTotal = 'last_total_count';
+  static const String keyLastSyncedCount = 'last_synced_count';
+  static const String keyLastInQueue = 'last_in_queue_count';
+  static const String keyLastFailed = 'last_failed_count';
+  static const String keyLastUploading = 'last_uploading_count';
+
   static final ValueNotifier<bool> smoothUploadModeNotifier = ValueNotifier<bool>(true);
   static final ValueNotifier<bool> scheduledBackupNotifier = ValueNotifier<bool>(false);
 
@@ -51,6 +66,10 @@ class Prefs {
     _prefs = await SharedPreferences.getInstance();
     smoothUploadModeNotifier.value = smoothUploadMode;
     scheduledBackupNotifier.value = scheduledBackupEnabled;
+  }
+
+  static Future<void> reload() async {
+    await _prefs?.reload();
   }
 
   static String get authMethod => _prefs?.getString(keyAuthMethod) ?? 'phone';
@@ -148,6 +167,11 @@ class Prefs {
     await _prefs?.remove(keyEnabled);
     await _prefs?.remove(keyLastSynced);
     await _prefs?.remove(keyUploadPaused);
+    await _prefs?.remove(keyLastTotal);
+    await _prefs?.remove(keyLastSyncedCount);
+    await _prefs?.remove(keyLastInQueue);
+    await _prefs?.remove(keyLastFailed);
+    await _prefs?.remove(keyLastUploading);
   }
 
   static String get botToken => _prefs?.getString(keyBotToken) ?? '';
@@ -252,9 +276,56 @@ class Prefs {
   static bool get scheduledBackupRepeatDaily => _prefs?.getBool(keyScheduledBackupRepeatDaily) ?? true;
   static set scheduledBackupRepeatDaily(bool value) => _prefs?.setBool(keyScheduledBackupRepeatDaily, value);
 
+  // ── Session Persistence (survives app kill/restart) ──────────────────────
+  static int get sessionTotal => _prefs?.getInt(keySessionTotal) ?? 0;
+  static set sessionTotal(int value) => _prefs?.setInt(keySessionTotal, value);
+
+  static int get sessionSynced => _prefs?.getInt(keySessionSynced) ?? 0;
+  static set sessionSynced(int value) => _prefs?.setInt(keySessionSynced, value);
+
+  static bool get sessionComplete => _prefs?.getBool(keySessionComplete) ?? false;
+  static set sessionComplete(bool value) => _prefs?.setBool(keySessionComplete, value);
+
+  static double get sessionProgress => _prefs?.getDouble(keySessionProgress) ?? 0.0;
+  static set sessionProgress(double value) => _prefs?.setDouble(keySessionProgress, value);
+
+  static int get lastMainHeartbeat => _prefs?.getInt(keyLastMainHeartbeat) ?? 0;
+  static set lastMainHeartbeat(int value) => _prefs?.setInt(keyLastMainHeartbeat, value);
+
+  static bool get isBackgroundSyncActive => _prefs?.getBool(keyBackgroundSyncActive) ?? false;
+  static set isBackgroundSyncActive(bool value) => _prefs?.setBool(keyBackgroundSyncActive, value);
+
+  static int get lastTotal => _prefs?.getInt(keyLastTotal) ?? 0;
+  static set lastTotal(int value) => _prefs?.setInt(keyLastTotal, value);
+
+  static int get lastSyncedCount => _prefs?.getInt(keyLastSyncedCount) ?? 0;
+  static set lastSyncedCount(int value) => _prefs?.setInt(keyLastSyncedCount, value);
+
+  static int get lastInQueue => _prefs?.getInt(keyLastInQueue) ?? 0;
+  static set lastInQueue(int value) => _prefs?.setInt(keyLastInQueue, value);
+
+  static int get lastFailed => _prefs?.getInt(keyLastFailed) ?? 0;
+  static set lastFailed(int value) => _prefs?.setInt(keyLastFailed, value);
+
+  static int get lastUploading => _prefs?.getInt(keyLastUploading) ?? 0;
+  static set lastUploading(int value) => _prefs?.setInt(keyLastUploading, value);
+
+  static Future<void> clearSessionState() async {
+    await _prefs?.remove(keySessionTotal);
+    await _prefs?.remove(keySessionSynced);
+    await _prefs?.remove(keySessionComplete);
+    await _prefs?.remove(keySessionProgress);
+    await _prefs?.remove(keyLastTotal);
+    await _prefs?.remove(keyLastSyncedCount);
+    await _prefs?.remove(keyLastInQueue);
+    await _prefs?.remove(keyLastFailed);
+    await _prefs?.remove(keyLastUploading);
+  }
+
   static Future<void> clearAllSyncState() async {
     await _prefs?.remove(keyLastSynced);
     await _prefs?.remove(keyEnabled);
     await _prefs?.remove(keyUploadPaused);
+    await clearSessionState();
   }
 }

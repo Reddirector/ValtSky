@@ -84,7 +84,7 @@ void main() {
       expect(pillWidget.label, 'START MONITORING');
       expect(pillWidget.variant, PillButtonVariant.primary);
       expect(pillWidget.icon, Icons.sensors_rounded);
-      expect(find.text('QUEUE SYNC ACTIVE'), findsOneWidget);
+      expect(find.text('SYNCING'), findsOneWidget);
     });
 
     test('Stopping monitoring disables gallery auto-indexing without killing active upload process', () async {

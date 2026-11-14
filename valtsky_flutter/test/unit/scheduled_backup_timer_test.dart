@@ -5,6 +5,7 @@ import 'package:valtsky_flutter/data/db/database_helper.dart';
 import 'package:valtsky_flutter/data/prefs.dart';
 import 'package:valtsky_flutter/services/backup_scheduler_service.dart';
 import 'package:valtsky_flutter/ui/widgets/scheduled_backup_timer_card.dart';
+import 'package:valtsky_flutter/util/media_scanner.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +14,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     DatabaseHelper.enableMemoryStoreForTesting();
     DatabaseHelper.clearMemoryStoreForTesting();
+    MediaScanner.resetScanCooldown();
     await Prefs.init();
     await BackupSchedulerService.instance.init();
   });

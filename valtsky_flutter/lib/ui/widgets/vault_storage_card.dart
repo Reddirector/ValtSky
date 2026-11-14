@@ -279,11 +279,11 @@ class VaultStorageCard extends StatelessWidget {
                                       subtitle = 'Workers suspended by user';
                                     } else if (isUploading && activeFile.isNotEmpty) {
                                       final fileName = activeFile.split('/').last;
-                                      title = isMonitoring ? 'TRANSFERRING MEDIA' : 'QUEUE SYNC ACTIVE';
-                                      subtitle = isMonitoring ? fileName : '$fileName (Monitoring off)';
+                                      title = 'SYNCING';
+                                      subtitle = fileName;
                                     } else if (isUploading || (pendingCount > 0 && !isPaused)) {
-                                      title = 'QUEUE SYNC ACTIVE';
-                                      subtitle = isMonitoring ? 'Uploading pending items...' : 'Uploading queued items (Gallery monitoring off)';
+                                      title = 'SYNCING';
+                                      subtitle = '$pendingCount items remaining';
                                     } else if (isMonitoring) {
                                       title = 'MONITORING STANDBY';
                                       subtitle = 'All captured media synchronized';

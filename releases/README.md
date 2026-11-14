@@ -10,13 +10,13 @@ This directory contains release manifests, verification hashes, detailed release
 ```
 ========================================================================================================
 [ VERIFIED AUTOMATION SUITES ]                [ EXIF & SENSOR FIDELITY ]
-50 / 50 Automated Tests Passing (100.0%)      100.0% Raw Sensor Bayer/ICC Data Preservation
+122 / 122 Automated Tests Passing (100.0%)    100.0% Raw Sensor Bayer/ICC Data Preservation
 0 Analyzer Errors · 0 Linter Warnings         0 Bytes Re-encoded · 0 Metadata Tags Stripped
 100 / 100 Hostile Red-Team Security Score     Direct MTProto 2.0 Key Exchange
 --------------------------------------------------------------------------------------------------------
 [ CONCURRENCY & THROUGHPUT ]                  [ RESOURCE & MEMORY FOOTPRINT ]
-Split Loader & Uploader (Dual-Track)          < 28 MB Resident RAM at 1.8 GB Continuous Stream
-Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped Slices
+Multi-Socket MTProto Worker Pool (4x Socket)  < 32 MB Resident RAM at 2.2 GB Continuous Stream
+Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-Cache
 ========================================================================================================
 ```
 
@@ -26,11 +26,12 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 ## 🚀 Official Production Binaries & Checksums
 
-### 🤖 Android Universal Production Release (Current Stable: v2.1.0)
+### 🤖 Android Universal Production Release (Current Stable: v2.2.0)
 
 | Package Name | Architecture | File Size | Recommended For | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **68.2 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f` |
+| [**`valtsky-v2.2-release.apk`**](valtsky-v2.2-release.apk) | Universal (arm64, armv7, x86_64) | **70.8 MB** | **All Android Phones & Tablets** (Samsung, Pixel, OnePlus, Xiaomi, etc.) | `8f6011bb06c19a1b7a97d252fd98221ae12ccea50787a2656fd926eb8c5aa37f` |
+| [**`valtsky-v2.1-release.apk`**](valtsky-v2.1-release.apk) | Universal (arm64, armv7, x86_64) | **68.2 MB** | Legacy Universal APK | `ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f` |
 
 ### 💻 Multi-Platform Production Packages (GitHub Releases)
 
@@ -47,7 +48,8 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 ## 📝 Release Notes
 
-- [**ValtSky v2.1.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Background Isolate MTProto Cryptography, Dynamic GPU Gaussian Blur Bypass, Dual-Lane Split Uploader, Decoupled Gallery Monitoring & Queue Draining, Salted SHA-256 Vault PIN, SQLite parameterized chunking, 53/53 passing test suites.
+- [**ValtSky v2.2.0 Release Notes (Latest Production)**](RELEASE_NOTES.md): Multi-Socket MTProto TCP Pooling, Autonomous Background Sleep & Recent-Apps Persistence, 0ms Instant Cold-Start Fast-Cache, Batched Scan-Then-Upload Lifecycle, Alarm Clock Nightly Backup Loop, 122/122 passing test suites.
+- [**ValtSky v2.1.0 Release Notes**](RELEASE_NOTES.md#valtsky-v210-release-notes): Background Isolate MTProto Cryptography, Dynamic GPU Gaussian Blur Bypass, Dual-Lane Split Uploader, Decoupled Gallery Monitoring & Queue Draining.
 
 ---
 
@@ -55,12 +57,12 @@ Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped
 
 ### Linux / macOS Checksum Verification:
 ```bash
-sha256sum valtsky-v2.1-release.apk
+sha256sum valtsky-v2.2-release.apk
 # Expected output:
-# ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f  valtsky-v2.1-release.apk
+# 8f6011bb06c19a1b7a97d252fd98221ae12ccea50787a2656fd926eb8c5aa37f  valtsky-v2.2-release.apk
 ```
 
 ### Windows PowerShell Verification:
 ```powershell
-Get-FileHash -Algorithm SHA256 .\valtsky-v2.1-release.apk
+Get-FileHash -Algorithm SHA256 .\valtsky-v2.2-release.apk
 ```

@@ -212,16 +212,18 @@ class IsolateUploadClient {
 }
 
 /// Background isolate entry point. Runs MTProto encryption, socket transport,
-/// and chunking independently from the Flutter main isolate.
+/// and multi-socket parallel chunking independently from the Flutter main isolate.
 void uploadIsolateEntryPoint(IsolateInitMessage init) async {
   final commandPort = ReceivePort();
   init.sendPort.send(commandPort.sendPort);
 
   SendPort? eventPort;
-  tg.Client? client;
+  final pool = <int, tg.Client>{};
 
-  Future<tg.Client> getOrConnectClient() async {
-    if (client != null) return client!;
+  Future<tg.Client> getOrConnectClient(int socketIndex) async {
+    if (pool.containsKey(socketIndex) && pool[socketIndex] != null) {
+      return pool[socketIndex]!;
+    }
     final authMap = jsonDecode(init.savedAuthKey) as Map<String, dynamic>;
     final authKey = tg.AuthorizationKey.fromJson(authMap);
     final socket = await TelegramTransport.connect(init.dcIp, 443);
@@ -234,29 +236,40 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
       authorizationKey: authKey,
       idGenerator: idGenerator,
     );
-    try {
-      await newClient.initConnection<t.Config>(
-        apiId: init.apiId,
-        deviceModel: 'ValtSky Android Client',
-        systemVersion: 'Android 14',
-        appVersion: '2.1.0',
-        systemLangCode: 'en',
-        langPack: '',
-        langCode: 'en',
-        query: const t.HelpGetConfig(),
-      ).timeout(const Duration(seconds: 10));
-    } catch (_) {}
-    client = newClient;
-    return client!;
+    if (socketIndex == 0) {
+      try {
+        await newClient.initConnection<t.Config>(
+          apiId: init.apiId,
+          deviceModel: 'ValtSky Android Client',
+          systemVersion: 'Android 14',
+          appVersion: '2.1.0',
+          systemLangCode: 'en',
+          langPack: '',
+          langCode: 'en',
+          query: const t.HelpGetConfig(),
+        ).timeout(const Duration(seconds: 10));
+      } catch (_) {}
+    }
+    pool[socketIndex] = newClient;
+    return newClient;
   }
 
-  void resetClient() {
-    if (client != null) {
+  void resetSocket(int socketIndex) {
+    if (pool.containsKey(socketIndex) && pool[socketIndex] != null) {
       try {
-        TelegramTransport.closeSocket(client!.socket);
+        TelegramTransport.closeSocket(pool[socketIndex]!.socket);
       } catch (_) {}
-      client = null;
+      pool.remove(socketIndex);
     }
+  }
+
+  void resetAllSockets() {
+    for (final client in pool.values) {
+      try {
+        TelegramTransport.closeSocket(client.socket);
+      } catch (_) {}
+    }
+    pool.clear();
   }
 
   commandPort.listen((msg) async {
@@ -267,7 +280,7 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
     if (msg is Map<String, dynamic>) {
       final command = msg['command'] as String?;
       if (command == 'close') {
-        resetClient();
+        resetAllSockets();
         commandPort.close();
         Isolate.current.kill(priority: Isolate.immediate);
         return;
@@ -279,13 +292,11 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
         final asDocument = msg['asDocument'] as bool;
         final caption = msg['caption'] as String?;
 
-        RandomAccessFile? raf;
         try {
-          tg.Client activeClient;
           try {
-            activeClient = await getOrConnectClient();
+            await getOrConnectClient(0);
           } catch (e) {
-            resetClient();
+            resetAllSockets();
             eventPort?.send({'type': 'failure', 'error': 'Failed to connect to Telegram DC: $e'});
             return;
           }
@@ -311,7 +322,8 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
 
           if (peer == null && intId != null) {
             try {
-              final dialogsRes = await activeClient.messages.getDialogs(
+              final client0 = pool[0] ?? await getOrConnectClient(0);
+              final dialogsRes = await client0.messages.getDialogs(
                 excludePinned: false,
                 offsetDate: DateTime.fromMillisecondsSinceEpoch(0),
                 offsetId: 0,
@@ -352,126 +364,131 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
           final isBigFile = fileSize > 10 * 1024 * 1024;
           final fileId = (Random().nextInt(0x7fffffff) << 16) | Random().nextInt(0xffff);
 
-          raf = await file.open(mode: FileMode.read);
           int bytesSent = 0;
-          final bool smoothMode = msg['smoothMode'] as bool? ?? true;
-          final int maxConcurrentParts = (totalParts <= 2)
-              ? totalParts
-              : (smoothMode
-                  ? (isBigFile ? 4 : 2)
-                  : (isBigFile ? 8 : 6));
+          // Scale socket pool: 4 parallel TCP connections for large videos, 2 for multi-chunk photos, 1 for small files
+          final int workerCount = totalParts <= 1
+              ? 1
+              : (isBigFile ? 4 : (totalParts <= 4 ? totalParts : 2));
+
           int nextPartIndex = 0;
           int? abortErrorCode;
           String? abortErrorMessage;
-          Future<void>? lastDiskRead;
           DateTime lastProgressEmit = DateTime.fromMillisecondsSinceEpoch(0);
 
-          Future<void> isolateWorker() async {
-            // Reusable chunk buffer per worker thread to eliminate GC pressure
+          Future<void> isolateWorker(int workerIndex) async {
+            // Reusable pre-allocated 512KB chunk buffer per worker (eliminates GC churn)
             final Uint8List workerChunkBuffer = Uint8List(chunkSize);
+            RandomAccessFile? workerRaf;
 
-            while (true) {
-              if (abortErrorMessage != null) return;
+            try {
+              // Dedicated read-only file handle for this worker (eliminates disk lock contention)
+              workerRaf = await file.open(mode: FileMode.read);
+              tg.Client client = await getOrConnectClient(workerIndex);
 
-              int part;
-              Uint8List buffer;
+              while (true) {
+                if (abortErrorMessage != null) return;
 
-              final prevRead = lastDiskRead;
-              final readCompleter = Completer<void>();
-              lastDiskRead = readCompleter.future;
+                int part;
+                int bytesRead;
 
-              if (prevRead != null) {
-                try {
-                  await prevRead;
-                } catch (_) {}
-              }
-
-              try {
                 if (nextPartIndex >= totalParts || abortErrorMessage != null) {
                   return;
                 }
                 part = nextPartIndex++;
+
                 final offset = part * chunkSize;
                 final bytesToRead = (part == totalParts - 1) ? (fileSize - offset) : chunkSize;
-                await raf!.setPosition(offset);
-                final bytesRead = await raf.readInto(workerChunkBuffer, 0, bytesToRead);
-                buffer = (bytesRead == chunkSize)
+
+                await workerRaf.setPosition(offset);
+                bytesRead = await workerRaf.readInto(workerChunkBuffer, 0, bytesToRead);
+
+                final buffer = (bytesRead == chunkSize)
                     ? workerChunkBuffer
                     : Uint8List.sublistView(workerChunkBuffer, 0, bytesRead);
-              } finally {
-                readCompleter.complete();
-              }
 
-              t.Result<t.Boolean>? partResult;
-              int retries = 0;
-              const maxPartRetries = 3;
+                t.Result<t.Boolean>? partResult;
+                int retries = 0;
+                const maxPartRetries = 3;
 
-              while (retries <= maxPartRetries) {
-                if (abortErrorMessage != null) return;
-                try {
-                  if (isBigFile) {
-                    partResult = await activeClient.upload.saveBigFilePart(
-                      fileId: fileId,
-                      filePart: part,
-                      fileTotalParts: totalParts,
-                      bytes: buffer,
-                    ).timeout(const Duration(seconds: 40));
-                  } else {
-                    partResult = await activeClient.upload.saveFilePart(
-                      fileId: fileId,
-                      filePart: part,
-                      bytes: buffer,
-                    ).timeout(const Duration(seconds: 40));
-                  }
+                while (retries <= maxPartRetries) {
+                  if (abortErrorMessage != null) return;
+                  try {
+                    if (isBigFile) {
+                      partResult = await client.upload.saveBigFilePart(
+                        fileId: fileId,
+                        filePart: part,
+                        fileTotalParts: totalParts,
+                        bytes: buffer,
+                      ).timeout(const Duration(seconds: 40));
+                    } else {
+                      partResult = await client.upload.saveFilePart(
+                        fileId: fileId,
+                        filePart: part,
+                        bytes: buffer,
+                      ).timeout(const Duration(seconds: 40));
+                    }
 
-                  if (partResult.error == null) break;
+                    if (partResult.error == null) break;
 
-                  final errMsg = partResult.error!.errorMessage;
-                  if (errMsg.contains('FLOOD_WAIT') ||
-                      errMsg.contains('AUTH_KEY') ||
-                      errMsg.contains('SESSION_REVOKED') ||
-                      errMsg.contains('USER_DEACTIVATED')) {
-                    abortErrorCode = partResult.error!.errorCode;
-                    abortErrorMessage = errMsg;
-                    return;
-                  }
-                  retries++;
-                  if (retries <= maxPartRetries) {
+                    final errMsg = partResult.error!.errorMessage;
+                    if (errMsg.contains('FLOOD_WAIT') ||
+                        errMsg.contains('AUTH_KEY') ||
+                        errMsg.contains('SESSION_REVOKED') ||
+                        errMsg.contains('USER_DEACTIVATED')) {
+                      abortErrorCode = partResult.error!.errorCode;
+                      abortErrorMessage = errMsg;
+                      return;
+                    }
+                    retries++;
+                    if (retries <= maxPartRetries) {
+                      await Future.delayed(Duration(milliseconds: 150 * retries));
+                    }
+                  } catch (err) {
+                    retries++;
+                    if (retries > maxPartRetries) {
+                      abortErrorCode = -1;
+                      abortErrorMessage = err.toString();
+                      resetSocket(workerIndex);
+                      return;
+                    }
+                    resetSocket(workerIndex);
+                    try {
+                      client = await getOrConnectClient(workerIndex);
+                    } catch (_) {}
                     await Future.delayed(Duration(milliseconds: 150 * retries));
                   }
-                } catch (err) {
-                  retries++;
-                  if (retries > maxPartRetries) {
-                    abortErrorCode = -1;
-                    abortErrorMessage = err.toString();
-                    resetClient(); // Socket may be broken, reset connection
-                    return;
-                  }
-                  await Future.delayed(Duration(milliseconds: 150 * retries));
+                }
+
+                if (partResult == null || partResult.error != null) {
+                  abortErrorCode = partResult?.error?.errorCode ?? -1;
+                  abortErrorMessage = partResult?.error?.errorMessage ?? 'Unknown upload error';
+                  return;
+                }
+
+                bytesSent += buffer.length;
+                final now = DateTime.now();
+                if (now.difference(lastProgressEmit).inMilliseconds >= 300 || bytesSent >= fileSize) {
+                  lastProgressEmit = now;
+                  eventPort?.send({'type': 'progress', 'sent': bytesSent, 'total': fileSize});
                 }
               }
-
-              if (partResult == null || partResult.error != null) {
-                abortErrorCode = partResult?.error?.errorCode ?? -1;
-                abortErrorMessage = partResult?.error?.errorMessage ?? 'Unknown upload error';
-                return;
+            } catch (workerErr) {
+              if (abortErrorMessage == null) {
+                abortErrorCode = -1;
+                abortErrorMessage = workerErr.toString();
               }
-
-              bytesSent += buffer.length;
-              final now = DateTime.now();
-              if (now.difference(lastProgressEmit).inMilliseconds >= 500 || bytesSent >= fileSize) {
-                lastProgressEmit = now;
-                eventPort?.send({'type': 'progress', 'sent': bytesSent, 'total': fileSize});
-              }
+            } finally {
+              try {
+                await workerRaf?.close();
+              } catch (_) {}
             }
           }
 
-          final workers = List.generate(maxConcurrentParts, (_) => isolateWorker());
+          final workers = List.generate(workerCount, (i) => isolateWorker(i));
           await Future.wait(workers);
-          await raf.close();
-          raf = null;
 
           if (abortErrorMessage != null) {
+            resetAllSockets();
             eventPort?.send({
               'type': 'telegram_error',
               'code': abortErrorCode ?? -1,
@@ -506,7 +523,8 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
           );
 
           final randomId = Random().nextInt(0x7fffffff);
-          var sendResult = await activeClient.messages.sendMedia(
+          final mediaClient = pool[0] ?? await getOrConnectClient(0);
+          var sendResult = await mediaClient.messages.sendMedia(
             silent: false,
             background: false,
             clearDraft: false,
@@ -521,6 +539,7 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
           ).timeout(const Duration(seconds: 45));
 
           if (sendResult.error != null) {
+            resetAllSockets();
             eventPort?.send({
               'type': 'telegram_error',
               'code': sendResult.error!.errorCode,
@@ -548,10 +567,8 @@ void uploadIsolateEntryPoint(IsolateInitMessage init) async {
             'messageId': msgId,
           });
         } catch (e) {
-          resetClient();
+          resetAllSockets();
           eventPort?.send({'type': 'failure', 'error': e.toString()});
-        } finally {
-          await raf?.close();
         }
       }
     }

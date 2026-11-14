@@ -170,59 +170,25 @@ class _InkPaperRingPainter extends CustomPainter {
 }
 
 // ─── 2. THIN LINE-ART SWIRL (CUSTOMPAINTER) ─────────────────────────────────
-/// Decorative organic hairline curve (~6% opacity, drawn in code, never over text)
-class LineArtSwirl extends StatefulWidget {
+/// Decorative organic hairline curve (~6% opacity, drawn in code, never over text).
+/// Static GPU-cached CustomPainter with zero animation/frame overhead.
+class LineArtSwirl extends StatelessWidget {
   final double opacity;
   const LineArtSwirl({super.key, this.opacity = 0.06});
 
   @override
-  State<LineArtSwirl> createState() => _LineArtSwirlState();
-}
-
-class _LineArtSwirlState extends State<LineArtSwirl> with SingleTickerProviderStateMixin {
-  late final AnimationController _animController;
-  bool get _isTest => WidgetsBinding.instance.runtimeType.toString().contains('Test');
-
-  @override
-  void initState() {
-    super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    if (!_isTest) {
-      _animController.forward();
-    } else {
-      _animController.value = 1.0;
-    }
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final reduceMotion = MediaQuery.of(context).disableAnimations;
 
     return RepaintBoundary(
       child: IgnorePointer(
-        child: AnimatedBuilder(
-          animation: _animController,
-          builder: (context, _) {
-            final t = reduceMotion ? 1.0 : _animController.value;
-            return CustomPaint(
-              painter: _SwirlPainter(
-                isDark: isDark,
-                progress: t,
-                opacity: widget.opacity,
-              ),
-              size: Size.infinite,
-            );
-          },
+        child: CustomPaint(
+          painter: _SwirlPainter(
+            isDark: isDark,
+            progress: 1.0,
+            opacity: opacity,
+          ),
+          size: Size.infinite,
         ),
       ),
     );
@@ -262,9 +228,7 @@ class _SwirlPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SwirlPainter oldDelegate) {
-    return oldDelegate.isDark != isDark ||
-        oldDelegate.progress != progress ||
-        oldDelegate.opacity != opacity;
+    return oldDelegate.isDark != isDark || oldDelegate.opacity != opacity;
   }
 }
 

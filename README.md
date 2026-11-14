@@ -7,7 +7,7 @@
 
 **Turn your private Telegram channels into an unmetered, encrypted, 100% uncompressed personal cloud vault across Android, iOS, Windows, macOS, Linux & Web.**
 
-[![Download Android APK](https://img.shields.io/badge/Android_APK-Universal_v2.1-10B981?style=for-the-badge&logo=android&logoColor=white)](releases/valtsky-v2.1-release.apk)
+[![Download Android APK](https://img.shields.io/badge/Android_APK-Universal_v2.2-10B981?style=for-the-badge&logo=android&logoColor=white)](releases/valtsky-v2.2-release.apk)
 [![System Documentation](https://img.shields.io/badge/Documentation-Comprehensive-blue?style=for-the-badge&logo=googledocs&logoColor=white)](docs/DOCUMENTATION.md)
 [![Download iOS Runner](https://img.shields.io/badge/iOS-Sideload_Runner-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
 [![Download Windows](https://img.shields.io/badge/Windows-x64_Release-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Reddirector/ValtSky/releases/latest)
@@ -16,7 +16,7 @@
 
 <br/>
 
-[![Tests](https://img.shields.io/badge/Tests-50%2F50_Passing-10B981?style=flat-square&logo=flutter)](valtsky_flutter/test/)
+[![Tests](https://img.shields.io/badge/Tests-122%2F122_Passing-10B981?style=flat-square&logo=flutter)](valtsky_flutter/test/)
 [![Static Analysis](https://img.shields.io/badge/Analyzer-0_Errors_%7C_0_Warnings-10B981?style=flat-square&logo=dart)](valtsky_flutter/)
 [![Security & QA Score](https://img.shields.io/badge/Security_&_QA-100%2F100_Strict-10B981?style=flat-square&logo=shield)](valtsky_flutter/test/security_and_stress_test.dart)
 [![MTProto 2.0](https://img.shields.io/badge/Telegram-MTProto_2.0-2AABEE?style=flat-square&logo=telegram)](https://core.telegram.org/mtproto)
@@ -33,13 +33,13 @@
 ```
 ========================================================================================================
 [ VERIFIED AUTOMATION SUITES ]                [ EXIF & SENSOR FIDELITY ]
-50 / 50 Automated Tests Passing (100.0%)      100.0% Raw Sensor Bayer/ICC Data Preservation
+122 / 122 Automated Tests Passing (100.0%)    100.0% Raw Sensor Bayer/ICC Data Preservation
 0 Analyzer Errors · 0 Linter Warnings         0 Bytes Re-encoded · 0 Metadata Tags Stripped
 100 / 100 Hostile Red-Team Security Score     Direct MTProto 2.0 Diffie-Hellman Key Exchange
 --------------------------------------------------------------------------------------------------------
 [ CONCURRENCY & THROUGHPUT ]                  [ RESOURCE & MEMORY FOOTPRINT ]
-Split Loader & Uploader (Dual-Track)          < 28 MB Resident RAM at 1.8 GB Continuous Stream
-Four-Block Zero-Lag Telemetry Monitor         O(1) Heap Bounded via Socket-Piped Slices
+Multi-Socket MTProto Worker Pool (4x Socket)  < 32 MB Resident RAM at 2.2 GB Continuous Stream
+Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-Cache
 ========================================================================================================
 ```
 
@@ -84,7 +84,7 @@ With native **Direct Telegram MTProto 2.0 Authentication**, users configure the 
 
 | Platform | Format / Package | Compatibility | Download Link | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **Android (Universal)** ⭐ | `.apk` (Single Universal Binary) | Android 7.0+ (Samsung, Pixel, OnePlus, Xiaomi, Motorola) | [**Download `valtsky-v2.1-release.apk` (67.9 MB)**](releases/valtsky-v2.1-release.apk) | `417edc160df719d4de5cba7e972cb658b8d1f8af00be85cba4810568acc9dbcc` |
+| **Android (Universal)** ⭐ | `.apk` (Single Universal Binary) | Android 7.0+ (Samsung, Pixel, OnePlus, Xiaomi, Motorola) | [**Download `valtsky-v2.2-release.apk` (70.8 MB)**](releases/valtsky-v2.2-release.apk) | `8f6011bb06c19a1b7a97d252fd98221ae12ccea50787a2656fd926eb8c5aa37f` |
 | **Android (Google Play)** | `.aab` (Optimized Bundle) | Android 7.0+ (API 24–35) | [**Download `valtsky-android.aab`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Apple iOS** | `.zip` (Runner / Sideload) | iOS 13.0+ (AltStore / Sideloadly) | [**Download `valtsky-ios-runner.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
 | **Windows Desktop** | `.zip` (Standalone Executable) | Windows 10 & 11 (x64) | [**Download `valtsky-windows-x64.zip`**](https://github.com/Reddirector/ValtSky/releases/latest) | Automated CI Build |
@@ -243,8 +243,8 @@ ValtSky/
 │   └── screenshots/                                    # Localhost web interface captures
 ├── releases/
 │   ├── README.md                                       # Release distribution hub & checksums
-│   ├── RELEASE_NOTES.md                                # Single authoritative v2.1.0 release notes
-│   └── valtsky-v2.1-release.apk                        # 67.9 MB Universal Android Production APK
+│   ├── RELEASE_NOTES.md                                # Authoritative v2.2.0 release notes
+│   └── valtsky-v2.2-release.apk                        # 70.8 MB Universal Android Production APK
 ├── valtsky_flutter/                                    # Flutter Multiplatform Client
 │   ├── bin/
 │   │   └── auth_bridge.dart                            # Dual-stack MTProto IPv4/IPv6 WebSocket bridge

@@ -492,16 +492,19 @@ void main() {
         ),
       ),
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byType(BackdropFilter), findsOneWidget);
 
     SyncEngine.engineStatusNotifier.value = SyncEngineStatus.active;
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byType(BackdropFilter), findsNothing);
 
     SyncEngine.engineStatusNotifier.value = SyncEngineStatus.idle;
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byType(BackdropFilter), findsOneWidget);
+
+    // Flush any debounce timers from DashboardViewModel listeners
+    await tester.pump(const Duration(milliseconds: 500));
   });
 
   testWidgets('SettingsView renders Performance & Battery card and toggles Eco/Smooth Mode', (WidgetTester tester) async {

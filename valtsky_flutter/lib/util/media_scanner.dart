@@ -9,6 +9,20 @@ class MediaScanner {
   @visibleForTesting
   static Future<int> Function({bool forceFull})? scanHookForTesting;
 
+  /// Timestamp of the last completed scan — avoids redundant full scans when
+  /// the app is resumed within a short window (< 120 seconds).
+  static DateTime _lastScanCompleted = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Minimum interval between automatic scans (2 minutes).
+  /// Manual pull-to-refresh or forceFull bypasses this.
+  static const Duration _scanCooldown = Duration(seconds: 120);
+
+  /// Resets the scan cooldown timer. Used in tests to allow back-to-back scans.
+  @visibleForTesting
+  static void resetScanCooldown() {
+    _lastScanCompleted = DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
   /// Scans device storage for new photos & videos in strict chronological order.
   /// If [forceFull] is false and items already exist in the database, performs a blazing-fast
   /// incremental scan using [DatabaseHelper.getLatestDateTaken].
@@ -16,6 +30,15 @@ class MediaScanner {
   static Future<int> scanForNewMedia({bool forceFull = false}) async {
     if (scanHookForTesting != null) {
       return await scanHookForTesting!(forceFull: forceFull);
+    }
+
+    // Skip redundant scans if one completed recently (unless forced)
+    if (!forceFull) {
+      final elapsed = DateTime.now().difference(_lastScanCompleted);
+      if (elapsed < _scanCooldown) {
+        debugPrint('[MediaScanner] Skipping scan — last completed ${elapsed.inSeconds}s ago (cooldown: ${_scanCooldown.inSeconds}s)');
+        return 0;
+      }
     }
 
     // Always purge obsolete dummy/mock records on scan
@@ -26,13 +49,18 @@ class MediaScanner {
     }
 
     // Desktop platforms (Linux, macOS, Windows) scan directories directly via dart:io
+    int result = 0;
     try {
       if (!Platform.isAndroid && !Platform.isIOS) {
-        return await _scanDesktopDirectories(forceFull: forceFull);
+        result = await _scanDesktopDirectories(forceFull: forceFull);
+        _lastScanCompleted = DateTime.now();
+        return result;
       }
     } catch (_) {}
 
-    return await _scanMobilePhotoManager(forceFull: forceFull);
+    result = await _scanMobilePhotoManager(forceFull: forceFull);
+    _lastScanCompleted = DateTime.now();
+    return result;
   }
 
   static Future<int> _scanMediaViaBridge({bool forceFull = false}) async {
@@ -237,7 +265,8 @@ class MediaScanner {
 
         for (final entity in entities) {
           processedItemsCounter++;
-          if (processedItemsCounter % 25 == 0) {
+          if (processedItemsCounter % 10 == 0) {
+            // Yield to the event loop every 10 items to prevent UI jank
             await Future.delayed(Duration.zero);
           }
 

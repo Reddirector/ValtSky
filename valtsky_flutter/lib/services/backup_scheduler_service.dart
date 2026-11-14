@@ -234,10 +234,10 @@ class BackupSchedulerService {
     _countdownTicker = null;
   }
 
-  /// Starts a periodic 30-second ticker to update countdown strings in the UI.
+  /// Starts a periodic 60-second ticker to update countdown strings in the UI.
   void _startCountdownTicker() {
     _countdownTicker?.cancel();
-    _countdownTicker = Timer.periodic(const Duration(seconds: 30), (_) {
+    _countdownTicker = Timer.periodic(const Duration(seconds: 60), (_) {
       if (state.isEnabled && state.nextTriggerTime != null) {
         // Trigger a notifyListeners update to refresh the countdown text
         stateNotifier.value = state.copyWith();
@@ -263,6 +263,9 @@ class BackupSchedulerService {
       statusMessage: 'Scanning gallery & discovering new media...',
     );
 
+    // Monitoring is temporarily turned ON to scan device media
+    Prefs.monitoringEnabled = true;
+
     try {
       debugPrint('[BackupSchedulerService] Alarm fired! Resetting session tank & scanning device media...');
       // Start a fresh sync session: empties the tank to 0% so it can refill with new items
@@ -273,10 +276,13 @@ class BackupSchedulerService {
 
       debugPrint('[BackupSchedulerService] Scanned and loaded $newItemsQueued new items into queue.');
 
-      // 2. Fetch fresh stats so UI and SyncEngine have the exact latest counts
+      // 2. All items queued! Automatically turn monitoring OFF to save battery, then start uploading
+      Prefs.monitoringEnabled = false;
+
+      // 3. Fetch fresh stats so UI and SyncEngine have the exact latest counts
       await SyncEngine.fetchCurrentStats(forceDb: true);
 
-      // 3. Queue is loaded! Stop discovery and start uploading to Telegram channel
+      // 4. Queue is loaded! Stop discovery and start uploading to Telegram channel
       stateNotifier.value = state.copyWith(
         statusMessage: 'Queue ready ($newItemsQueued new). Uploading to Telegram...',
       );

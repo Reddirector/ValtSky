@@ -158,6 +158,9 @@ class SyncEngine {
     progress: 0.0,
   );
 
+  /// True when this SyncEngine instance is executing inside the background task isolate
+  static bool isBackgroundEngine = false;
+
   static int _totalBytesSent = 0;
   static int _prevBytesSent = 0;
   static DateTime _lastSpeedSampleTime = DateTime.fromMillisecondsSinceEpoch(0);
@@ -170,30 +173,30 @@ class SyncEngine {
   static DateTime _lastStatsNotify = DateTime.fromMillisecondsSinceEpoch(0);
   static bool _statsNotifyScheduled = false;
 
+  static DateTime _lastBreakdownFetch = DateTime.fromMillisecondsSinceEpoch(0);
+
   static void _scheduleStatsNotification() {
     final now = DateTime.now();
-    final throttleMs = Prefs.smoothUploadMode ? 1000 : 500;
+    final throttleMs = Prefs.smoothUploadMode ? 2000 : 1000;
     if (now.difference(_lastStatsNotify).inMilliseconds >= throttleMs) {
       _lastStatsNotify = now;
       statsNotifier.value = _cachedStats;
-      DatabaseHelper.instance
-          .getMediaBreakdown()
-          .then((b) {
-            mediaBreakdownNotifier.value = b;
-          })
-          .catchError((_) {});
-    } else if (!_statsNotifyScheduled) {
-      _statsNotifyScheduled = true;
-      Future.delayed(Duration(milliseconds: throttleMs), () {
-        _statsNotifyScheduled = false;
-        _lastStatsNotify = DateTime.now();
-        statsNotifier.value = _cachedStats;
+      // Only refresh the media breakdown every 10 seconds to avoid DB thrashing
+      if (now.difference(_lastBreakdownFetch).inSeconds >= 10) {
+        _lastBreakdownFetch = now;
         DatabaseHelper.instance
             .getMediaBreakdown()
             .then((b) {
               mediaBreakdownNotifier.value = b;
             })
             .catchError((_) {});
+      }
+    } else if (!_statsNotifyScheduled) {
+      _statsNotifyScheduled = true;
+      Future.delayed(Duration(milliseconds: throttleMs), () {
+        _statsNotifyScheduled = false;
+        _lastStatsNotify = DateTime.now();
+        statsNotifier.value = _cachedStats;
       });
     }
   }
@@ -325,6 +328,57 @@ class SyncEngine {
   static int get sessionSynced => _sessionSynced;
   static bool get isSessionComplete => _sessionComplete;
   static double get sessionProgress => _sessionProgress;
+  static bool _sessionRestored = false;
+
+  /// Fast-cache snapshot getter — ensures persisted session/totals are loaded
+  static SyncStats get cachedStats {
+    _restoreSessionFromPrefs();
+    return _cachedStats;
+  }
+
+  /// Restores persisted session state from SharedPreferences on cold start.
+  /// Called once before any session calculations to prevent the tank draining to 0%.
+  static void _restoreSessionFromPrefs() {
+    if (_sessionRestored) return;
+    _sessionRestored = true;
+    _sessionTotal = Prefs.sessionTotal;
+    _sessionSynced = Prefs.sessionSynced;
+    _sessionComplete = Prefs.sessionComplete;
+    _sessionProgress = Prefs.sessionProgress;
+
+    // Fast-cache snapshot counters for instant 0ms cold-start render
+    if (Prefs.lastTotal > 0 || Prefs.lastSyncedCount > 0) {
+      _cachedStats = SyncStats(
+        total: Prefs.lastTotal,
+        synced: Prefs.lastSyncedCount,
+        inQueue: Prefs.lastInQueue,
+        failed: Prefs.lastFailed,
+        uploading: Prefs.lastUploading,
+        progress: _sessionProgress,
+        sessionTotal: _sessionTotal,
+        sessionSynced: _sessionSynced,
+      );
+      statsNotifier.value = _cachedStats;
+    }
+  }
+
+  /// Persists current session state to SharedPreferences so it survives app kill.
+  static void _persistSession() {
+    Prefs.sessionTotal = _sessionTotal;
+    Prefs.sessionSynced = _sessionSynced;
+    Prefs.sessionComplete = _sessionComplete;
+    Prefs.sessionProgress = _sessionProgress;
+
+    if (_cachedStats.total > 0 || _cachedStats.synced > 0) {
+      Prefs.lastTotal = _cachedStats.total;
+      Prefs.lastSyncedCount = _cachedStats.synced;
+      Prefs.lastInQueue = _cachedStats.inQueue;
+      Prefs.lastFailed = _cachedStats.failed;
+      Prefs.lastUploading = _cachedStats.uploading;
+    } else {
+      unawaited(Prefs.clearSessionState());
+    }
+  }
 
   /// Starts a fresh session: empties the tank to 0% so it can refill as new items arrive in queue
   static void startNewSession() {
@@ -332,6 +386,7 @@ class SyncEngine {
     _sessionSynced = 0;
     _sessionComplete = false;
     _sessionProgress = 0.0;
+    _persistSession();
     _cachedStats = _cachedStats.copyWith(
       progress: 0.0,
       sessionTotal: 0,
@@ -346,10 +401,13 @@ class SyncEngine {
     _sessionSynced = 0;
     _sessionComplete = false;
     _sessionProgress = 0.0;
+    _persistSession();
     _cachedStats = _cachedStats.copyWith(
       progress: 0.0,
       sessionTotal: 0,
       sessionSynced: 0,
+      inQueue: 0,
+      uploading: 0,
     );
     statsNotifier.value = _cachedStats;
   }
@@ -374,6 +432,7 @@ class SyncEngine {
     } else {
       _sessionProgress = 0.0;
     }
+    _persistSession();
 
     final newSynced = _cachedStats.synced + 1;
     final newTotal = math.max(_cachedStats.total, newSynced + _cachedStats.inQueue + (_cachedStats.uploading - 1).clamp(0, 9999999) + _cachedStats.failed);
@@ -405,8 +464,16 @@ class SyncEngine {
     _scheduleStatsNotification();
   }
 
-  /// Query SQLite and notify all UI listeners with fresh baseline counts in 1 fast query
+  /// Query SQLite and notify all UI listeners with fresh baseline counts in 1 fast query.
+  /// If [forceDb] is false and cached stats are available in memory, returns immediately with zero disk I/O.
   static Future<SyncStats> fetchCurrentStats({bool forceDb = true}) async {
+    if (!forceDb && (_cachedStats.total > 0 || _cachedStats.synced > 0)) {
+      return _cachedStats;
+    }
+
+    // Restore persisted session state on first call after cold start
+    _restoreSessionFromPrefs();
+
     final counts = await DatabaseHelper.instance.getAggregatedCounts();
     final rawTotal = counts['total'] ?? 0;
     final rawSynced = counts['synced'] ?? 0;
@@ -429,6 +496,14 @@ class SyncEngine {
       _sessionSynced = 0;
       _sessionProgress = 0.0;
     } else if (_sessionTotal > 0) {
+      // Reconcile _sessionSynced with background upload progress and remaining queue
+      final backgroundSynced = Prefs.sessionSynced;
+      if (backgroundSynced > _sessionSynced) {
+        _sessionSynced = backgroundSynced;
+      }
+      final calculatedSessionSynced = math.max(_sessionSynced, _sessionTotal - activeQueue);
+      _sessionSynced = calculatedSessionSynced.clamp(0, _sessionTotal);
+
       if (activeQueue + _sessionSynced > _sessionTotal) {
         // More items were added during the active session
         _sessionTotal = activeQueue + _sessionSynced;
@@ -469,6 +544,8 @@ class SyncEngine {
       sessionSynced: _sessionSynced,
     );
     statsNotifier.value = _cachedStats;
+    // Persist session and fast-cache stats so it survives app kill/restart
+    _persistSession();
     try {
       final breakdown = await DatabaseHelper.instance.getMediaBreakdown();
       mediaBreakdownNotifier.value = breakdown;
@@ -550,6 +627,10 @@ class SyncEngine {
     );
     statsNotifier.value = _cachedStats;
 
+    // Reset persisted session state
+    resetSession();
+    _sessionRestored = false;
+
     // Reset notifiers
     _claimedPhotoQueue.clear();
     _claimedVideoQueue.clear();
@@ -584,18 +665,22 @@ class SyncEngine {
     );
     statsNotifier.value = _cachedStats;
 
-    // 2. Monitoring enabled by default on successful account link
+    // 2. Monitoring enabled while scanning entire gallery
     Prefs.monitoringEnabled = true;
     Prefs.uploadPaused = false;
     engineStatusNotifier.value = SyncEngineStatus.active;
     engineStatusMessageNotifier.value =
-        'Telegram linked. Starting vault backup...';
+        'Scanning device gallery for photos and videos...';
 
     // 3. Scan camera roll cleanly into fresh database (purge legacy mock data first)
     await DatabaseHelper.instance.purgeDummyMockItems();
     await MediaScanner.scanForNewMedia(forceFull: true);
 
-    // 4. Populate live stats from database and activate sync
+    // 4. Gallery scan complete and all items queued:
+    // Auto-stop monitoring immediately to save battery, then start uploading!
+    Prefs.monitoringEnabled = false;
+
+    // 5. Populate live stats from database and activate sync
     await fetchCurrentStats(forceDb: true);
     await startSync();
   }
@@ -615,6 +700,27 @@ class SyncEngine {
     _isSyncing = true;
     final generation = ++_syncGeneration;
     _syncCompleter = Completer<void>();
+    if (!isBackgroundEngine) {
+      Prefs.lastMainHeartbeat = DateTime.now().millisecondsSinceEpoch;
+    }
+
+    // Check if background isolate was holding sync ownership; signal it to yield cleanly
+    await Prefs.reload();
+    if (Prefs.isBackgroundSyncActive) {
+      Prefs.isBackgroundSyncActive = false;
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
+    if (!kIsWeb) {
+      try {
+        if (!await BackgroundService.isRunning()) {
+          await BackgroundService.start();
+        }
+        unawaited(BackgroundService.checkAndRequestBatteryOptimization());
+      } catch (e) {
+        debugPrint('[SyncEngine] Background service start error: $e');
+      }
+    }
 
     // Reset any interrupted uploading state from abrupt app closes
     await DatabaseHelper.instance.resetUploadingToPending();
@@ -641,10 +747,10 @@ class SyncEngine {
     _lastActiveTransferTime = DateTime.now();
     _speedMeterTimer?.cancel();
 
-    // Zero-lag speed sampler: 1000ms window in Smooth Mode (1 update/sec), 500ms in Turbo Mode
+    // Zero-lag speed sampler: 2000ms window in Smooth Mode, 1000ms in Turbo Mode
     final sampleWindow = Prefs.smoothUploadMode
-        ? const Duration(milliseconds: 1000)
-        : const Duration(milliseconds: 500);
+        ? const Duration(milliseconds: 2000)
+        : const Duration(milliseconds: 1000);
     _speedMeterTimer = Timer.periodic(sampleWindow, (_) {
       if (!_isSyncing || _syncGeneration != generation) return;
       final now = DateTime.now();
@@ -687,20 +793,44 @@ class SyncEngine {
 
         if (uploadSpeedNotifier.value != newSpeedText) {
           uploadSpeedNotifier.value = newSpeedText;
-        }
-        if (activeUploadsNotifier.value.isNotEmpty) {
-          final updatedMap = <String, FileUploadProgress>{};
-          for (final entry in activeUploadsNotifier.value.entries) {
-            updatedMap[entry.key] = entry.value.copyWith(speedText: newSpeedText);
+          // Only rebuild the active uploads map when speed text actually changed
+          // and there are active uploads — avoids allocating a new Map every tick
+          if (activeUploadsNotifier.value.isNotEmpty) {
+            final updatedMap = <String, FileUploadProgress>{};
+            for (final entry in activeUploadsNotifier.value.entries) {
+              updatedMap[entry.key] = entry.value.copyWith(speedText: newSpeedText);
+            }
+            activeUploadsNotifier.value = updatedMap;
           }
-          activeUploadsNotifier.value = updatedMap;
+        }
+
+        // Keep background service watchdog informed that main UI is actively driving sync
+        if (!isBackgroundEngine) {
+          Prefs.lastMainHeartbeat = now.millisecondsSinceEpoch;
+        }
+
+        // Keep foreground service notification live with real transfer speed and item counts
+        if (!kIsWeb) {
+          final queueCount = _cachedStats.inQueue;
+          if (queueCount > 0) {
+            final pct = (_cachedStats.progress * 100).clamp(0, 100).toStringAsFixed(0);
+            unawaited(BackgroundService.updateNotification(
+              title: 'ValtSky Syncing ($pct%)',
+              text: '$queueCount remaining • $newSpeedText',
+            ));
+          } else {
+            unawaited(BackgroundService.updateNotification(
+              title: 'ValtSky Active',
+              text: 'All media backed up and secure',
+            ));
+          }
         }
       }
     });
 
-    // Light periodic consistency check every 10 seconds (in WAL mode, 1 fast query)
+    // Light periodic consistency check every 30 seconds (in WAL mode, 1 fast query)
     _liveStatsTimer?.cancel();
-    _liveStatsTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+    _liveStatsTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       if (_isSyncing && _syncGeneration == generation) {
         await DatabaseHelper.instance.flushPendingUpdates();
         await fetchCurrentStats(forceDb: true);
@@ -953,6 +1083,12 @@ class SyncEngine {
         }
         await DatabaseHelper.instance.flushPendingUpdates();
         await fetchCurrentStats(forceDb: true);
+        if (!kIsWeb) {
+          unawaited(BackgroundService.updateNotification(
+            title: 'ValtSky Active',
+            text: 'All media backed up and secure',
+          ));
+        }
         if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
           _syncCompleter!.complete();
         }
@@ -1041,6 +1177,10 @@ class SyncEngine {
     _activePhotoWorkerCount++;
     try {
       while (_isSyncing && _syncGeneration == generation) {
+        if (isBackgroundEngine && !Prefs.isBackgroundSyncActive) {
+          debugPrint('[SyncEngine] Background photo worker yielding to main isolate.');
+          break;
+        }
         if (_rateLimitUntil != null &&
             DateTime.now().isBefore(_rateLimitUntil!)) {
           final waitSeconds = _rateLimitUntil!
@@ -1096,6 +1236,10 @@ class SyncEngine {
     _activeVideoWorkerCount++;
     try {
       while (_isSyncing && _syncGeneration == generation) {
+        if (isBackgroundEngine && !Prefs.isBackgroundSyncActive) {
+          debugPrint('[SyncEngine] Background photo worker yielding to main isolate.');
+          break;
+        }
         if (_rateLimitUntil != null &&
             DateTime.now().isBefore(_rateLimitUntil!)) {
           final waitSeconds = _rateLimitUntil!

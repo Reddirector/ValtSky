@@ -23,7 +23,10 @@ class SettingsView extends StatefulWidget {
   State<SettingsView> createState() => _SettingsViewState();
 }
 
-class _SettingsViewState extends State<SettingsView> {
+class _SettingsViewState extends State<SettingsView> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final TextEditingController _botTokenController = TextEditingController();
   final TextEditingController _channelIdController = TextEditingController();
   final TextEditingController _apiServerController = TextEditingController();
@@ -347,6 +350,7 @@ class _SettingsViewState extends State<SettingsView> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isMonitoring = Prefs.monitoringEnabled;
 

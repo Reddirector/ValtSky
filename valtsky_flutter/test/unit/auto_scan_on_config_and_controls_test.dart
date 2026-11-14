@@ -62,8 +62,8 @@ void main() {
         // Trigger vault session initialization (invoked on Telegram channel configuration)
         await SyncEngine.instance.initializeNewVaultSession();
 
-        // 1. Monitoring must be enabled automatically
-        expect(Prefs.monitoringEnabled, isTrue);
+        // 1. Monitoring is automatically stopped once scan finishes and items are in queue
+        expect(Prefs.monitoringEnabled, isFalse);
         expect(Prefs.uploadPaused, isFalse);
 
         // 2. Camera gallery must be automatically scanned and populated into the database

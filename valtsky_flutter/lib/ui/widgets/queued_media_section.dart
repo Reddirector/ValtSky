@@ -113,107 +113,109 @@ class QueuedMediaSection extends StatelessWidget {
                     ? (isVideo ? const Color(0xFF8B5CF6) : const Color(0xFF38BDF8))
                     : hairline;
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: ValtSkyTheme.surface(isDark),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: activeBorderColor,
-                      width: isUploading ? 1.5 : 1.0,
+                return RepaintBoundary(
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: ValtSkyTheme.surface(isDark),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: activeBorderColor,
+                        width: isUploading ? 1.5 : 1.0,
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: isVideo
-                                  ? const Color(0xFF8B5CF6).withValues(alpha: 0.15)
-                                  : const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            alignment: Alignment.center,
-                            child: Icon(
-                              isVideo ? Icons.videocam_rounded : Icons.photo_rounded,
-                              color: isVideo ? const Color(0xFF8B5CF6) : const Color(0xFF38BDF8),
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  fileName,
-                                  style: TextStyle(
-                                    fontFamily: ValtSkyTheme.fontFamilyBody,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: ValtSkyTheme.textPrimary(isDark),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  isUploading
-                                      ? '⚡ Active Transfer • ${ValtSkyFormatters.formatBytes(item.fileSize)}'
-                                      : '#${index + 1} in line • ${ValtSkyFormatters.formatBytes(item.fileSize)}',
-                                  style: TextStyle(
-                                    fontFamily: ValtSkyTheme.fontFamilyDisplay,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: isUploading
-                                        ? (isVideo ? const Color(0xFF8B5CF6) : const Color(0xFF38BDF8))
-                                        : accentColor,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                            color: ValtSkyTheme.error,
-                            tooltip: 'Remove from Queue',
-                            onPressed: () => onRemove(item),
-                          ),
-                          const SizedBox(width: 4),
-                          ReorderableDragStartListener(
-                            index: index,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
                               decoration: BoxDecoration(
-                                color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04),
-                                borderRadius: BorderRadius.circular(8),
+                                color: isVideo
+                                    ? const Color(0xFF8B5CF6).withValues(alpha: 0.15)
+                                    : const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
                               ),
+                              alignment: Alignment.center,
                               child: Icon(
-                                Icons.drag_indicator_rounded,
-                                color: mutedText,
+                                isVideo ? Icons.videocam_rounded : Icons.photo_rounded,
+                                color: isVideo ? const Color(0xFF8B5CF6) : const Color(0xFF38BDF8),
                                 size: 20,
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    fileName,
+                                    style: TextStyle(
+                                      fontFamily: ValtSkyTheme.fontFamilyBody,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: ValtSkyTheme.textPrimary(isDark),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    isUploading
+                                        ? '⚡ Active Transfer • ${ValtSkyFormatters.formatBytes(item.fileSize)}'
+                                        : '#${index + 1} in line • ${ValtSkyFormatters.formatBytes(item.fileSize)}',
+                                    style: TextStyle(
+                                      fontFamily: ValtSkyTheme.fontFamilyDisplay,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: isUploading
+                                          ? (isVideo ? const Color(0xFF8B5CF6) : const Color(0xFF38BDF8))
+                                          : accentColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                              color: ValtSkyTheme.error,
+                              tooltip: 'Remove from Queue',
+                              onPressed: () => onRemove(item),
+                            ),
+                            const SizedBox(width: 4),
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.04),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.drag_indicator_rounded,
+                                  color: mutedText,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (isUploading) ...[
+                          const SizedBox(height: 10),
+                          FileUploadLoadingBar(
+                            progress: activeProgress,
+                            isDark: isDark,
+                            compact: false,
+                            showHeader: true,
                           ),
                         ],
-                      ),
-                      if (isUploading) ...[
-                        const SizedBox(height: 10),
-                        FileUploadLoadingBar(
-                          progress: activeProgress,
-                          isDark: isDark,
-                          compact: false,
-                          showHeader: true,
-                        ),
                       ],
-                    ],
+                    ),
                   ),
                 );
               },

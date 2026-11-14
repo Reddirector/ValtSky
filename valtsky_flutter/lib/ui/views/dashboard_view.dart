@@ -46,8 +46,8 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
   }
 
   /// Exposed method for external triggers (e.g. AppBar refresh button or tab switch)
-  Future<void> refreshStats() async {
-    await _viewModel.refreshStats();
+  Future<void> refreshStats({bool forceDb = false}) async {
+    await _viewModel.refreshStats(forceDb: forceDb);
   }
 
   @override
@@ -80,80 +80,88 @@ class DashboardViewState extends State<DashboardView> with AutomaticKeepAliveCli
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                 // 1. Status & Warning Banner (Offline / Rate Limit)
-                ValueListenableBuilder<SyncEngineStatus>(
-                  valueListenable: SyncEngine.engineStatusNotifier,
-                  builder: (context, _, _) {
-                    return ValueListenableBuilder<int>(
-                      valueListenable: SyncEngine.rateLimitSecondsRemainingNotifier,
-                      builder: (context, _, _) {
-                        return DashboardStatusBanner(
-                          onNavigateToSettings: widget.onNavigateToSettings,
-                          onCheckNetwork: () => SyncEngine.hasInternetConnection(),
-                        );
-                      },
-                    );
-                  },
+                RepaintBoundary(
+                  child: ValueListenableBuilder<SyncEngineStatus>(
+                    valueListenable: SyncEngine.engineStatusNotifier,
+                    builder: (context, _, _) {
+                      return ValueListenableBuilder<int>(
+                        valueListenable: SyncEngine.rateLimitSecondsRemainingNotifier,
+                        builder: (context, _, _) {
+                          return DashboardStatusBanner(
+                            onNavigateToSettings: widget.onNavigateToSettings,
+                            onCheckNetwork: () => SyncEngine.hasInternetConnection(),
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
 
                 // 2. Monolithic Storage Vault Card (Progress, Master Switch)
-                ValueListenableBuilder<SyncEngineStatus>(
-                  valueListenable: SyncEngine.engineStatusNotifier,
-                  builder: (context, engineStatus, _) {
-                    final isUploading = engineStatus == SyncEngineStatus.active;
-                    return VaultStorageCard(
-                      totalCount: _viewModel.totalCount,
-                      uploadedCount: _viewModel.uploadedCount,
-                      pendingCount: _viewModel.pendingCount,
-                      failedCount: _viewModel.failedCount,
-                      progress: _viewModel.progress,
-                      isConfigured: isConfigured,
-                      isMonitoring: isMonitoring,
-                      isPaused: isPaused,
-                      isUploading: isUploading,
-                      onToggleMonitoring: () {
-                        if (!isConfigured) {
-                          widget.onNavigateToSettings();
-                        } else {
-                          _viewModel.toggleMonitoring(
-                            context,
-                            onNavigateToSettings: widget.onNavigateToSettings,
-                          );
-                        }
-                      },
-                      onNavigateToSettings: widget.onNavigateToSettings,
-                      onOpenScheduleBackup: () => ScheduledBackupTimerCard.showModal(
-                        context,
-                        onDataChanged: () => _viewModel.refreshStats(),
-                      ),
-                    );
-                  },
+                RepaintBoundary(
+                  child: ValueListenableBuilder<SyncEngineStatus>(
+                    valueListenable: SyncEngine.engineStatusNotifier,
+                    builder: (context, engineStatus, _) {
+                      final isUploading = engineStatus == SyncEngineStatus.active;
+                      return VaultStorageCard(
+                        totalCount: _viewModel.totalCount,
+                        uploadedCount: _viewModel.uploadedCount,
+                        pendingCount: _viewModel.pendingCount,
+                        failedCount: _viewModel.failedCount,
+                        progress: _viewModel.progress,
+                        isConfigured: isConfigured,
+                        isMonitoring: isMonitoring,
+                        isPaused: isPaused,
+                        isUploading: isUploading,
+                        onToggleMonitoring: () {
+                          if (!isConfigured) {
+                            widget.onNavigateToSettings();
+                          } else {
+                            _viewModel.toggleMonitoring(
+                              context,
+                              onNavigateToSettings: widget.onNavigateToSettings,
+                            );
+                          }
+                        },
+                        onNavigateToSettings: widget.onNavigateToSettings,
+                        onOpenScheduleBackup: () => ScheduledBackupTimerCard.showModal(
+                          context,
+                          onDataChanged: () => _viewModel.refreshStats(),
+                        ),
+                      );
+                    },
+                  ),
                 ),
 
                 const SizedBox(height: 16),
 
                 // 4. Tactical Quick Action Controls (Lifted above media showcase metrics)
-                DashboardControlDeck(
-                  isConfigured: isConfigured,
-                  isPaused: isPaused,
-                  onTogglePause: _viewModel.togglePauseUpload,
-                  onStopProcess: () => _viewModel.handleStopProcess(context),
+                RepaintBoundary(
+                  child: DashboardControlDeck(
+                    isConfigured: isConfigured,
+                    isPaused: isPaused,
+                    onTogglePause: _viewModel.togglePauseUpload,
+                    onStopProcess: () => _viewModel.handleStopProcess(context),
+                  ),
                 ),
 
                 const SizedBox(height: 16),
 
                 // 5. Precision Instrumentation Metrics Deck (Showcasing below quick controls)
-                VaultMetricDeck(
-                  totalCount: _viewModel.totalCount,
-                  uploadedCount: _viewModel.uploadedCount,
-                  pendingCount: _viewModel.pendingCount,
-                  failedCount: _viewModel.failedCount,
-                  onNavigateToActivity: (filter) => widget.onNavigateToActivity?.call(filter),
+                RepaintBoundary(
+                  child: VaultMetricDeck(
+                    totalCount: _viewModel.totalCount,
+                    uploadedCount: _viewModel.uploadedCount,
+                    pendingCount: _viewModel.pendingCount,
+                    failedCount: _viewModel.failedCount,
+                    onNavigateToActivity: (filter) => widget.onNavigateToActivity?.call(filter),
+                  ),
                 ),
 
                 // 6. Failed Items Alert (Conditional)
                 if (_viewModel.failedCount > 0 && _viewModel.cachedFailedItems.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  _buildFailedItemsAlert(isDark),
+                  RepaintBoundary(child: _buildFailedItemsAlert(isDark)),
                 ],
 
                 const SizedBox(height: 32),
