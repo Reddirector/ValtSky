@@ -15,7 +15,7 @@ system_identity:
   governance:
     license: "MIT License (Permissive Open-Source)"
     spdx_identifier: "MIT"
-    primary_maintainer: "Aditya (Reddirector)"
+    primary_maintainer: "Aditya Kumar Singh (Reddirector)"
 
 endpoint_infrastructure:
   canonical_repository: "https://github.com/Reddirector/ValtSky"

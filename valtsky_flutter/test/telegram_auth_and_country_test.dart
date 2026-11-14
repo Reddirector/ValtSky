@@ -56,7 +56,7 @@ void main() {
   group('Prefs Telegram Profile Storage Tests', () {
     test('Stores and clears real Telegram user profile info', () async {
       Prefs.telegramUserId = '987654321';
-      Prefs.telegramUserName = 'Aditya Sharma';
+      Prefs.telegramUserName = 'Aditya Kumar Singh';
       Prefs.telegramUserHandle = 'adityadev';
       Prefs.telegramIsPremium = true;
       Prefs.userPhoneNumber = '+919876543210';
@@ -68,7 +68,7 @@ void main() {
       Prefs.channelAccessHash = '9876543210987';
 
       expect(Prefs.telegramUserId, equals('987654321'));
-      expect(Prefs.telegramUserName, equals('Aditya Sharma'));
+      expect(Prefs.telegramUserName, equals('Aditya Kumar Singh'));
       expect(Prefs.telegramUserHandle, equals('adityadev'));
       expect(Prefs.telegramIsPremium, isTrue);
       expect(Prefs.userPhoneNumber, equals('+919876543210'));

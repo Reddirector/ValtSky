@@ -155,7 +155,7 @@ Upon successful authentication, ValtSky inspects your account channels:
 │                 Provisioning Your Vault                  │
 │                                                          │
 │  ✓ Telegram Session Authenticated                        │
-│  ✓ Verified User: @aditya_sharma (ID: 618492019)         │
+│  ✓ Verified User: Aditya Kumar Singh (@adityadev)        │
 │  ✓ Creating Private Channel: "ValtSky Private Vault"    │
 │  ✓ Linking Channel ID: -1002849102849                    │
 │                                                          │

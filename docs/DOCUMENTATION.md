@@ -1,6 +1,6 @@
 # 📘 ValtSky System Architecture & Engineering Documentation
 ## Open-Source, Direct-to-Telegram Personal Cloud Vault
-### Version: `v2.2.0-production` · Author: Aditya Sharma (Reddirector)
+### Version: `v2.2.0-production` · Author: Aditya Kumar Singh (Reddirector)
 
 ```
 ========================================================================================================

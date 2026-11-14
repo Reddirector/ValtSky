@@ -302,7 +302,7 @@ ValtSky/
 
 ## 👨‍💻 Author & Systems Architect
 
-### Aditya Sharma
+### Aditya Kumar Singh
 **Senior Full-Stack & Distributed Systems Engineer**  
 Specializing in high-throughput distributed architectures, cross-platform mobile systems (Flutter / Android Native), cryptographic datalink protocols (MTProto / TLS), and fault-tolerant cloud infrastructure.
 
@@ -318,7 +318,7 @@ Specializing in high-throughput distributed architectures, cross-platform mobile
 
 [![GitHub](https://img.shields.io/badge/GitHub-Reddirector-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Reddirector)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/)
-[![Email](https://img.shields.io/badge/Email-Contact_Me-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:aditya@example.com)
+[![Email](https://img.shields.io/badge/Email-Contact_Me-EA4335?style=for-the-badge&logo=gmail&logoColor=white)](mailto:adityakumarks2008@gmail.com)
 [![Telegram](https://img.shields.io/badge/Telegram-Chat-2AABEE?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/)
 [![Portfolio](https://img.shields.io/badge/Portfolio-Visit_Website-8B5CF6?style=for-the-badge&logo=google-chrome&logoColor=white)](https://github.com/Reddirector)
 
