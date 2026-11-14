@@ -1078,8 +1078,10 @@ class TelegramAuthService {
                 ? (fileSize - offset)
                 : chunkSize;
 
-            await raf!.setPosition(offset);
-            buffer = await raf.read(bytesToRead);
+            final activeRaf = raf;
+            if (activeRaf == null) return;
+            await activeRaf.setPosition(offset);
+            buffer = await activeRaf.read(bytesToRead);
           } finally {
             diskCompleter.complete();
           }

@@ -25,6 +25,12 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Initialize Telegram Secrets Template
+        run: |
+          if [ ! -f valtsky_flutter/lib/config/secrets.dart ]; then
+            cp valtsky_flutter/lib/config/secrets.template.dart valtsky_flutter/lib/config/secrets.dart
+          fi
+
       - name: Install dependencies
         run: cd valtsky_flutter && flutter pub get
 
