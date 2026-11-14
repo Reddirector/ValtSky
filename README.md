@@ -44,6 +44,7 @@ Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-
 ```
 
 > 📚 **Technical Whitepapers & Manuals:**
+> - [**End-to-End Tutorial & Setup Guide**](docs/TUTORIAL_AND_SETUP_GUIDE.md) — Comprehensive visual setup manual: Telegram phone login, OTP handling, 2FA, permissions, and nightly sync.
 > - [**Comprehensive System Documentation & Technical Manual**](docs/DOCUMENTATION.md) — System philosophy, dual-lane split uploader pipeline, SQLite WAL transactions, and "What ValtSky is NOT".
 > - [**Systems Engineering Architecture Case Study**](docs/SYSTEMS_ARCHITECTURE.md) — Algorithmic streaming proofs, mathematical state machine definitions, and FMEA resilience matrices.
 > - [**Multiplatform Releases & Cryptographic Hashes**](releases/README.md) — Universal binaries, installation guides, and SHA-256 cryptographic signatures.

@@ -20,7 +20,9 @@ Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-
 ========================================================================================================
 ```
 
-> 📚 **Technical Manual:** Complete architecture schematics and subsystem breakdowns are documented in the [**ValtSky System Documentation**](../docs/DOCUMENTATION.md).
+> 📚 **Technical Manual & Tutorials:**
+> - [**End-to-End Setup & Tutorial Guide**](../docs/TUTORIAL_AND_SETUP_GUIDE.md) — Comprehensive visual setup manual: Telegram phone login, OTP handling, 2FA, permissions, and nightly sync.
+> - [**ValtSky System Documentation**](../docs/DOCUMENTATION.md) — Architecture schematics, subsystem breakdowns, and engineering specifications.
 
 ---
 
