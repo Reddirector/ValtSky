@@ -173,24 +173,6 @@ flowchart LR
 
 ---
 
-## 📸 Application Interface Showcase
-
-<div align="center">
-
-| 1. Dashboard Overview | 2. Dual-Lane Activity Queue |
-| :---: | :---: |
-| <img src="docs/screenshots/01_dashboard.png" width="460" /> | <img src="docs/screenshots/02_activity_queue.png" width="460" /> |
-| Real-time backup status, latency ping & media reel | Concurrent photo and video upload tracking |
-
-| 3. Settings & Telegram Link | 4. Oversized Vault Modal (> 2 GB) |
-| :---: | :---: |
-| <img src="docs/screenshots/03_settings.png" width="460" /> | <img src="docs/screenshots/04_manual_uploader_modal.png" width="460" /> |
-| Direct MTProto auth, country picker & diagnostics | 4-click manual staging assistant for large files |
-
-</div>
-
----
-
 ## 🛠️ Building & Developing From Source
 
 ### Prerequisites
