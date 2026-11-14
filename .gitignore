@@ -6,6 +6,7 @@ build/
 .gradle/
 *.apk
 *.aab
+*.ipa
 
 # IDE files
 .idea/

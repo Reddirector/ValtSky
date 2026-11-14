@@ -30,7 +30,7 @@ Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-
 | Package | Target | Size | Description | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
 | [**`valtsky-v2.2-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **70.8 MB** | **Universal Production APK with Multi-Socket TCP Pooling, Sleep Persistence & Instant Cold-Start** | `ee5c41e1805ebf2fe968a5f888e6fe1010f1546a652465e3e5ca1bc744ac8203` |
-| [**`valtsky-v2.2-release.ipa`**](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa) | Apple iOS 13.0+ (`arm64`) | **Production .ipa** | **Universal Sideloadable iOS IPA for AltStore, Sideloadly, TrollStore & Scarlet** | Automated CI Build |
+| [**`valtsky-v2.2-release.ipa`**](https://github.com/Reddirector/ValtSky/releases/download/v2.2/valtsky-v2.2-release.ipa) | Apple iOS 13.0+ (`arm64`) | **8.9 MB** | **Universal Sideloadable iOS IPA for AltStore, Sideloadly, TrollStore & Scarlet** | `4ecd60362ea2f236d32dbf8bd86f197e9751cbbf2c2584c9fec7cca0ca1a8802` |
 | [**`valtsky-v2.1-release.apk`**](https://github.com/Reddirector/ValtSky/releases/download/v2.1/valtsky-v2.1-release.apk) | Universal (`arm64-v8a`, `armeabi-v7a`, `x86_64`) | **68.2 MB** | Legacy Universal Production APK | `ae54b04f411cbf4862a086c801e07c143af8dbbffba87420849ddfd0764dfc2f` |
 
 ### 📱 iOS Sideloading Instructions:
@@ -86,11 +86,16 @@ Sliding-Window Pipeline & Ring Buffers        0ms Cold Start from Snapshot Fast-
 sha256sum valtsky-v2.2-release.apk
 # Expected output:
 # ee5c41e1805ebf2fe968a5f888e6fe1010f1546a652465e3e5ca1bc744ac8203  valtsky-v2.2-release.apk
+
+sha256sum valtsky-v2.2-release.ipa
+# Expected output:
+# 4ecd60362ea2f236d32dbf8bd86f197e9751cbbf2c2584c9fec7cca0ca1a8802  valtsky-v2.2-release.ipa
 ```
 
 ### Windows PowerShell Verification:
 ```powershell
 Get-FileHash -Algorithm SHA256 .\valtsky-v2.2-release.apk
+Get-FileHash -Algorithm SHA256 .\valtsky-v2.2-release.ipa
 ```
 
 ---
