@@ -33,16 +33,48 @@ jobs:
           cd valtsky_flutter
           flutter pub get
 
+      - name: Configure Unsigned Sideloading Build Settings
+        run: |
+          echo "CODE_SIGNING_ALLOWED=NO" >> valtsky_flutter/ios/Flutter/Release.xcconfig
+          echo "CODE_SIGNING_REQUIRED=NO" >> valtsky_flutter/ios/Flutter/Release.xcconfig
+          echo "CODE_SIGN_IDENTITY=" >> valtsky_flutter/ios/Flutter/Release.xcconfig
+          echo "EXPANDED_CODE_SIGN_IDENTITY=" >> valtsky_flutter/ios/Flutter/Release.xcconfig
+          cat valtsky_flutter/ios/Flutter/Release.xcconfig
+
       - name: Build iOS Application (Release, Unsigned)
         run: |
           cd valtsky_flutter
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign || {
+            echo "Flutter CLI required a team; running xcodebuild directly without code signing..."
+            cd ios
+            pod install
+            xcodebuild build \
+              -workspace Runner.xcworkspace \
+              -scheme Runner \
+              -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -derivedDataPath ../build/ios/DerivedData \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              EXPANDED_CODE_SIGN_IDENTITY=""
+            mkdir -p ../build/ios/iphoneos
+            cp -r ../build/ios/DerivedData/Build/Products/Release-iphoneos/Runner.app ../build/ios/iphoneos/
+          }
 
       - name: Package Payload into Sideloadable .ipa
         run: |
-          cd valtsky_flutter/build/ios/iphoneos
+          cd valtsky_flutter/build/ios
+          RUNNER_PATH=$(find . -name "Runner.app" -type d | head -n 1)
+          if [ -z "$RUNNER_PATH" ]; then
+            echo "ERROR: Runner.app not found!"
+            find . -maxdepth 4
+            exit 1
+          fi
+          echo "Found Runner.app at $RUNNER_PATH"
+          rm -rf Payload
           mkdir -p Payload
-          cp -r Runner.app Payload/
+          cp -r "$RUNNER_PATH" Payload/
           zip -r ../../../valtsky-v2.2-release.ipa Payload
           cd ../../..
           ls -lh valtsky-v2.2-release.ipa
